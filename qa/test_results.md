@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `fd2aa11` (`Merge main into feat/exploration and keep the focus tests.`). Exploration sources match `408edb3`. The new files are under `focus/`.
+Latest check: implementation commit `31c389b` (`Collect Exploration, Focus, and Tavily tests from the repo root.`). Parent `8ce60e9` closes the convergence loop through the focus ranker. The nineteen failures from `fd2aa11` still fail.
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 19 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 22 passed.
+Result: 20 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
 
 Failed:
 
+- `qa/tests/test_focus_url_citation.py::test_longer_url_is_not_cited_as_the_shorter_source`
 - `qa/tests/test_cache_metrics.py::test_cached_fetch_increments_cache_hits`
 - `qa/tests/test_provider_and_budget.py::test_possessive_coreweave_is_not_an_investment_in_coreweave`
 - `qa/tests/test_focus_providers.py::test_one_provider_failure_keeps_the_other_providers_pages`
@@ -34,13 +35,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 40 / 60 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 77 / 96 offline pytest tests. 2 live tests deselected. Focus unit tests: 22 / 22.
+1. Verified P0 requirements: 40 / 61 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 77 / 97 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: a cached page is stored with `cache_hits` at 0. `CoreWeave's rival` is stored as a supported investment in CoreWeave. The other blockers on `fd2aa11` still fail. See `qa/failure_report.md`.
-5. Integration readiness: not ready. Measured usage reports no cache hit for a page that did not come from the provider.
-6. Commit tested: `fd2aa11` (`Merge main into feat/exploration and keep the focus tests.`). Uncommitted implementation edits were not imported.
-7. Next validation priority: increment `usage.cache_hits` when a stored page is read from the fetch cache. Rerun `test_cached_fetch_increments_cache_hits` and the eighteen older failures.
+4. Blocking failures: `https://example.com/price-war` is rewritten to `[S1]-war` and cited as `https://example.com/price`. The nineteen failures from `fd2aa11` still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The new citation normalizer can attach a source to a different URL.
+6. Commit tested: `31c389b` (`Collect Exploration, Focus, and Tavily tests from the repo root.`).
+7. Next validation priority: replace a source URL only when it is the whole URL. Rerun `test_longer_url_is_not_cited_as_the_shorter_source` and the nineteen older failures.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 

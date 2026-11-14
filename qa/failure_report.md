@@ -1,10 +1,36 @@
 # Failure report
 
+## BLOCKER — A longer URL is rewritten into a citation of a shorter source
+
+Requirement: a citation names the page that was written. A URL that only begins with a source URL is not replaced with that source's marker.
+
+Snapshot: implementation `31c389b`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_url_citation.py::test_longer_url_is_not_cited_as_the_shorter_source --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live model is called. The only source is `https://example.com/price`. The model text is `A different page https://example.com/price-war says demand rose.` The call uses `strict_citations=False`.
+
+Expected: the markdown still contains `https://example.com/price-war`, it does not contain `[S1]-war`, and `cited_source_ids` is empty.
+
+Actual: `A different page [S1]-war says demand rose.` The Sources section lists `[S1]` as `https://example.com/price`. `cited_source_ids` is `("S1",)`.
+
+`focus/answer_composer.py` `_normalize_citations` lines 144–146 replace any occurrence of the source URL, including when it is only a prefix of a longer URL.
+
+Deterministic. This rewrite was added in `31c389b`.
+
+Suggested correction: replace a source URL only when it is the whole URL, not a prefix of a longer one. Do not cite `https://example.com/price` for `https://example.com/price-war`.
+
+The nineteen failures from `fd2aa11` still fail on this commit. Focus unit tests: 24 passed.
+
 ## BLOCKER — A cached page is stored with cache_hits at zero
 
 Requirement: measured usage counts a page that was read from the fetch cache. `cache_hits` is not left at zero when the provider fetch function was not called.
 
-Snapshot: implementation `fd2aa11`. Uncommitted edits in the implementation worktree were not imported.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -28,7 +54,7 @@ Suggested correction: when a stored page comes from the fetch cache, increment `
 
 Requirement: a supported edge matches the claim in the stored sentence. Cutting the sentence at CoreWeave does not make CoreWeave the object.
 
-Snapshot: implementation `fd2aa11`. Uncommitted edits in the implementation worktree were not imported.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -52,7 +78,7 @@ Suggested correction: require a word boundary after CoreWeave. Do not mark `inve
 
 Requirement: one provider failing does not drop passages the other provider returned. The failure is recorded.
 
-Snapshot: implementation `fd2aa11`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -76,7 +102,7 @@ Suggested correction: keep the passages from the provider that succeeded and rec
 
 Requirement: an unknown citation marker is rejected. A displayed answer does not contain a source id that was not supplied.
 
-Snapshot: implementation `fd2aa11`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -109,7 +135,7 @@ Suggested correction: reject the answer when any citation marker is not one of t
 
 Requirement: a follow-up query is not executed twice. The search budget is spent on a new query.
 
-Snapshot: implementation `fd2aa11`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -133,7 +159,7 @@ Suggested correction: do not append a follow-up that is already queued or alread
 
 Requirement: a failed URL is skipped. The answer path keeps the search snippet instead of the error page.
 
-Snapshot: implementation `fd2aa11`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -159,7 +185,7 @@ The thirteen exploration blockers below still fail on this commit. Exploration s
 
 Requirement: search counters and search history stay consistent. A network failure is recorded. The step does not abort after part of the write has committed.
 
-Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -183,7 +209,7 @@ Suggested correction: record the fetch error on the investigation and keep `sear
 
 Requirement: a network failure is explicit. Bounded retries are fine. After those retries the investigation records the failure instead of aborting the step.
 
-Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -207,7 +233,7 @@ Suggested correction: catch the search exception after the existing retries, set
 
 Requirement: a network failure is explicit. A fetch that returns an error and no page is not a successful investigation step.
 
-Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -231,7 +257,7 @@ Suggested correction: when every fetched page has an error or no content, set `b
 
 Requirement: a network failure is explicit, and a page that was not retrieved does not become a verified source. Citation integrity requires the quotation to come from the fetched source, not from an error body.
 
-Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`. Same behavior as `2c8133a`.
+Snapshot: implementation `31c389b`. Retested; this failure still occurs. Exploration sources match `408edb3`. Same behavior as `2c8133a`.
 
 Reproduction:
 
