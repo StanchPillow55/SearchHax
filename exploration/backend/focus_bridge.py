@@ -1,14 +1,20 @@
-"""Translate the exploration contract into Sam Hubler's focus ranker and back.
+"""Translate the exploration contract into the focus ranker and back.
 
-``focus/focus_attention.py`` is the convergence algorithm. It ranks passages.
-Exploration asks whether to stop or run one more search. This module is only
-that translation. It does not score evidence itself and it does not verify quotes.
+``focus/focus_attention.py`` is the intent-anchored selector. It ranks passages
+sequentially and may label one ``investigate``. Exploration asks whether to stop
+or run one more search. This module is only that translation. It does not score
+query attention, it does not verify quotes, and it does not call a provider.
+
+``decision_source`` is not set here. The convergence client records
+``convergence`` only when this body is actually consumed. A failed handoff stays
+``fallback``.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
 
+from exploration.backend.attention import REFERENCE_DATE
 from focus.focus_attention import FocusAttentionModel, Passage
 
 from shared.contracts import ConvergenceEvaluateRequest
@@ -46,16 +52,21 @@ def evaluate_with_focus(request: ConvergenceEvaluateRequest) -> dict:
             "budget_exhausted",
             "Focus controller declined another search because no search budget remains.",
         )
+    # No embedder: lexical scoring only, so this handoff cannot download a model.
     model = FocusAttentionModel(
         request.original_question,
         unresolved_questions=tuple(question.text for question in request.open_questions),
+        now=REFERENCE_DATE,
     )
+    if model.intent != request.original_question.strip():
+        raise ValueError("focus intent drifted from the original investigation question")
     decisions = model.rank(passages_from_request(request))
     investigate = [item for item in decisions if item.action == "investigate"]
     archive_ids = [item.passage.id for item in decisions if item.action == "archive"]
     include_ids = [item.passage.id for item in investigate]
     pending = [action for action in request.proposed_actions if not action.already_executed]
-    if investigate and pending:
+    # One search approval. Focus's own batch cap cannot raise the exploration budget.
+    if investigate and pending and request.budget.remaining_searches > 0:
         action = max(pending, key=lambda item: (item.utility, item.id))
         names = ", ".join(item.passage.id for item in investigate)
         return {
@@ -65,7 +76,8 @@ def evaluate_with_focus(request: ConvergenceEvaluateRequest) -> dict:
             "stop_reason": None,
             "rationale": (
                 f"Focus routed {names} to investigate. "
-                f"Approved the unused search action {action.id}."
+                f"Approved the unused search action {action.id}. "
+                "Investigation is not factual verification."
             ),
             "include_document_ids": include_ids,
             "archive_document_ids": archive_ids,
@@ -79,10 +91,19 @@ def evaluate_with_focus(request: ConvergenceEvaluateRequest) -> dict:
     elif all(item.action == "archive" for item in decisions):
         reason = "low_expected_value"
         detail = "Focus archived every candidate."
+    elif request.open_questions:
+        reason = "unresolved_uncertainty"
+        detail = (
+            "Focus marked candidates for consideration and did not request another search. "
+            "Consideration is not verification."
+        )
     else:
         reason = "evidence_sufficient"
-        detail = "Focus kept the candidates inside the current boundary and did not request another search."
-    summary = "; ".join(f"{item.passage.id}={item.action}" for item in decisions) or "no candidates"
+        detail = (
+            "Focus kept the candidates inside the current boundary and did not request another search. "
+            "Consideration is not verification."
+        )
+    summary = "; ".join(f"{item.passage.id}={item.action} ({item.reason})" for item in decisions) or "no candidates"
     return _stopped(
         request,
         reason,
