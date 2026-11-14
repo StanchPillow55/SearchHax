@@ -72,7 +72,23 @@ if st.button('Run research selection', type='primary'):
             # Exploration controls the bounded follow-up budget. A focused run
             # makes the initial call; an exploratory run can investigate novel
             # candidates with targeted queries.
-            run = run_research(model, retrieve, max_search_calls=effective_search_budget)
+            query_plan = ()
+            if not fast_preview:
+                query_plan = tuple(
+                    f'{question} {angle}' for angle in (
+                        'main causes evidence',
+                        'evidence challenging the premise',
+                        'recent statistics and trends',
+                        'consumer behavior and affordability',
+                        'industry response and forecasts',
+                    )
+                )
+            run = run_research(
+                model, retrieve,
+                max_search_calls=effective_search_budget,
+                max_stagnant_batches=effective_search_budget,
+                query_plan=query_plan,
+            )
             decisions = run.decisions
             search_queries = run.queries
 
@@ -149,24 +165,15 @@ if st.button('Run research selection', type='primary'):
                     'Attention': round(d.score.attention, 3),
                 } for d in decisions]
 
-                if semantic and len(decisions) >= 3:
-                    from sklearn.decomposition import PCA
-                    vectors = [model._passage_vector(d.passage) for d in decisions]
-                    coordinates = PCA(n_components=3).fit_transform(vectors)
-                    x_label, y_label, z_label = 'Context X', 'Context Y', 'Context Z'
-                    for row, coordinate in zip(rows, coordinates):
-                        row[x_label], row[y_label], row[z_label] = coordinate
-                    caption = 'Semantic context coordinates are PCA-reduced for display; full embeddings drive selection.'
-                else:
-                    # The fallback is intentionally interpretable and requires
-                    # no model download: each dot is positioned by the scores
-                    # that define the focus policy.
-                    x_label, y_label, z_label = 'Intent alignment', 'Novelty', 'Unresolved-question alignment'
-                    for row in rows:
-                        row[x_label] = row['Relevance']
-                        row[y_label] = row['Novelty']
-                        row[z_label] = row['Graph gap']
-                    caption = 'Default coordinates show intent alignment, novelty, and unresolved-question alignment.'
+                # Keep these axes tied to named policy scores in every mode.
+                # Embeddings may improve the scores, but PCA axes would not be
+                # interpretable as relevance or novelty.
+                x_label, y_label, z_label = 'Intent alignment', 'Novelty', 'Unresolved-question alignment'
+                for row in rows:
+                    row[x_label] = row['Relevance']
+                    row[y_label] = row['Novelty']
+                    row[z_label] = row['Graph gap']
+                caption = 'Axes are policy scores: intent alignment, evidence novelty, and unresolved-question alignment.'
 
                 plot_df = pd.DataFrame(rows)
                 figure = px.scatter_3d(
