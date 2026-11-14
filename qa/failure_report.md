@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A fetch exception commits the search and then leaves the counters at zero
+
+Requirement: search counters and search history stay consistent. A network failure is recorded. The step does not abort after part of the write has committed.
+
+Snapshot: implementation `408edb3`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_fetch_exception_does_not_split_the_search_counter --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Search returns one URL. Fetch raises `ConnectionError: fetch failed`. No live provider is called.
+
+Expected: `step` returns. Status is `stopped` or `blocked`. `searches_used`, `search_calls`, and the search-history length are equal. No document is stored.
+
+Actual: `step` raises `ConnectionError`. Status stays `created`. Search history contains `NVIDIA CoreWeave investment AI factories capacity 2026`. `searches_used` is 0 and `search_calls` is 0. `blocker` is empty. The next `step` sees no documents and `search_calls` 0, so it treats the investigation as not started and can search again.
+
+Location: `exploration/backend/orchestrator.py` `_record_search` runs before `_ingest_bundle`. `database.py` `insert_search` commits at line 422. The fetch exception is not caught, and the investigation row is never updated.
+
+Deterministic: yes.
+
+Suggested correction: record the fetch error on the investigation and keep `searches_used` equal to the history length. Do not leave status `created` after a committed search row.
+
 ## BLOCKER — A raised provider error escapes the investigation step
 
 Requirement: a network failure is explicit. Bounded retries are fine. After those retries the investigation records the failure instead of aborting the step.
