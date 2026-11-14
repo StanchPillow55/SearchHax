@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A denial that contains the investment wording becomes supported
+
+Requirement: unsupported assertions do not become supported graph edges. A quotation has to keep the sentence that qualifies it. Preserving only the matching clause drops the denial.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_negated_investment_sentence_is_not_supported --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The fetched page is: `The rumor that NVIDIA has invested $2 billion in CoreWeave is unconfirmed and is not in the filing.` No live provider is called.
+
+Expected: no relationship from that page has status `supported`.
+
+Actual: `invested_amount` `$2 billion` and `invested_in` `CoreWeave` are both `supported`. The stored span text is `NVIDIA has invested $2 billion in CoreWeave`, which is an exact substring, and the words `rumor` and `unconfirmed` are not in the span.
+
+Location: `exploration/backend/extraction.py` line 236 matches that clause. `_extract_disclosed_facts` at line 252 passes only `match.group(0)` to `_add_grounded`. `decide_status` then marks the clause supported because `NVIDIA` and `CoreWeave` occur inside it. The surrounding sentence is not checked.
+
+Deterministic: yes.
+
+Suggested correction: do not mark a match supported when the enclosing sentence negates or qualifies it (`rumor`, `unconfirmed`, `not in the filing`). Store the enclosing sentence as the span, or downgrade the edge to `insufficient`.
+
 ## BLOCKER — The web loop accepts two contradictory amounts as supported
 
 Requirement: contradictory claims are not accepted together without qualification. Provenance verification labels conflict. Story C does this. A normal web investigation does not.

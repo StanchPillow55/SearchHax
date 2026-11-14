@@ -183,3 +183,47 @@ def test_web_path_does_not_accept_two_amounts_as_supported(tmp_path, monkeypatch
         assert version.content[span.start : span.end] == span.text
     assert export.contradictions or len(supported) < 2
     assert not (len(supported) == 2 and not export.contradictions)
+
+
+def test_negated_investment_sentence_is_not_supported(tmp_path, monkeypatch):
+    """A denial that contains the investment wording is not a supported edge."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "The rumor that NVIDIA has invested $2 billion in CoreWeave is unconfirmed and is not in the filing."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-rumor",
+            "interaction_id": "int-rumor",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/rumor",
+                            "title": "Rumor",
+                            "summary": text,
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "rumor.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller not called")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    supported = [rel for rel in export.relationships if rel.status == "supported"]
+    assert supported == []
+    for span in export.evidence_spans:
+        version = next(item for item in export.document_versions if item.id == span.version_id)
+        assert version.content[span.start : span.end] == span.text
+        assert "unconfirmed" in version.content[max(0, span.start - 80) : span.end + 80] or span.text == ""
