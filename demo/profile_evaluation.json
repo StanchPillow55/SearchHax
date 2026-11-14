@@ -1,0 +1,247 @@
+{
+  "question": "Which LLM benchmark results show the fastest GPU inference for AI systems?",
+  "extraction_origin": "deterministic_fixture",
+  "network_calls": 0,
+  "provider_calls": 0,
+  "llm_calls": 0,
+  "search_calls": 0,
+  "b0_order": [
+    "doc_llm_benchmark",
+    "doc_ceramic_packaging",
+    "doc_smartphone_launch"
+  ],
+  "b3_order": [
+    "doc_ceramic_packaging",
+    "doc_llm_benchmark",
+    "doc_smartphone_launch"
+  ],
+  "b0_selected": "doc_llm_benchmark",
+  "b3_selected": "doc_ceramic_packaging",
+  "same_passage": false,
+  "comparison_note": "B0 ordinary query ranking and B3 knowledge-value ranking select different passages on this fixed corpus.",
+  "rankings": {
+    "B0": [
+      {
+        "fixture_id": "doc_llm_benchmark",
+        "document_id": "doc_48a7416c6fbcc37f",
+        "title": "LLM benchmark results for GPU inference",
+        "attention": {
+          "R": 1.0,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.9868544600938968,
+          "score": 0.6986854460093898
+        },
+        "knowledge_value": {
+          "R": 0.46153846153846156,
+          "N": 0.7,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.29038461538461535,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "fixture_id": "doc_ceramic_packaging",
+        "document_id": "doc_552370e7bcc6ac93",
+        "title": "Ceramic substrate note for advanced packaging",
+        "attention": {
+          "R": 0.08333333333333333,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.9868544600938968,
+          "score": 0.332018779342723
+        },
+        "knowledge_value": {
+          "R": 0.15384615384615385,
+          "N": 1.0,
+          "B": 1.0,
+          "I": 1.0,
+          "C": 0.0,
+          "score": 0.6884615384615385,
+          "bridge_trigger": "semiconductor",
+          "bridge_terms": [
+            "ceramic",
+            "packaging",
+            "substrate",
+            "warpage"
+          ]
+        }
+      },
+      {
+        "fixture_id": "doc_smartphone_launch",
+        "document_id": "doc_685e99906e9013b6",
+        "title": "Northwind Mobile smartphone launch",
+        "attention": {
+          "R": 0.08333333333333333,
+          "G": 0.0,
+          "D": 0.0,
+          "F": 0.9868544600938968,
+          "score": 0.13201877934272302
+        },
+        "knowledge_value": {
+          "R": 0.0,
+          "N": 1.0,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.25,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      }
+    ],
+    "B3": [
+      {
+        "fixture_id": "doc_ceramic_packaging",
+        "document_id": "doc_552370e7bcc6ac93",
+        "title": "Ceramic substrate note for advanced packaging",
+        "attention": {
+          "R": 0.08333333333333333,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.9868544600938968,
+          "score": 0.332018779342723
+        },
+        "knowledge_value": {
+          "R": 0.15384615384615385,
+          "N": 1.0,
+          "B": 1.0,
+          "I": 1.0,
+          "C": 0.0,
+          "score": 0.6884615384615385,
+          "bridge_trigger": "semiconductor",
+          "bridge_terms": [
+            "ceramic",
+            "packaging",
+            "substrate",
+            "warpage"
+          ]
+        }
+      },
+      {
+        "fixture_id": "doc_llm_benchmark",
+        "document_id": "doc_48a7416c6fbcc37f",
+        "title": "LLM benchmark results for GPU inference",
+        "attention": {
+          "R": 1.0,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.9868544600938968,
+          "score": 0.6986854460093898
+        },
+        "knowledge_value": {
+          "R": 0.46153846153846156,
+          "N": 0.7,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.29038461538461535,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "fixture_id": "doc_smartphone_launch",
+        "document_id": "doc_685e99906e9013b6",
+        "title": "Northwind Mobile smartphone launch",
+        "attention": {
+          "R": 0.08333333333333333,
+          "G": 0.0,
+          "D": 0.0,
+          "F": 0.9868544600938968,
+          "score": 0.13201877934272302
+        },
+        "knowledge_value": {
+          "R": 0.0,
+          "N": 1.0,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.25,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      }
+    ]
+  },
+  "surfaced_bridge": {
+    "fixture_id": "doc_ceramic_packaging",
+    "prior_interest": "advanced packaging",
+    "quotation": "Using a ceramic substrate leads to less package warpage for advanced packaging of advanced chips.",
+    "bridge_trigger": "semiconductor",
+    "bridge_terms": [
+      "ceramic",
+      "packaging",
+      "substrate",
+      "warpage"
+    ],
+    "reason": "Prior interest \"advanced packaging\" is connected by the quotation \"Using a ceramic substrate leads to less package warpage for advanced packaging of advanced chips.\". The semiconductor bridge supplied ceramic, packaging, substrate, warpage.",
+    "surfaced": true
+  },
+  "unique_facts": [
+    {
+      "subject": "ceramic substrate",
+      "predicate": "reduces_warpage",
+      "object": "less package warpage",
+      "fixture_id": "doc_ceramic_packaging",
+      "quotation": "Using a ceramic substrate leads to less package warpage for advanced packaging of advanced chips.",
+      "origin": "sourced_fixture"
+    }
+  ],
+  "attestations": [
+    {
+      "id": "claim_nvidia_coreweave",
+      "subject": "NVIDIA",
+      "predicate": "invested_in",
+      "object": "CoreWeave",
+      "text": "NVIDIA invested in CoreWeave.",
+      "origin": "profile_prior"
+    },
+    {
+      "id": "claim_capacity_expansion",
+      "subject": "capacity expansion",
+      "predicate": "expansion_status",
+      "object": "under investigation",
+      "text": "Capacity expansion is under investigation.",
+      "origin": "profile_prior"
+    }
+  ],
+  "profile_context": {
+    "id": "profile_ai_infrastructure",
+    "interests": [
+      "AI systems",
+      "GPUs",
+      "data-center capacity",
+      "semiconductor",
+      "advanced packaging"
+    ],
+    "goals": [
+      "Track GPUs supply across AI systems",
+      "Follow data-center capacity"
+    ],
+    "known_claims": [
+      {
+        "id": "claim_nvidia_coreweave",
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "text": "NVIDIA invested in CoreWeave."
+      },
+      {
+        "id": "claim_capacity_expansion",
+        "subject": "capacity expansion",
+        "predicate": "expansion_status",
+        "object": "under investigation",
+        "text": "Capacity expansion is under investigation."
+      }
+    ],
+    "unresolved_interests": [
+      "advanced packaging"
+    ],
+    "notes": "Static read-only fixture. Interests are AI systems, GPUs, data-center capacity, semiconductor, and the open interest advanced packaging. Ceramics are not a listed interest. Known claims are profile priors, not sourced web evidence."
+  },
+  "sample_note": "One fixed corpus. This is not a claim about Tavily /research or a general LLM. Iterative search is not the claim. This is not proof that FrontierGraph outperforms an LLM with equivalent memory."
+}

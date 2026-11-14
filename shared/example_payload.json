@@ -1,0 +1,241 @@
+{
+  "contract_version": "1.0.0",
+  "investigation": {
+    "id": "inv_example",
+    "question": "Do three articles independently substantiate a company's claim?",
+    "budget": {
+      "max_searches": 2,
+      "max_fetched_urls": 5,
+      "max_llm_calls": 10,
+      "searches_used": 1,
+      "urls_fetched": 0,
+      "llm_calls_used": 0,
+      "min_utility": 0.15,
+      "remaining_searches": 1,
+      "remaining_fetched_urls": 5,
+      "remaining_llm_calls": 10
+    },
+    "status": "stopped",
+    "stop_reason": "unresolved_uncertainty",
+    "decision_source": "fallback",
+    "decision_rationale": "Example only. The convergence endpoint was not called to build this file.",
+    "session_id": null,
+    "usage": {
+      "session_id": null,
+      "interaction_ids": [],
+      "search_calls": 0,
+      "provider_calls": 0,
+      "urls_fetched": 0,
+      "fetch_calls": 0,
+      "llm_calls": 0,
+      "llm_tokens": null,
+      "latency_ms": 0,
+      "cost_usd": null,
+      "providers_used": [],
+      "network_calls": 0,
+      "cache_hits": 0,
+      "corpus_documents": 0,
+      "followups_executed": 0,
+      "rejected_ungrounded_citations": 0,
+      "dry_run": false,
+      "configuration": "example"
+    },
+    "created_at": "2026-11-14T20:00:00Z",
+    "updated_at": "2026-11-14T20:00:00Z",
+    "live_extraction_blocked": false,
+    "blocker": null,
+    "metadata": {
+      "example": true,
+      "note": "Synthetic contract example. Not a live Telem investigation."
+    }
+  },
+  "documents": [
+    {
+      "id": "doc_example",
+      "canonical_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics announcement",
+      "origin_id": "LF-PR-2026-031",
+      "providers": [
+        "fixture"
+      ]
+    }
+  ],
+  "document_versions": [
+    {
+      "id": "ver_example",
+      "document_id": "doc_example",
+      "content_hash": "examplehash",
+      "fetched_at": "2026-11-14T20:00:00Z",
+      "content": "Lumenarc Dynamics closed a $400 million Series D.",
+      "publish_date": "2026-03-04"
+    }
+  ],
+  "evidence_spans": [
+    {
+      "id": "span_example",
+      "version_id": "ver_example",
+      "document_id": "doc_example",
+      "text": "$400 million",
+      "start": 27,
+      "end": 39,
+      "content_hash": "examplehash",
+      "attention": {
+        "R": 1.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.0,
+        "score": 0.4
+      },
+      "quote_valid": true
+    }
+  ],
+  "entities": [
+    {
+      "id": "ent_lumenarc",
+      "name": "Lumenarc Dynamics",
+      "type": "organization",
+      "aliases": []
+    },
+    {
+      "id": "ent_amount",
+      "name": "$400 million",
+      "type": "amount",
+      "aliases": []
+    }
+  ],
+  "claims": [
+    {
+      "id": "clm_example",
+      "text": "Lumenarc Dynamics closed a $400 million Series D.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_example",
+      "span_id": "span_example"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel_example",
+      "subject_id": "ent_lumenarc",
+      "predicate": "raised_amount",
+      "object_id": "ent_amount",
+      "claim_id": "clm_example",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_example",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "$400 million",
+      "evidence_link_ids": [
+        "link_example"
+      ],
+      "source_document_ids": [
+        "doc_example"
+      ],
+      "notes": ""
+    }
+  ],
+  "evidence_links": [
+    {
+      "id": "link_example",
+      "claim_id": "clm_example",
+      "relationship_id": "rel_example",
+      "evidence_span_id": "span_example",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    }
+  ],
+  "provenance": [
+    {
+      "id": "prov_example",
+      "document_id": "doc_example",
+      "provider": "fixture",
+      "providers": [
+        "fixture"
+      ],
+      "origin_url": null,
+      "origin_id": "LF-PR-2026-031",
+      "origin_kind": "original",
+      "cited_origin_ids": [],
+      "shared_origin_group": "LF-PR-2026-031",
+      "notes": ""
+    }
+  ],
+  "unresolved_questions": [
+    {
+      "id": "q_example",
+      "text": "Whether any source independent of wire LF-PR-2026-031 confirms the amount.",
+      "importance": 0.9,
+      "missing_evidence": 1.0,
+      "related_entity_ids": [],
+      "kind": "independence"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_example",
+      "document_id": "doc_example",
+      "url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics announcement",
+      "snippet": "Lumenarc Dynamics closed a $400 million Series D.",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 1.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.0,
+        "score": 0.4
+      },
+      "publish_date": "2026-03-04"
+    }
+  ],
+  "actions": [
+    {
+      "id": "act_example",
+      "query": "independent primary confirmation of the Lumenarc Dynamics Series D amount",
+      "reason": "The open independence question has the highest importance times missing evidence.",
+      "target_question_id": "q_example",
+      "utility": 0.9,
+      "already_executed": false,
+      "result_summary": ""
+    }
+  ],
+  "contradictions": [],
+  "origin_clusters": [
+    {
+      "origin_id": "LF-PR-2026-031",
+      "document_ids": [
+        "doc_example"
+      ],
+      "original_document_ids": [
+        "doc_example"
+      ],
+      "derivative_document_ids": []
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "cp_example",
+      "investigation_id": "inv_example",
+      "step": 1,
+      "state_json": {
+        "question": "Do three articles independently substantiate a company's claim?"
+      },
+      "stop_reason": "unresolved_uncertainty",
+      "created_at": "2026-11-14T20:00:00Z",
+      "summary": "Example checkpoint."
+    }
+  ],
+  "decision": {
+    "investigation_id": "inv_example",
+    "approved_action": null,
+    "stop": true,
+    "stop_reason": "unresolved_uncertainty",
+    "rationale": "Example payload. decision_source is fallback because this file was not produced by the controller.",
+    "decision_source": "fallback",
+    "include_document_ids": [],
+    "archive_document_ids": []
+  }
+}

@@ -1,0 +1,1844 @@
+{
+  "contract_version": "1.0.0",
+  "investigation": {
+    "id": "inv_1045a838ece0411f",
+    "question": "Do three articles independently substantiate a company's claim?",
+    "budget": {
+      "max_searches": 2,
+      "max_fetched_urls": 5,
+      "max_llm_calls": 10,
+      "searches_used": 0,
+      "urls_fetched": 0,
+      "llm_calls_used": 0,
+      "min_utility": 0.15,
+      "remaining_searches": 2,
+      "remaining_fetched_urls": 5,
+      "remaining_llm_calls": 10
+    },
+    "status": "stopped",
+    "stop_reason": "low_expected_value",
+    "decision_source": "convergence",
+    "decision_rationale": "Focus archived every candidate. Decisions: cand_bd30d5d0522c2a02=archive; cand_8013839138c969d1=archive; cand_ace3066ee576643e=archive; cand_d0920470d3bc4fd1=archive.",
+    "session_id": null,
+    "usage": {
+      "session_id": null,
+      "interaction_ids": [],
+      "search_calls": 0,
+      "provider_calls": 0,
+      "urls_fetched": 0,
+      "fetch_calls": 0,
+      "llm_calls": 0,
+      "llm_tokens": null,
+      "latency_ms": 11,
+      "cost_usd": null,
+      "providers_used": [
+        "fixture"
+      ],
+      "network_calls": 0,
+      "cache_hits": 0,
+      "corpus_documents": 4,
+      "followups_executed": 0,
+      "rejected_ungrounded_citations": 0,
+      "dry_run": false,
+      "configuration": "B3"
+    },
+    "created_at": "2026-11-14T22:31:54.799032Z",
+    "updated_at": "2026-11-14T22:31:54.810820Z",
+    "live_extraction_blocked": false,
+    "blocker": null,
+    "metadata": {
+      "mode": "story_c",
+      "extraction_origin": "deterministic_fixture",
+      "llm_relationships": 0
+    }
+  },
+  "documents": [
+    {
+      "id": "doc_3f2a75bb069f1c3b",
+      "canonical_url": "https://northline.example/2026/03/lumenarc-helios",
+      "title": "Northline Desk: Lumenarc Dynamics Series D",
+      "origin_id": "LF-PR-2026-031",
+      "providers": [
+        "fixture"
+      ]
+    },
+    {
+      "id": "doc_5fbbe8344dbae98d",
+      "canonical_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics Announces Helios Array and $400 Million Series D",
+      "origin_id": "LF-PR-2026-031",
+      "providers": [
+        "fixture"
+      ]
+    },
+    {
+      "id": "doc_62df11034b2c30e1",
+      "canonical_url": "https://harborbrief.example/lumenarc-helios-array",
+      "title": "Harbor Brief: Lumenarc Dynamics Helios Array",
+      "origin_id": "LF-PR-2026-031",
+      "providers": [
+        "fixture"
+      ]
+    },
+    {
+      "id": "doc_c175b5fb7c341cdd",
+      "canonical_url": "https://voltstreet.example/markets/lumenarc-series-d",
+      "title": "VoltStreet Markets: Lumenarc Dynamics Series D",
+      "origin_id": "LF-PR-2026-031",
+      "providers": [
+        "fixture"
+      ]
+    }
+  ],
+  "document_versions": [
+    {
+      "id": "ver_3dcf8dd29bf47bcd",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "content_hash": "68e11706316018e9ed6c162fabe895e87e00ed0a80899282857b0611f2abca54",
+      "fetched_at": "2026-11-14T22:31:54.800102Z",
+      "content": "FOR IMMEDIATE RELEASE\n\nWire ID: LF-PR-2026-031\n\nRed Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.\n\nThe company said the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.\n\nThe Helios Array's first campus is in Red Mesa, Arizona.\n\nChief Executive Officer Mara Ellison said the financing funds construction of that first campus.\n\nThis document is the original Lumenarc Dynamics announcement for wire ID LF-PR-2026-031.\n",
+      "publish_date": "2026-03-04"
+    },
+    {
+      "id": "ver_79194612fdb6f8ce",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "content_hash": "990a12d5e08fa25a757370d7c1aedd9b10d351c4c8df5dda50429bb15a90297a",
+      "fetched_at": "2026-11-14T22:31:54.800753Z",
+      "content": "Northline Desk — March 5, 2026\n\nLumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).\n\nThe release says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.\n\nThe release places the Helios Array's first campus in Red Mesa, Arizona.\n\nNorthline is republishing that Lumenarc Dynamics announcement and does not add a second primary financing document.\n",
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "ver_655ab8c7a7118dea",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "content_hash": "7ee51a36b24861b29f760a759e33d28ff405dadf57990dd5a776c7f06031ff9d",
+      "fetched_at": "2026-11-14T22:31:54.801018Z",
+      "content": "VoltStreet Markets — March 5, 2026\n\nLumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).\n\nThe cited release says the Helios Array is planned to reach 1.8 GW by 2029.\n\nThe cited release places the Helios Array's first campus in Red Mesa, Arizona.\n\nVoltStreet cites wire ID LF-PR-2026-031 and does not cite a second primary document.\n",
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "ver_ef9a3293cca55572",
+      "document_id": "doc_62df11034b2c30e1",
+      "content_hash": "44703910c852ddc5248143cbe027366c203dc5807d407e74fb557cc9755b2143",
+      "fetched_at": "2026-11-14T22:31:54.801266Z",
+      "content": "Harbor Brief — March 6, 2026\n\nA March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.\n\nThe announcement says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.\n\nThe announcement places the Helios Array's first campus in Red Mesa, Arizona.\n\nHarbor Brief attributes the financing figures in this article to that single Lumenarc Dynamics press release.\n",
+      "publish_date": "2026-03-06"
+    }
+  ],
+  "evidence_spans": [
+    {
+      "id": "span_0c7af4632d78e810",
+      "version_id": "ver_655ab8c7a7118dea",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "text": "Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "start": 36,
+      "end": 247,
+      "content_hash": "52909b56860365ea5005c7ede96dc2fe83c183ac20db0864f5fd4b2e44f55e29",
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.1361099932930919
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_1d1e664fcbf8dbe9",
+      "version_id": "ver_655ab8c7a7118dea",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "text": "The cited release says the Helios Array is planned to reach 1.8 GW by 2029.",
+      "start": 249,
+      "end": 324,
+      "content_hash": "9feeacd6465ba6538157b1b71ad57a068c8ac91351e55cf57a6ab9c698e207c8",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.07896713615023475
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_37ff5bdf9aa5be24",
+      "version_id": "ver_ef9a3293cca55572",
+      "document_id": "doc_62df11034b2c30e1",
+      "text": "The announcement places the Helios Array's first campus in Red Mesa, Arizona.",
+      "start": 339,
+      "end": 416,
+      "content_hash": "98735c90d6db2710aa5c18f5eed0241e60780a1e991afb5f2bf9fe7595a0694d",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7906103286384977,
+        "score": 0.07906103286384977
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_44da78fca64f6572",
+      "version_id": "ver_79194612fdb6f8ce",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "text": "Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "start": 32,
+      "end": 247,
+      "content_hash": "db42b114c2af69a75cf09b1348d894442d336b8d81b60f095de8f2652c487e82",
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.1361099932930919
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_4fde8eb0ec12ad0d",
+      "version_id": "ver_ef9a3293cca55572",
+      "document_id": "doc_62df11034b2c30e1",
+      "text": "A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.",
+      "start": 30,
+      "end": 241,
+      "content_hash": "579685b83ddcaec37575e0a425e382a5620d8aef99f1876f71f0cedc3619a424",
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7906103286384977,
+        "score": 0.1362038900067069
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_5a51c0046ebe7fa5",
+      "version_id": "ver_3dcf8dd29bf47bcd",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "text": "Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.",
+      "start": 48,
+      "end": 245,
+      "content_hash": "ee06e9e60c169d304fdb9825046955ac5fe5042f255ab769928ab916c87d92a0",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.07887323943661972
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_5ede29ffa50cd5f4",
+      "version_id": "ver_ef9a3293cca55572",
+      "document_id": "doc_62df11034b2c30e1",
+      "text": "The announcement says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "start": 243,
+      "end": 337,
+      "content_hash": "3bb90e4f83d3c9e20a3db5d09e91c23222bec2278569f7ea66b2776fc7acff05",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7906103286384977,
+        "score": 0.07906103286384977
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_7bce0427cda88792",
+      "version_id": "ver_3dcf8dd29bf47bcd",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "text": "The Helios Array's first campus is in Red Mesa, Arizona.",
+      "start": 338,
+      "end": 394,
+      "content_hash": "d9f4314fe2f5521a19bcde47b454d5f5588b39ad0d595345c03bc2bca3403143",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.07887323943661972
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_94c9ba419623e447",
+      "version_id": "ver_655ab8c7a7118dea",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "text": "The cited release places the Helios Array's first campus in Red Mesa, Arizona.",
+      "start": 326,
+      "end": 404,
+      "content_hash": "5fe04c668e1b1ba111a2f47141c9ac011c0e9ca2306cd6c455060b18ea75e3d5",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.07896713615023475
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_c7f24178f8759920",
+      "version_id": "ver_79194612fdb6f8ce",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "text": "The release says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "start": 249,
+      "end": 338,
+      "content_hash": "9340c8ebc0986d0e22f59d59847205de2b912500e947f435e5050f101d4cc808",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.07896713615023475
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_e2c090ab55a57609",
+      "version_id": "ver_3dcf8dd29bf47bcd",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "text": "This document is the original Lumenarc Dynamics announcement for wire ID LF-PR-2026-031.",
+      "start": 494,
+      "end": 582,
+      "content_hash": "6a506c123886793b0cd08a00dd1e9170eee25dd4fad14b07da088c8285a76c5f",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.07887323943661972
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_f686330a3d143be3",
+      "version_id": "ver_3dcf8dd29bf47bcd",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "text": "The company said the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "start": 247,
+      "end": 336,
+      "content_hash": "e0ec7ff6732109144e344daa0806e937272dc5b06506b98d926f165cc2b2d7f8",
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.13601609657947686
+      },
+      "quote_valid": true
+    },
+    {
+      "id": "span_f92bb6ecb75992f1",
+      "version_id": "ver_79194612fdb6f8ce",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "text": "The release places the Helios Array's first campus in Red Mesa, Arizona.",
+      "start": 340,
+      "end": 412,
+      "content_hash": "5680aafaa2404888687d0fea772606ccb24458fd7fb8609a181d792fc04fbda2",
+      "attention": {
+        "R": 0.0,
+        "G": 0.0,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.07896713615023475
+      },
+      "quote_valid": true
+    }
+  ],
+  "entities": [
+    {
+      "id": "ent_057e01e06ab40e78",
+      "name": "Red Mesa, Arizona",
+      "type": "place",
+      "aliases": []
+    },
+    {
+      "id": "ent_0b82fdf83a718b00",
+      "name": "Lumenarc Dynamics",
+      "type": "organization",
+      "aliases": []
+    },
+    {
+      "id": "ent_18268b09a7b445f1",
+      "name": "Helios Array",
+      "type": "program",
+      "aliases": []
+    },
+    {
+      "id": "ent_23c847a12a3f5c33",
+      "name": "1.8 GW by 2029",
+      "type": "measurement",
+      "aliases": []
+    },
+    {
+      "id": "ent_42b52d0ee7499e41",
+      "name": "Northwind Capital",
+      "type": "organization",
+      "aliases": []
+    },
+    {
+      "id": "ent_b5fdf7bed4754180",
+      "name": "1.8 GW of compute capacity by 2029",
+      "type": "measurement",
+      "aliases": []
+    },
+    {
+      "id": "ent_c8a9e3bb3b38f433",
+      "name": "$480 million",
+      "type": "amount",
+      "aliases": []
+    },
+    {
+      "id": "ent_cf629504e15e904d",
+      "name": "$400 million",
+      "type": "amount",
+      "aliases": []
+    },
+    {
+      "id": "ent_f3b06e793a3f80e8",
+      "name": "LF-PR-2026-031",
+      "type": "identifier",
+      "aliases": []
+    }
+  ],
+  "claims": [
+    {
+      "id": "clm_0aee0915672a2d39",
+      "text": "The announcement places the Helios Array's first campus in Red Mesa, Arizona.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "span_id": "span_37ff5bdf9aa5be24"
+    },
+    {
+      "id": "clm_0e2d9b30de5255c9",
+      "text": "The cited release places the Helios Array's first campus in Red Mesa, Arizona.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "span_id": "span_94c9ba419623e447"
+    },
+    {
+      "id": "clm_406360b5f2c03fc1",
+      "text": "Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_5a51c0046ebe7fa5"
+    },
+    {
+      "id": "clm_5140f3c891ada961",
+      "text": "Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_5a51c0046ebe7fa5"
+    },
+    {
+      "id": "clm_5e6fe6b0dc8fda88",
+      "text": "A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "span_id": "span_4fde8eb0ec12ad0d"
+    },
+    {
+      "id": "clm_60a244dde997459a",
+      "text": "Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "span_id": "span_0c7af4632d78e810"
+    },
+    {
+      "id": "clm_62c2923d9b8706a3",
+      "text": "The release says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "span_id": "span_c7f24178f8759920"
+    },
+    {
+      "id": "clm_7b888d03a56c1193",
+      "text": "Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "span_id": "span_44da78fca64f6572"
+    },
+    {
+      "id": "clm_8802a3083d9823c4",
+      "text": "Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "span_id": "span_0c7af4632d78e810"
+    },
+    {
+      "id": "clm_991e86b7cf26664a",
+      "text": "Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_5a51c0046ebe7fa5"
+    },
+    {
+      "id": "clm_ab8f1245c828b6a1",
+      "text": "Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "span_id": "span_44da78fca64f6572"
+    },
+    {
+      "id": "clm_b10fb8750b3485b4",
+      "text": "This document is the original Lumenarc Dynamics announcement for wire ID LF-PR-2026-031.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_e2c090ab55a57609"
+    },
+    {
+      "id": "clm_b5385ce1d944aff4",
+      "text": "The release places the Helios Array's first campus in Red Mesa, Arizona.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "span_id": "span_f92bb6ecb75992f1"
+    },
+    {
+      "id": "clm_bf2cac646493f389",
+      "text": "The announcement says the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "span_id": "span_5ede29ffa50cd5f4"
+    },
+    {
+      "id": "clm_ce3f067123be97c9",
+      "text": "A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "span_id": "span_4fde8eb0ec12ad0d"
+    },
+    {
+      "id": "clm_d6b0456067754443",
+      "text": "The company said the Helios Array is planned to reach 1.8 GW of compute capacity by 2029.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_f686330a3d143be3"
+    },
+    {
+      "id": "clm_df25a566f42b1567",
+      "text": "A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "span_id": "span_4fde8eb0ec12ad0d"
+    },
+    {
+      "id": "clm_e4c7c865c099332d",
+      "text": "Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "contradicted",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "span_id": "span_0c7af4632d78e810"
+    },
+    {
+      "id": "clm_e517ae85ad72e9f2",
+      "text": "The cited release says the Helios Array is planned to reach 1.8 GW by 2029.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "span_id": "span_1d1e664fcbf8dbe9"
+    },
+    {
+      "id": "clm_edff90162a6201b5",
+      "text": "Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "span_id": "span_44da78fca64f6572"
+    },
+    {
+      "id": "clm_ef8137e024786b30",
+      "text": "The Helios Array's first campus is in Red Mesa, Arizona.",
+      "scope": "",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "span_id": "span_7bce0427cda88792"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel_0bb19b25ebef3b5d",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "raised_amount",
+      "object_id": "ent_cf629504e15e904d",
+      "claim_id": "clm_7b888d03a56c1193",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "$400 million",
+      "evidence_link_ids": [
+        "link_ed18f3045bc20914"
+      ],
+      "source_document_ids": [
+        "doc_3f2a75bb069f1c3b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_1ad8c9be28605bde",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "led_by",
+      "object_id": "ent_42b52d0ee7499e41",
+      "claim_id": "clm_406360b5f2c03fc1",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "Northwind Capital",
+      "evidence_link_ids": [
+        "link_7a67e9a6d6b65ee8"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_1cec50f90c22fac6",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "cites_wire",
+      "object_id": "ent_f3b06e793a3f80e8",
+      "claim_id": "clm_b10fb8750b3485b4",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "LF-PR-2026-031",
+      "evidence_link_ids": [
+        "link_a393fc51baac0226"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_377d0a43fb8f9544",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "led_by",
+      "object_id": "ent_42b52d0ee7499e41",
+      "claim_id": "clm_8802a3083d9823c4",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "Northwind Capital",
+      "evidence_link_ids": [
+        "link_932dcd6d9213248c"
+      ],
+      "source_document_ids": [
+        "doc_c175b5fb7c341cdd"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_37fa7bd2a7d02be8",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "led_by",
+      "object_id": "ent_42b52d0ee7499e41",
+      "claim_id": "clm_5e6fe6b0dc8fda88",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "Northwind Capital",
+      "evidence_link_ids": [
+        "link_964f9fc2b13fcbcc"
+      ],
+      "source_document_ids": [
+        "doc_62df11034b2c30e1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_4b0fa1fbed45d65d",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "first_campus",
+      "object_id": "ent_057e01e06ab40e78",
+      "claim_id": "clm_b5385ce1d944aff4",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "subject_name": "Helios Array",
+      "object_name": "Red Mesa, Arizona",
+      "evidence_link_ids": [
+        "link_d61e04d014f2bd19"
+      ],
+      "source_document_ids": [
+        "doc_3f2a75bb069f1c3b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_5078cacfcf2abf3d",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "planned_capacity",
+      "object_id": "ent_b5fdf7bed4754180",
+      "claim_id": "clm_bf2cac646493f389",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "subject_name": "Helios Array",
+      "object_name": "1.8 GW of compute capacity by 2029",
+      "evidence_link_ids": [
+        "link_d92771780cc979f1"
+      ],
+      "source_document_ids": [
+        "doc_62df11034b2c30e1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_50e48212d638334d",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "cites_wire",
+      "object_id": "ent_f3b06e793a3f80e8",
+      "claim_id": "clm_df25a566f42b1567",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "LF-PR-2026-031",
+      "evidence_link_ids": [
+        "link_3cbef803937a76b6"
+      ],
+      "source_document_ids": [
+        "doc_62df11034b2c30e1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_5183aa8f08ac8d38",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "first_campus",
+      "object_id": "ent_057e01e06ab40e78",
+      "claim_id": "clm_0aee0915672a2d39",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "subject_name": "Helios Array",
+      "object_name": "Red Mesa, Arizona",
+      "evidence_link_ids": [
+        "link_38acfea69bfb8749"
+      ],
+      "source_document_ids": [
+        "doc_62df11034b2c30e1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_65c40158f255ba5d",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "announced",
+      "object_id": "ent_18268b09a7b445f1",
+      "claim_id": "clm_991e86b7cf26664a",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "Helios Array",
+      "evidence_link_ids": [
+        "link_8b005c489e01b395"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_6c0da989b71f2fb5",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "cites_wire",
+      "object_id": "ent_f3b06e793a3f80e8",
+      "claim_id": "clm_60a244dde997459a",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "LF-PR-2026-031",
+      "evidence_link_ids": [
+        "link_38f23ba8bafb22e6"
+      ],
+      "source_document_ids": [
+        "doc_c175b5fb7c341cdd"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_7334b26e5ee3a0bf",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "planned_capacity",
+      "object_id": "ent_b5fdf7bed4754180",
+      "claim_id": "clm_62c2923d9b8706a3",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "subject_name": "Helios Array",
+      "object_name": "1.8 GW of compute capacity by 2029",
+      "evidence_link_ids": [
+        "link_d8e75417df8c556f"
+      ],
+      "source_document_ids": [
+        "doc_3f2a75bb069f1c3b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_7a5c4176be3c554d",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "cites_wire",
+      "object_id": "ent_f3b06e793a3f80e8",
+      "claim_id": "clm_ab8f1245c828b6a1",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "LF-PR-2026-031",
+      "evidence_link_ids": [
+        "link_cc497c5411efc54c"
+      ],
+      "source_document_ids": [
+        "doc_3f2a75bb069f1c3b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_801b59a8e97c091d",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "raised_amount",
+      "object_id": "ent_cf629504e15e904d",
+      "claim_id": "clm_5140f3c891ada961",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "$400 million",
+      "evidence_link_ids": [
+        "link_f8a26cf1e606d541"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_85cbc02e723f1363",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "led_by",
+      "object_id": "ent_42b52d0ee7499e41",
+      "claim_id": "clm_edff90162a6201b5",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "Northwind Capital",
+      "evidence_link_ids": [
+        "link_19ae89490ad5ac99"
+      ],
+      "source_document_ids": [
+        "doc_3f2a75bb069f1c3b"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_909849dcf3fc99fe",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "planned_capacity",
+      "object_id": "ent_b5fdf7bed4754180",
+      "claim_id": "clm_d6b0456067754443",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Helios Array",
+      "object_name": "1.8 GW of compute capacity by 2029",
+      "evidence_link_ids": [
+        "link_b94529f114c0fb5e"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_aa5ebdcf41a09502",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "first_campus",
+      "object_id": "ent_057e01e06ab40e78",
+      "claim_id": "clm_ef8137e024786b30",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "subject_name": "Helios Array",
+      "object_name": "Red Mesa, Arizona",
+      "evidence_link_ids": [
+        "link_a4152670b99629d9"
+      ],
+      "source_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_c115afa8e2d63c89",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "first_campus",
+      "object_id": "ent_057e01e06ab40e78",
+      "claim_id": "clm_0e2d9b30de5255c9",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "subject_name": "Helios Array",
+      "object_name": "Red Mesa, Arizona",
+      "evidence_link_ids": [
+        "link_17395fba854f1125"
+      ],
+      "source_document_ids": [
+        "doc_c175b5fb7c341cdd"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_cb03f141829aefd0",
+      "subject_id": "ent_18268b09a7b445f1",
+      "predicate": "planned_capacity",
+      "object_id": "ent_23c847a12a3f5c33",
+      "claim_id": "clm_e517ae85ad72e9f2",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "subject_name": "Helios Array",
+      "object_name": "1.8 GW by 2029",
+      "evidence_link_ids": [
+        "link_fa07cd393177563d"
+      ],
+      "source_document_ids": [
+        "doc_c175b5fb7c341cdd"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_e216192fe2d69c40",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "raised_amount",
+      "object_id": "ent_cf629504e15e904d",
+      "claim_id": "clm_ce3f067123be97c9",
+      "kind": "factual",
+      "status": "supported",
+      "document_id": "doc_62df11034b2c30e1",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "$400 million",
+      "evidence_link_ids": [
+        "link_21f1db6e1f30c567"
+      ],
+      "source_document_ids": [
+        "doc_62df11034b2c30e1"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "rel_f94edcdf552502dd",
+      "subject_id": "ent_0b82fdf83a718b00",
+      "predicate": "raised_amount",
+      "object_id": "ent_c8a9e3bb3b38f433",
+      "claim_id": "clm_e4c7c865c099332d",
+      "kind": "factual",
+      "status": "contradicted",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "subject_name": "Lumenarc Dynamics",
+      "object_name": "$480 million",
+      "evidence_link_ids": [
+        "link_e55fee7de5975824"
+      ],
+      "source_document_ids": [
+        "doc_c175b5fb7c341cdd"
+      ],
+      "notes": "Contradicts the original raised_amount value $400 million with $480 million. The quotation is still an exact substring of the derivative."
+    }
+  ],
+  "evidence_links": [
+    {
+      "id": "link_17395fba854f1125",
+      "claim_id": "clm_0e2d9b30de5255c9",
+      "relationship_id": "rel_c115afa8e2d63c89",
+      "evidence_span_id": "span_94c9ba419623e447",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_19ae89490ad5ac99",
+      "claim_id": "clm_edff90162a6201b5",
+      "relationship_id": "rel_85cbc02e723f1363",
+      "evidence_span_id": "span_44da78fca64f6572",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_21f1db6e1f30c567",
+      "claim_id": "clm_ce3f067123be97c9",
+      "relationship_id": "rel_e216192fe2d69c40",
+      "evidence_span_id": "span_4fde8eb0ec12ad0d",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_38acfea69bfb8749",
+      "claim_id": "clm_0aee0915672a2d39",
+      "relationship_id": "rel_5183aa8f08ac8d38",
+      "evidence_span_id": "span_37ff5bdf9aa5be24",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_38f23ba8bafb22e6",
+      "claim_id": "clm_60a244dde997459a",
+      "relationship_id": "rel_6c0da989b71f2fb5",
+      "evidence_span_id": "span_0c7af4632d78e810",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_3cbef803937a76b6",
+      "claim_id": "clm_df25a566f42b1567",
+      "relationship_id": "rel_50e48212d638334d",
+      "evidence_span_id": "span_4fde8eb0ec12ad0d",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_7a67e9a6d6b65ee8",
+      "claim_id": "clm_406360b5f2c03fc1",
+      "relationship_id": "rel_1ad8c9be28605bde",
+      "evidence_span_id": "span_5a51c0046ebe7fa5",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_8b005c489e01b395",
+      "claim_id": "clm_991e86b7cf26664a",
+      "relationship_id": "rel_65c40158f255ba5d",
+      "evidence_span_id": "span_5a51c0046ebe7fa5",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_932dcd6d9213248c",
+      "claim_id": "clm_8802a3083d9823c4",
+      "relationship_id": "rel_377d0a43fb8f9544",
+      "evidence_span_id": "span_0c7af4632d78e810",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_964f9fc2b13fcbcc",
+      "claim_id": "clm_5e6fe6b0dc8fda88",
+      "relationship_id": "rel_37fa7bd2a7d02be8",
+      "evidence_span_id": "span_4fde8eb0ec12ad0d",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_a393fc51baac0226",
+      "claim_id": "clm_b10fb8750b3485b4",
+      "relationship_id": "rel_1cec50f90c22fac6",
+      "evidence_span_id": "span_e2c090ab55a57609",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_a4152670b99629d9",
+      "claim_id": "clm_ef8137e024786b30",
+      "relationship_id": "rel_aa5ebdcf41a09502",
+      "evidence_span_id": "span_7bce0427cda88792",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_b94529f114c0fb5e",
+      "claim_id": "clm_d6b0456067754443",
+      "relationship_id": "rel_909849dcf3fc99fe",
+      "evidence_span_id": "span_f686330a3d143be3",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_cc497c5411efc54c",
+      "claim_id": "clm_ab8f1245c828b6a1",
+      "relationship_id": "rel_7a5c4176be3c554d",
+      "evidence_span_id": "span_44da78fca64f6572",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_d61e04d014f2bd19",
+      "claim_id": "clm_b5385ce1d944aff4",
+      "relationship_id": "rel_4b0fa1fbed45d65d",
+      "evidence_span_id": "span_f92bb6ecb75992f1",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_d8e75417df8c556f",
+      "claim_id": "clm_62c2923d9b8706a3",
+      "relationship_id": "rel_7334b26e5ee3a0bf",
+      "evidence_span_id": "span_c7f24178f8759920",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_d92771780cc979f1",
+      "claim_id": "clm_bf2cac646493f389",
+      "relationship_id": "rel_5078cacfcf2abf3d",
+      "evidence_span_id": "span_5ede29ffa50cd5f4",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_e55fee7de5975824",
+      "claim_id": "clm_e4c7c865c099332d",
+      "relationship_id": "rel_f94edcdf552502dd",
+      "evidence_span_id": "span_0c7af4632d78e810",
+      "stance": "contradicts",
+      "quote_valid": true,
+      "semantic_status": "contradicted"
+    },
+    {
+      "id": "link_ed18f3045bc20914",
+      "claim_id": "clm_7b888d03a56c1193",
+      "relationship_id": "rel_0bb19b25ebef3b5d",
+      "evidence_span_id": "span_44da78fca64f6572",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_f8a26cf1e606d541",
+      "claim_id": "clm_5140f3c891ada961",
+      "relationship_id": "rel_801b59a8e97c091d",
+      "evidence_span_id": "span_5a51c0046ebe7fa5",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    },
+    {
+      "id": "link_fa07cd393177563d",
+      "claim_id": "clm_e517ae85ad72e9f2",
+      "relationship_id": "rel_cb03f141829aefd0",
+      "evidence_span_id": "span_1d1e664fcbf8dbe9",
+      "stance": "supports",
+      "quote_valid": true,
+      "semantic_status": "supported"
+    }
+  ],
+  "provenance": [
+    {
+      "id": "prov_10dfa848d1d6c6aa",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "provider": "fixture",
+      "providers": [
+        "fixture"
+      ],
+      "origin_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "origin_id": "LF-PR-2026-031",
+      "origin_kind": "original",
+      "cited_origin_ids": [
+        "LF-PR-2026-031"
+      ],
+      "shared_origin_group": "LF-PR-2026-031",
+      "notes": "Original announcement identified by the release marker and wire id."
+    },
+    {
+      "id": "prov_3526700afa79bf9a",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "provider": "fixture",
+      "providers": [
+        "fixture"
+      ],
+      "origin_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "origin_id": "LF-PR-2026-031",
+      "origin_kind": "derivative",
+      "cited_origin_ids": [
+        "LF-PR-2026-031"
+      ],
+      "shared_origin_group": "LF-PR-2026-031",
+      "notes": "Cites the same wire id or press URL as the original announcement."
+    },
+    {
+      "id": "prov_7637ad98b90d0eba",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "provider": "fixture",
+      "providers": [
+        "fixture"
+      ],
+      "origin_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "origin_id": "LF-PR-2026-031",
+      "origin_kind": "derivative",
+      "cited_origin_ids": [
+        "LF-PR-2026-031"
+      ],
+      "shared_origin_group": "LF-PR-2026-031",
+      "notes": "Cites the same wire id or press URL as the original announcement."
+    },
+    {
+      "id": "prov_8a3eccf9e1ab6116",
+      "document_id": "doc_62df11034b2c30e1",
+      "provider": "fixture",
+      "providers": [
+        "fixture"
+      ],
+      "origin_url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "origin_id": "LF-PR-2026-031",
+      "origin_kind": "derivative",
+      "cited_origin_ids": [
+        "LF-PR-2026-031"
+      ],
+      "shared_origin_group": "LF-PR-2026-031",
+      "notes": "Cites the same wire id or press URL as the original announcement."
+    }
+  ],
+  "unresolved_questions": [
+    {
+      "id": "q_a7c1cdd95fea9a5b",
+      "text": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+      "importance": 0.9,
+      "missing_evidence": 1.0,
+      "related_entity_ids": [],
+      "kind": "independence"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_8013839138c969d1",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "url": "https://voltstreet.example/markets/lumenarc-series-d",
+      "title": "VoltStreet Markets: Lumenarc Dynamics Series D",
+      "snippet": "VoltStreet Markets — March 5, 2026  Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).  The cited release says the Heli",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.7222222222222222,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.35277665995975854
+      },
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "cand_ace3066ee576643e",
+      "document_id": "doc_62df11034b2c30e1",
+      "url": "https://harborbrief.example/lumenarc-helios-array",
+      "title": "Harbor Brief: Lumenarc Dynamics Helios Array",
+      "snippet": "Harbor Brief — March 6, 2026  A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.  The announcement says the Helios Arra",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.6111111111111112,
+        "D": 0.0,
+        "F": 0.7906103286384977,
+        "score": 0.31953722334004026
+      },
+      "publish_date": "2026-03-06"
+    },
+    {
+      "id": "cand_bd30d5d0522c2a02",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "url": "https://northline.example/2026/03/lumenarc-helios",
+      "title": "Northline Desk: Lumenarc Dynamics Series D",
+      "snippet": "Northline Desk — March 5, 2026  Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).  The release says the Helios Arr",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.7777777777777778,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.36944332662642526
+      },
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "cand_d0920470d3bc4fd1",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics Announces Helios Array and $400 Million Series D",
+      "snippet": "FOR IMMEDIATE RELEASE  Wire ID: LF-PR-2026-031  Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.  The company said the Helios Array",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.6111111111111112,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.31934942991281023
+      },
+      "publish_date": "2026-03-04"
+    }
+  ],
+  "actions": [
+    {
+      "id": "act_f815e3516b8b074a",
+      "query": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+      "reason": "Open independence question ranked by importance 0.90 and missing evidence 1.00.",
+      "target_question_id": "q_a7c1cdd95fea9a5b",
+      "utility": 0.9,
+      "already_executed": false,
+      "result_summary": ""
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "con_c8a2dd2ce894fe99",
+      "subject_name": "Lumenarc Dynamics",
+      "predicate": "raised_amount",
+      "supported_object": "$400 million",
+      "conflicting_object": "$480 million",
+      "original_document_id": "doc_5fbbe8344dbae98d",
+      "conflicting_document_id": "doc_c175b5fb7c341cdd",
+      "conflicting_relationship_id": "rel_f94edcdf552502dd",
+      "detail": "Contradicts the original raised_amount value $400 million with $480 million. The quotation is still an exact substring of the derivative."
+    }
+  ],
+  "origin_clusters": [
+    {
+      "origin_id": "LF-PR-2026-031",
+      "document_ids": [
+        "doc_5fbbe8344dbae98d",
+        "doc_3f2a75bb069f1c3b",
+        "doc_c175b5fb7c341cdd",
+        "doc_62df11034b2c30e1"
+      ],
+      "original_document_ids": [
+        "doc_5fbbe8344dbae98d"
+      ],
+      "derivative_document_ids": [
+        "doc_3f2a75bb069f1c3b",
+        "doc_c175b5fb7c341cdd",
+        "doc_62df11034b2c30e1"
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "cp_d6d133a5f7c64462",
+      "investigation_id": "inv_1045a838ece0411f",
+      "step": 1,
+      "state_json": {
+        "question": "Do three articles independently substantiate a company's claim?",
+        "status": "running",
+        "stop_reason": null,
+        "decision_source": null,
+        "decision_rationale": "",
+        "budget": {
+          "max_searches": 2,
+          "max_fetched_urls": 5,
+          "max_llm_calls": 10,
+          "searches_used": 0,
+          "urls_fetched": 0,
+          "llm_calls_used": 0,
+          "min_utility": 0.15,
+          "remaining_searches": 2,
+          "remaining_fetched_urls": 5,
+          "remaining_llm_calls": 10
+        },
+        "usage": {
+          "session_id": null,
+          "interaction_ids": [],
+          "search_calls": 0,
+          "provider_calls": 0,
+          "urls_fetched": 0,
+          "fetch_calls": 0,
+          "llm_calls": 0,
+          "llm_tokens": null,
+          "latency_ms": 0,
+          "cost_usd": null,
+          "providers_used": [
+            "fixture"
+          ],
+          "network_calls": 0,
+          "cache_hits": 0,
+          "corpus_documents": 4,
+          "followups_executed": 0,
+          "rejected_ungrounded_citations": 0,
+          "dry_run": false,
+          "configuration": "B3"
+        },
+        "session_id": null,
+        "document_ids": [
+          "doc_5fbbe8344dbae98d",
+          "doc_3f2a75bb069f1c3b",
+          "doc_c175b5fb7c341cdd",
+          "doc_62df11034b2c30e1"
+        ],
+        "version_hashes": [
+          {
+            "id": "ver_3dcf8dd29bf47bcd",
+            "document_id": "doc_5fbbe8344dbae98d",
+            "content_hash": "68e11706316018e9ed6c162fabe895e87e00ed0a80899282857b0611f2abca54"
+          },
+          {
+            "id": "ver_79194612fdb6f8ce",
+            "document_id": "doc_3f2a75bb069f1c3b",
+            "content_hash": "990a12d5e08fa25a757370d7c1aedd9b10d351c4c8df5dda50429bb15a90297a"
+          },
+          {
+            "id": "ver_655ab8c7a7118dea",
+            "document_id": "doc_c175b5fb7c341cdd",
+            "content_hash": "7ee51a36b24861b29f760a759e33d28ff405dadf57990dd5a776c7f06031ff9d"
+          },
+          {
+            "id": "ver_ef9a3293cca55572",
+            "document_id": "doc_62df11034b2c30e1",
+            "content_hash": "44703910c852ddc5248143cbe027366c203dc5807d407e74fb557cc9755b2143"
+          }
+        ],
+        "relationship_status": [
+          {
+            "id": "rel_65c40158f255ba5d",
+            "status": "supported",
+            "predicate": "announced",
+            "object_name": "Helios Array"
+          },
+          {
+            "id": "rel_801b59a8e97c091d",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_1ad8c9be28605bde",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_909849dcf3fc99fe",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_aa5ebdcf41a09502",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_1cec50f90c22fac6",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_0bb19b25ebef3b5d",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_85cbc02e723f1363",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_7a5c4176be3c554d",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_7334b26e5ee3a0bf",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_4b0fa1fbed45d65d",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_f94edcdf552502dd",
+            "status": "contradicted",
+            "predicate": "raised_amount",
+            "object_name": "$480 million"
+          },
+          {
+            "id": "rel_377d0a43fb8f9544",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_6c0da989b71f2fb5",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_cb03f141829aefd0",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW by 2029"
+          },
+          {
+            "id": "rel_c115afa8e2d63c89",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_e216192fe2d69c40",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_37fa7bd2a7d02be8",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_50e48212d638334d",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_5078cacfcf2abf3d",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_5183aa8f08ac8d38",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          }
+        ],
+        "unresolved_questions": [
+          {
+            "id": "q_a7c1cdd95fea9a5b",
+            "text": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+            "importance": 0.9,
+            "missing_evidence": 1.0,
+            "related_entity_ids": [],
+            "kind": "independence"
+          }
+        ],
+        "actions": [
+          {
+            "id": "act_f815e3516b8b074a",
+            "query": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+            "reason": "Open independence question ranked by importance 0.90 and missing evidence 1.00.",
+            "target_question_id": "q_a7c1cdd95fea9a5b",
+            "utility": 0.9,
+            "already_executed": false,
+            "result_summary": ""
+          }
+        ],
+        "contradiction_ids": [
+          "con_c8a2dd2ce894fe99"
+        ],
+        "origin_ids": [
+          "LF-PR-2026-031"
+        ]
+      },
+      "stop_reason": null,
+      "created_at": "2026-11-14T22:31:54.809708Z",
+      "summary": "Ingested the Story C fixture corpus with no network calls."
+    },
+    {
+      "id": "cp_8fa65be2f9ca4032",
+      "investigation_id": "inv_1045a838ece0411f",
+      "step": 2,
+      "state_json": {
+        "question": "Do three articles independently substantiate a company's claim?",
+        "status": "stopped",
+        "stop_reason": "low_expected_value",
+        "decision_source": "convergence",
+        "decision_rationale": "Focus archived every candidate. Decisions: cand_bd30d5d0522c2a02=archive; cand_8013839138c969d1=archive; cand_ace3066ee576643e=archive; cand_d0920470d3bc4fd1=archive.",
+        "budget": {
+          "max_searches": 2,
+          "max_fetched_urls": 5,
+          "max_llm_calls": 10,
+          "searches_used": 0,
+          "urls_fetched": 0,
+          "llm_calls_used": 0,
+          "min_utility": 0.15,
+          "remaining_searches": 2,
+          "remaining_fetched_urls": 5,
+          "remaining_llm_calls": 10
+        },
+        "usage": {
+          "session_id": null,
+          "interaction_ids": [],
+          "search_calls": 0,
+          "provider_calls": 0,
+          "urls_fetched": 0,
+          "fetch_calls": 0,
+          "llm_calls": 0,
+          "llm_tokens": null,
+          "latency_ms": 11,
+          "cost_usd": null,
+          "providers_used": [
+            "fixture"
+          ],
+          "network_calls": 0,
+          "cache_hits": 0,
+          "corpus_documents": 4,
+          "followups_executed": 0,
+          "rejected_ungrounded_citations": 0,
+          "dry_run": false,
+          "configuration": "B3"
+        },
+        "session_id": null,
+        "document_ids": [
+          "doc_5fbbe8344dbae98d",
+          "doc_3f2a75bb069f1c3b",
+          "doc_c175b5fb7c341cdd",
+          "doc_62df11034b2c30e1"
+        ],
+        "version_hashes": [
+          {
+            "id": "ver_3dcf8dd29bf47bcd",
+            "document_id": "doc_5fbbe8344dbae98d",
+            "content_hash": "68e11706316018e9ed6c162fabe895e87e00ed0a80899282857b0611f2abca54"
+          },
+          {
+            "id": "ver_79194612fdb6f8ce",
+            "document_id": "doc_3f2a75bb069f1c3b",
+            "content_hash": "990a12d5e08fa25a757370d7c1aedd9b10d351c4c8df5dda50429bb15a90297a"
+          },
+          {
+            "id": "ver_655ab8c7a7118dea",
+            "document_id": "doc_c175b5fb7c341cdd",
+            "content_hash": "7ee51a36b24861b29f760a759e33d28ff405dadf57990dd5a776c7f06031ff9d"
+          },
+          {
+            "id": "ver_ef9a3293cca55572",
+            "document_id": "doc_62df11034b2c30e1",
+            "content_hash": "44703910c852ddc5248143cbe027366c203dc5807d407e74fb557cc9755b2143"
+          }
+        ],
+        "relationship_status": [
+          {
+            "id": "rel_65c40158f255ba5d",
+            "status": "supported",
+            "predicate": "announced",
+            "object_name": "Helios Array"
+          },
+          {
+            "id": "rel_801b59a8e97c091d",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_1ad8c9be28605bde",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_909849dcf3fc99fe",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_aa5ebdcf41a09502",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_1cec50f90c22fac6",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_0bb19b25ebef3b5d",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_85cbc02e723f1363",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_7a5c4176be3c554d",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_7334b26e5ee3a0bf",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_4b0fa1fbed45d65d",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_f94edcdf552502dd",
+            "status": "contradicted",
+            "predicate": "raised_amount",
+            "object_name": "$480 million"
+          },
+          {
+            "id": "rel_377d0a43fb8f9544",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_6c0da989b71f2fb5",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_cb03f141829aefd0",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW by 2029"
+          },
+          {
+            "id": "rel_c115afa8e2d63c89",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          },
+          {
+            "id": "rel_e216192fe2d69c40",
+            "status": "supported",
+            "predicate": "raised_amount",
+            "object_name": "$400 million"
+          },
+          {
+            "id": "rel_37fa7bd2a7d02be8",
+            "status": "supported",
+            "predicate": "led_by",
+            "object_name": "Northwind Capital"
+          },
+          {
+            "id": "rel_50e48212d638334d",
+            "status": "supported",
+            "predicate": "cites_wire",
+            "object_name": "LF-PR-2026-031"
+          },
+          {
+            "id": "rel_5078cacfcf2abf3d",
+            "status": "supported",
+            "predicate": "planned_capacity",
+            "object_name": "1.8 GW of compute capacity by 2029"
+          },
+          {
+            "id": "rel_5183aa8f08ac8d38",
+            "status": "supported",
+            "predicate": "first_campus",
+            "object_name": "Red Mesa, Arizona"
+          }
+        ],
+        "unresolved_questions": [
+          {
+            "id": "q_a7c1cdd95fea9a5b",
+            "text": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+            "importance": 0.9,
+            "missing_evidence": 1.0,
+            "related_entity_ids": [],
+            "kind": "independence"
+          }
+        ],
+        "actions": [
+          {
+            "id": "act_f815e3516b8b074a",
+            "query": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+            "reason": "Open independence question ranked by importance 0.90 and missing evidence 1.00.",
+            "target_question_id": "q_a7c1cdd95fea9a5b",
+            "utility": 0.9,
+            "already_executed": false,
+            "result_summary": ""
+          }
+        ],
+        "contradiction_ids": [
+          "con_c8a2dd2ce894fe99"
+        ],
+        "origin_ids": [
+          "LF-PR-2026-031"
+        ]
+      },
+      "stop_reason": "low_expected_value",
+      "created_at": "2026-11-14T22:31:54.814701Z",
+      "summary": "Recorded the controller or fallback decision and any one local follow-up."
+    }
+  ],
+  "decision": {
+    "investigation_id": "inv_1045a838ece0411f",
+    "approved_action": null,
+    "stop": true,
+    "stop_reason": "low_expected_value",
+    "rationale": "Focus archived every candidate. Decisions: cand_bd30d5d0522c2a02=archive; cand_8013839138c969d1=archive; cand_ace3066ee576643e=archive; cand_d0920470d3bc4fd1=archive.",
+    "decision_source": "convergence",
+    "include_document_ids": [],
+    "archive_document_ids": [
+      "cand_bd30d5d0522c2a02",
+      "cand_8013839138c969d1",
+      "cand_ace3066ee576643e",
+      "cand_d0920470d3bc4fd1"
+    ]
+  }
+}

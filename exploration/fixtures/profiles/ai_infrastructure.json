@@ -1,0 +1,64 @@
+{
+  "id": "profile_ai_infrastructure",
+  "question": "Which LLM benchmark results show the fastest GPU inference for AI systems?",
+  "interests": [
+    "AI systems",
+    "GPUs",
+    "data-center capacity",
+    "semiconductor",
+    "advanced packaging"
+  ],
+  "goals": [
+    "Track GPUs supply across AI systems",
+    "Follow data-center capacity"
+  ],
+  "unresolved_interests": [
+    "advanced packaging"
+  ],
+  "known_claims": [
+    {
+      "id": "claim_nvidia_coreweave",
+      "subject": "NVIDIA",
+      "predicate": "invested_in",
+      "object": "CoreWeave",
+      "text": "NVIDIA invested in CoreWeave."
+    },
+    {
+      "id": "claim_capacity_expansion",
+      "subject": "capacity expansion",
+      "predicate": "expansion_status",
+      "object": "under investigation",
+      "text": "Capacity expansion is under investigation."
+    }
+  ],
+  "notes": "Static read-only fixture. Interests are AI systems, GPUs, data-center capacity, semiconductor, and the open interest advanced packaging. Ceramics are not a listed interest. Known claims are profile priors, not sourced web evidence.",
+  "documents": [
+    {
+      "id": "doc_llm_benchmark",
+      "file": "llm_benchmark.md",
+      "url": "https://profile-fixture.example/llm-benchmark",
+      "title": "LLM benchmark results for GPU inference",
+      "publish_date": "2026-10-01"
+    },
+    {
+      "id": "doc_ceramic_packaging",
+      "file": "ceramic_packaging.md",
+      "url": "https://profile-fixture.example/ceramic-packaging",
+      "title": "Ceramic substrate note for advanced packaging",
+      "publish_date": "2026-10-01",
+      "candidate": {
+        "subject": "ceramic substrate",
+        "predicate": "reduces_warpage",
+        "object": "less package warpage",
+        "quote": "Using a ceramic substrate leads to less package warpage for advanced packaging of advanced chips."
+      }
+    },
+    {
+      "id": "doc_smartphone_launch",
+      "file": "smartphone_launch.md",
+      "url": "https://profile-fixture.example/smartphone-launch",
+      "title": "Northwind Mobile smartphone launch",
+      "publish_date": "2026-10-01"
+    }
+  ]
+}

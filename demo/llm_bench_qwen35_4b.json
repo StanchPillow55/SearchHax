@@ -1,0 +1,371 @@
+{
+  "model": "qwen3.5:4b",
+  "think": false,
+  "timeout_s": 90,
+  "cold": [
+    {
+      "id": "original.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 39.399,
+      "load_s": 5.032,
+      "prompt_eval_s": 3.399,
+      "gen_s": 30.341,
+      "prompt_tokens": 214,
+      "output_tokens": 216,
+      "emitted": 3,
+      "quote_matches": 3,
+      "invented": 0,
+      "supported": 3,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "announced",
+          "object": "the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital."
+        },
+        {
+          "status": "supported",
+          "subject": "The company",
+          "predicate": "said",
+          "object": "the Helios Array is planned to reach 1.8 GW of compute capacity by 2029."
+        },
+        {
+          "status": "supported",
+          "subject": "Chief Executive Officer Mara Ellison",
+          "predicate": "said",
+          "object": "the financing funds construction of that first campus."
+        }
+      ]
+    },
+    {
+      "id": "northline.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 21.127,
+      "load_s": 0.019,
+      "prompt_eval_s": 2.374,
+      "gen_s": 18.673,
+      "prompt_tokens": 215,
+      "output_tokens": 141,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW of compute capacity"
+        },
+        {
+          "status": "supported",
+          "subject": "Northline",
+          "predicate": "republishing",
+          "object": "Lumenarc Dynamics announcement"
+        }
+      ]
+    },
+    {
+      "id": "voltstreet.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 22.975,
+      "load_s": 0.053,
+      "prompt_eval_s": 1.732,
+      "gen_s": 21.127,
+      "prompt_tokens": 217,
+      "output_tokens": 160,
+      "emitted": 3,
+      "quote_matches": 1,
+      "invented": 2,
+      "supported": 1,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$480 million Series D"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW by 2029"
+        },
+        {
+          "status": "insufficient",
+          "subject": "VoltStreet Markets",
+          "predicate": "cites",
+          "object": "wire ID LF-PR-2026-031"
+        }
+      ]
+    },
+    {
+      "id": "harbor.md",
+      "timeout": false,
+      "schema_valid": true,
+      "expected_hit_note": "The $400 million row was insufficient. expected_hit counts only supported subject, predicate, and object.",
+      "wall_s": 21.754,
+      "load_s": 0.054,
+      "prompt_eval_s": 1.585,
+      "gen_s": 20.016,
+      "prompt_tokens": 211,
+      "output_tokens": 137,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D financing"
+        },
+        {
+          "status": "supported",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW of compute capacity"
+        },
+        {
+          "status": "supported",
+          "subject": "Harbor Brief",
+          "predicate": "attributes",
+          "object": "financing figures"
+        }
+      ]
+    },
+    {
+      "id": "cedar.txt",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 22.522,
+      "load_s": 0.071,
+      "prompt_eval_s": 0.865,
+      "gen_s": 21.445,
+      "prompt_tokens": 83,
+      "output_tokens": 143,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Harbor Light",
+          "predicate": "bought",
+          "object": "three turbines"
+        },
+        {
+          "status": "supported",
+          "subject": "Cedar Analytics",
+          "predicate": "reported",
+          "object": "that Harbor Light bought three turbines from Northwind Capital on May 2, 2026"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Harbor Light",
+          "predicate": "bought",
+          "object": "from Northwind Capital"
+        }
+      ]
+    }
+  ],
+  "warm": [
+    {
+      "id": "original.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 33.08,
+      "load_s": 0.052,
+      "prompt_eval_s": 0.224,
+      "gen_s": 32.729,
+      "prompt_tokens": 214,
+      "output_tokens": 216,
+      "emitted": 3,
+      "quote_matches": 3,
+      "invented": 0,
+      "supported": 3,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "announced",
+          "object": "the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital."
+        },
+        {
+          "status": "supported",
+          "subject": "The company",
+          "predicate": "said",
+          "object": "the Helios Array is planned to reach 1.8 GW of compute capacity by 2029."
+        },
+        {
+          "status": "supported",
+          "subject": "Chief Executive Officer Mara Ellison",
+          "predicate": "said",
+          "object": "the financing funds construction of that first campus."
+        }
+      ]
+    },
+    {
+      "id": "northline.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 22.889,
+      "load_s": 0.054,
+      "prompt_eval_s": 0.168,
+      "gen_s": 22.509,
+      "prompt_tokens": 215,
+      "output_tokens": 141,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW of compute capacity"
+        },
+        {
+          "status": "supported",
+          "subject": "Northline",
+          "predicate": "republishing",
+          "object": "Lumenarc Dynamics announcement"
+        }
+      ]
+    },
+    {
+      "id": "voltstreet.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 21.98,
+      "load_s": 0.054,
+      "prompt_eval_s": 0.207,
+      "gen_s": 21.446,
+      "prompt_tokens": 217,
+      "output_tokens": 148,
+      "emitted": 3,
+      "quote_matches": 1,
+      "invented": 2,
+      "supported": 1,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$480 million Series D"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW"
+        },
+        {
+          "status": "insufficient",
+          "subject": "VoltStreet Markets",
+          "predicate": "cites",
+          "object": "wire ID LF-PR-2026-031"
+        }
+      ]
+    },
+    {
+      "id": "harbor.md",
+      "timeout": false,
+      "schema_valid": true,
+      "expected_hit_note": "The $400 million row was insufficient. expected_hit counts only supported subject, predicate, and object.",
+      "wall_s": 18.6,
+      "load_s": 0.052,
+      "prompt_eval_s": 0.211,
+      "gen_s": 18.233,
+      "prompt_tokens": 211,
+      "output_tokens": 137,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D financing"
+        },
+        {
+          "status": "supported",
+          "subject": "Helios Array",
+          "predicate": "planned to reach",
+          "object": "1.8 GW of compute capacity"
+        },
+        {
+          "status": "supported",
+          "subject": "Harbor Brief",
+          "predicate": "attributes",
+          "object": "financing figures"
+        }
+      ]
+    },
+    {
+      "id": "cedar.txt",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 21.96,
+      "load_s": 0.053,
+      "prompt_eval_s": 0.204,
+      "gen_s": 21.617,
+      "prompt_tokens": 83,
+      "output_tokens": 143,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "supported",
+          "subject": "Harbor Light",
+          "predicate": "bought",
+          "object": "three turbines"
+        },
+        {
+          "status": "supported",
+          "subject": "Cedar Analytics",
+          "predicate": "reported",
+          "object": "that Harbor Light bought three turbines from Northwind Capital on May 2, 2026"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Harbor Light",
+          "predicate": "bought",
+          "object": "from Northwind Capital"
+        }
+      ]
+    }
+  ]
+}
