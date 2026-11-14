@@ -1,0 +1,33 @@
+{
+  "query": "synthetic fixture query",
+  "session_id": "session_synthetic",
+  "interaction_id": "interaction_synthetic",
+  "provider_runs": [
+    {
+      "provider": "brave",
+      "status": "succeeded",
+      "results": [
+        {
+          "provider": "brave",
+          "url": "https://example.com/widgets/report#section",
+          "title": "Example Widget Co synthetic report",
+          "snippet": "Example Widget Co described a fictional widget in this synthetic fixture.",
+          "publish_date": "2026-01-01"
+        }
+      ]
+    },
+    {
+      "provider": "tavily",
+      "status": "succeeded",
+      "results": [
+        {
+          "provider": "tavily",
+          "url": "https://Example.com/widgets/report/",
+          "title": "Example Widget Co synthetic report",
+          "snippet": "The same fictional page found by another provider in this synthetic fixture.",
+          "publish_date": "2026-01-01"
+        }
+      ]
+    }
+  ]
+}

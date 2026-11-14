@@ -1,0 +1,562 @@
+"""Pydantic v2 contract shared by exploration and other SearchHax apps.
+
+``CONTRACT_VERSION`` is 1.0.0. Add fields in a backward-compatible way (new
+optional fields, ``extra="ignore"``) instead of renaming or removing models.
+
+``ConvergenceDecision.decision_source`` is recorded by exploration after a
+controller call. ``convergence`` means the HTTP endpoint returned a usable
+decision. ``fallback`` means exploration applied its own deterministic policy
+because the endpoint was down or the payload could not be used. A fallback
+decision is not a convergence decision.
+
+Attention scores are retrieval priority, not factual confidence.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+CONTRACT_VERSION = "1.0.0"
+
+VerificationStatus = Literal["supported", "contradicted", "insufficient", "hypothesis"]
+StopReason = Literal[
+    "evidence_sufficient",
+    "low_expected_value",
+    "no_useful_actions",
+    "budget_exhausted",
+    "unresolved_uncertainty",
+]
+DecisionSource = Literal["convergence", "fallback"]
+EvidenceStance = Literal["supports", "contradicts", "mentions", "insufficient"]
+OriginKind = Literal["original", "derivative", "unknown"]
+InvestigationStatus = Literal["created", "running", "stopped", "blocked"]
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+
+class AttentionComponents(_Model):
+    """Passage priority for retrieval. This is not factual confidence and not a truth score."""
+
+    R: float = Field(ge=0, le=1, description="Query-token relevance in [0,1]. Not factual confidence.")
+    G: float = Field(ge=0, le=1, description="Overlap with unresolved gaps in [0,1]. Not factual confidence.")
+    D: float = Field(ge=0, le=1, description="Domain-fit or bridge-term score in [0,1]. Not factual confidence.")
+    F: float = Field(ge=0, le=1, description="Recency from publish_date in [0,1]. Not factual confidence.")
+    score: float = Field(
+        ge=0,
+        le=1,
+        description="A(q,p)=0.4*R+0.3*G+0.2*D+0.1*F, clamped to [0,1]. Not factual confidence.",
+    )
+
+
+class InvestigationBudget(_Model):
+    """Search budget. The exploration backend clamps enforcement to 2 searches, 5 fetched URLs, and 10 LLM calls."""
+
+    max_searches: int = 2
+    max_fetched_urls: int = 5
+    max_llm_calls: int = 10
+    searches_used: int = 0
+    urls_fetched: int = 0
+    llm_calls_used: int = 0
+    min_utility: float = 0.15
+    remaining_searches: int = 2
+    remaining_fetched_urls: int = 5
+    remaining_llm_calls: int = 10
+
+    @model_validator(mode="after")
+    def sync_remaining(self) -> InvestigationBudget:
+        self.remaining_searches = max(0, self.max_searches - self.searches_used)
+        self.remaining_fetched_urls = max(0, self.max_fetched_urls - self.urls_fetched)
+        self.remaining_llm_calls = max(0, self.max_llm_calls - self.llm_calls_used)
+        return self
+
+
+class UsageMetrics(_Model):
+    """Measured usage. Null token and cost fields mean the API did not report them."""
+
+    session_id: str | None = None
+    interaction_ids: list[str] = Field(default_factory=list)
+    search_calls: int = 0
+    provider_calls: int = 0
+    urls_fetched: int = 0
+    fetch_calls: int = 0
+    llm_calls: int = 0
+    llm_tokens: int | None = None
+    latency_ms: int = 0
+    cost_usd: float | None = None
+    providers_used: list[str] = Field(default_factory=list)
+    network_calls: int = 0
+    cache_hits: int = 0
+    corpus_documents: int = 0
+    followups_executed: int = 0
+    rejected_ungrounded_citations: int = 0
+    dry_run: bool = False
+    configuration: str = ""
+
+
+class SourceProvenance(_Model):
+    id: str
+    document_id: str
+    provider: str | None = None
+    providers: list[str] = Field(default_factory=list)
+    origin_url: str | None = None
+    origin_id: str | None = None
+    origin_kind: OriginKind = "unknown"
+    cited_origin_ids: list[str] = Field(default_factory=list)
+    shared_origin_group: str | None = None
+    notes: str = ""
+
+
+class Document(_Model):
+    id: str
+    canonical_url: str
+    title: str
+    origin_id: str | None = None
+    providers: list[str] = Field(default_factory=list)
+
+
+class DocumentVersion(_Model):
+    """Immutable fetched text. A new hash is a new version; an existing hash is never rewritten."""
+
+    id: str
+    document_id: str
+    content_hash: str
+    fetched_at: datetime
+    content: str
+    publish_date: str | None = None
+
+
+class EvidenceSpan(_Model):
+    id: str
+    version_id: str
+    document_id: str
+    text: str
+    start: int = Field(description="Inclusive character offset into the stored document version.")
+    end: int = Field(description="Exclusive character offset into the stored document version.")
+    content_hash: str
+    attention: AttentionComponents | None = Field(
+        default=None,
+        description="Retrieval priority for this passage. Not factual confidence.",
+    )
+    quote_valid: bool = False
+
+
+class Entity(_Model):
+    id: str
+    name: str
+    type: str
+    aliases: list[str] = Field(default_factory=list)
+
+
+class Claim(_Model):
+    id: str
+    text: str
+    scope: str = ""
+    status: VerificationStatus
+    document_id: str | None = None
+    span_id: str | None = None
+
+
+class EvidenceLink(_Model):
+    """A quotation can be valid and still fail to semantically support a claim."""
+
+    id: str
+    claim_id: str
+    relationship_id: str | None = None
+    evidence_span_id: str
+    stance: EvidenceStance
+    quote_valid: bool
+    semantic_status: VerificationStatus
+
+
+class Relationship(_Model):
+    id: str
+    subject_id: str
+    predicate: str
+    object_id: str
+    claim_id: str | None = None
+    kind: str = "factual"
+    status: VerificationStatus
+    document_id: str | None = None
+    subject_name: str = ""
+    object_name: str = ""
+    evidence_link_ids: list[str] = Field(default_factory=list)
+    source_document_ids: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class UnresolvedQuestion(_Model):
+    id: str
+    text: str
+    importance: float = Field(ge=0, le=1, default=0.5)
+    missing_evidence: float = Field(ge=0, le=1, default=1.0)
+    related_entity_ids: list[str] = Field(default_factory=list)
+    kind: str = "gap"
+
+
+class InvestigationAction(_Model):
+    id: str
+    query: str
+    reason: str
+    target_question_id: str | None = None
+    utility: float = 0.0
+    already_executed: bool = False
+    result_summary: str = ""
+
+
+class EvidenceCandidate(_Model):
+    id: str
+    document_id: str | None = None
+    url: str
+    title: str
+    snippet: str
+    providers: list[str] = Field(default_factory=list)
+    attention: AttentionComponents
+    publish_date: str | None = None
+
+
+class ConvergenceDecision(_Model):
+    """Decision sent to and received from the convergence controller.
+
+    Exploration overwrites ``decision_source`` after the call. Do not treat a
+    fallback rationale as a controller verdict.
+    """
+
+    investigation_id: str | None = None
+    approved_action: InvestigationAction | None = None
+    stop: bool = False
+    stop_reason: StopReason | None = None
+    rationale: str
+    decision_source: DecisionSource = Field(
+        description="Recorded by exploration: convergence if the endpoint was used, otherwise fallback."
+    )
+    include_document_ids: list[str] = Field(default_factory=list)
+    archive_document_ids: list[str] = Field(default_factory=list)
+
+
+class Checkpoint(_Model):
+    id: str
+    investigation_id: str
+    step: int
+    state_json: dict[str, Any] = Field(default_factory=dict)
+    stop_reason: StopReason | None = None
+    created_at: datetime
+    summary: str = ""
+
+
+class Investigation(_Model):
+    id: str
+    question: str = Field(description="Immutable original research question.")
+    budget: InvestigationBudget
+    status: InvestigationStatus = "created"
+    stop_reason: StopReason | None = None
+    decision_source: DecisionSource | None = None
+    decision_rationale: str = ""
+    session_id: str | None = None
+    usage: UsageMetrics = Field(default_factory=UsageMetrics)
+    created_at: datetime
+    updated_at: datetime
+    live_extraction_blocked: bool = False
+    blocker: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Contradiction(_Model):
+    id: str
+    subject_name: str
+    predicate: str
+    supported_object: str
+    conflicting_object: str
+    original_document_id: str
+    conflicting_document_id: str
+    conflicting_relationship_id: str
+    detail: str
+
+
+class OriginCluster(_Model):
+    origin_id: str
+    document_ids: list[str]
+    original_document_ids: list[str]
+    derivative_document_ids: list[str]
+
+
+class ConvergenceEvaluateRequest(_Model):
+    """Body exploration POSTs to the convergence controller."""
+
+    contract_version: str = CONTRACT_VERSION
+    investigation_id: str
+    original_question: str
+    open_questions: list[UnresolvedQuestion] = Field(default_factory=list)
+    candidates: list[EvidenceCandidate] = Field(default_factory=list)
+    proposed_actions: list[InvestigationAction] = Field(default_factory=list)
+    budget: InvestigationBudget
+    usage: UsageMetrics = Field(default_factory=UsageMetrics)
+
+
+class CreateInvestigationRequest(_Model):
+    question: str = Field(min_length=1)
+    budget: InvestigationBudget | None = None
+
+
+class BaselineRequest(_Model):
+    question: str | None = None
+    story: Literal["A", "C"] = "C"
+    configuration: Literal["B0", "B3"] = "B0"
+
+
+class BaselineReport(_Model):
+    story: Literal["A", "C"]
+    configuration: Literal["B0", "B3"]
+    ran: bool
+    blocker: str | None = None
+    question: str
+    sample_size: int = 1
+    sample_note: str = "One investigation, not a statistical claim."
+    search_calls: int = 0
+    provider_calls: int = 0
+    urls_fetched: int = 0
+    llm_calls: int = 0
+    llm_tokens: int | None = None
+    supported_relationships: int = 0
+    contradicted_relationships: int = 0
+    insufficient_relationships: int = 0
+    hypothesis_relationships: int = 0
+    correct_citations: int = 0
+    rejected_ungrounded_citations: int = 0
+    contradiction_detections: int = 0
+    shared_origin_detected: bool | None = None
+    latency_ms: int = 0
+    cost_usd: float | None = None
+    network_calls: int = 0
+    notes: str = ""
+
+
+class ExplorationExport(_Model):
+    """Full investigation snapshot another app can read from JSON Schema alone."""
+
+    contract_version: str = CONTRACT_VERSION
+    investigation: Investigation
+    documents: list[Document] = Field(default_factory=list)
+    document_versions: list[DocumentVersion] = Field(default_factory=list)
+    evidence_spans: list[EvidenceSpan] = Field(default_factory=list)
+    entities: list[Entity] = Field(default_factory=list)
+    claims: list[Claim] = Field(default_factory=list)
+    relationships: list[Relationship] = Field(default_factory=list)
+    evidence_links: list[EvidenceLink] = Field(default_factory=list)
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    unresolved_questions: list[UnresolvedQuestion] = Field(default_factory=list)
+    candidates: list[EvidenceCandidate] = Field(default_factory=list)
+    actions: list[InvestigationAction] = Field(default_factory=list)
+    contradictions: list[Contradiction] = Field(default_factory=list)
+    origin_clusters: list[OriginCluster] = Field(default_factory=list)
+    checkpoints: list[Checkpoint] = Field(default_factory=list)
+    decision: ConvergenceDecision | None = None
+
+
+def evidence_json_schema() -> dict[str, Any]:
+    return ExplorationExport.model_json_schema(mode="serialization")
+
+
+def build_example_payload() -> ExplorationExport:
+    """Synthetic contract example. Not a live search and not a measured metric."""
+    now = datetime(2026, 11, 14, 20, 0, tzinfo=timezone.utc)
+    content = "Lumenarc Dynamics closed a $400 million Series D."
+    start = content.find("$400 million")
+    end = start + len("$400 million")
+    attention = AttentionComponents(R=1.0, G=0.0, D=0.0, F=0.0, score=0.4)
+    budget = InvestigationBudget(max_searches=2, searches_used=1)
+    version_id = "ver_example"
+    document_id = "doc_example"
+    span_id = "span_example"
+    claim_id = "clm_example"
+    rel_id = "rel_example"
+    link_id = "link_example"
+    return ExplorationExport(
+        investigation=Investigation(
+            id="inv_example",
+            question="Do three articles independently substantiate a company's claim?",
+            budget=budget,
+            status="stopped",
+            stop_reason="unresolved_uncertainty",
+            decision_source="fallback",
+            decision_rationale="Example only. The convergence endpoint was not called to build this file.",
+            session_id=None,
+            usage=UsageMetrics(search_calls=0, network_calls=0, llm_tokens=None, cost_usd=None, configuration="example"),
+            created_at=now,
+            updated_at=now,
+            metadata={"example": True, "note": "Synthetic contract example. Not a live Telem investigation."},
+        ),
+        documents=[
+            Document(
+                id=document_id,
+                canonical_url="https://lumenarc.example/press/2026-03-04-helios-array",
+                title="Lumenarc Dynamics announcement",
+                origin_id="LF-PR-2026-031",
+                providers=["fixture"],
+            )
+        ],
+        document_versions=[
+            DocumentVersion(
+                id=version_id,
+                document_id=document_id,
+                content_hash="examplehash",
+                fetched_at=now,
+                content=content,
+                publish_date="2026-03-04",
+            )
+        ],
+        evidence_spans=[
+            EvidenceSpan(
+                id=span_id,
+                version_id=version_id,
+                document_id=document_id,
+                text=content[start:end],
+                start=start,
+                end=end,
+                content_hash="examplehash",
+                attention=attention,
+                quote_valid=True,
+            )
+        ],
+        entities=[
+            Entity(id="ent_lumenarc", name="Lumenarc Dynamics", type="organization"),
+            Entity(id="ent_amount", name="$400 million", type="amount"),
+        ],
+        claims=[
+            Claim(
+                id=claim_id,
+                text="Lumenarc Dynamics closed a $400 million Series D.",
+                status="supported",
+                document_id=document_id,
+                span_id=span_id,
+            )
+        ],
+        relationships=[
+            Relationship(
+                id=rel_id,
+                subject_id="ent_lumenarc",
+                predicate="raised_amount",
+                object_id="ent_amount",
+                claim_id=claim_id,
+                kind="factual",
+                status="supported",
+                document_id=document_id,
+                subject_name="Lumenarc Dynamics",
+                object_name="$400 million",
+                evidence_link_ids=[link_id],
+                source_document_ids=[document_id],
+            )
+        ],
+        evidence_links=[
+            EvidenceLink(
+                id=link_id,
+                claim_id=claim_id,
+                relationship_id=rel_id,
+                evidence_span_id=span_id,
+                stance="supports",
+                quote_valid=True,
+                semantic_status="supported",
+            )
+        ],
+        provenance=[
+            SourceProvenance(
+                id="prov_example",
+                document_id=document_id,
+                provider="fixture",
+                providers=["fixture"],
+                origin_id="LF-PR-2026-031",
+                origin_kind="original",
+                shared_origin_group="LF-PR-2026-031",
+            )
+        ],
+        unresolved_questions=[
+            UnresolvedQuestion(
+                id="q_example",
+                text="Whether any source independent of wire LF-PR-2026-031 confirms the amount.",
+                importance=0.9,
+                missing_evidence=1.0,
+                kind="independence",
+            )
+        ],
+        candidates=[
+            EvidenceCandidate(
+                id="cand_example",
+                document_id=document_id,
+                url="https://lumenarc.example/press/2026-03-04-helios-array",
+                title="Lumenarc Dynamics announcement",
+                snippet=content,
+                providers=["fixture"],
+                attention=attention,
+                publish_date="2026-03-04",
+            )
+        ],
+        actions=[
+            InvestigationAction(
+                id="act_example",
+                query="independent primary confirmation of the Lumenarc Dynamics Series D amount",
+                reason="The open independence question has the highest importance times missing evidence.",
+                target_question_id="q_example",
+                utility=0.9,
+                already_executed=False,
+            )
+        ],
+        contradictions=[],
+        origin_clusters=[
+            OriginCluster(
+                origin_id="LF-PR-2026-031",
+                document_ids=[document_id],
+                original_document_ids=[document_id],
+                derivative_document_ids=[],
+            )
+        ],
+        checkpoints=[
+            Checkpoint(
+                id="cp_example",
+                investigation_id="inv_example",
+                step=1,
+                state_json={"question": "Do three articles independently substantiate a company's claim?"},
+                stop_reason="unresolved_uncertainty",
+                created_at=now,
+                summary="Example checkpoint.",
+            )
+        ],
+        decision=ConvergenceDecision(
+            investigation_id="inv_example",
+            approved_action=None,
+            stop=True,
+            stop_reason="unresolved_uncertainty",
+            rationale="Example payload. decision_source is fallback because this file was not produced by the controller.",
+            decision_source="fallback",
+        ),
+    )
+
+
+def write_contract_files(directory: str) -> None:
+    import json
+    from pathlib import Path
+
+    root = Path(directory)
+    root.mkdir(parents=True, exist_ok=True)
+    schema = evidence_json_schema()
+    schema["$id"] = "https://searchhax.local/schemas/exploration-evidence-1.0.0.json"
+    schema["$comment"] = (
+        "FrontierGraph exploration contract 1.0.0. "
+        "Attention scores are not factual confidence. "
+        "decision_source is recorded by exploration as convergence or fallback."
+    )
+    (root / "evidence.schema.json").write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
+    example = build_example_payload()
+    (root / "example_payload.json").write_text(
+        json.dumps(example.model_dump(mode="json"), indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    write_contract_files(str(Path(__file__).resolve().parent))

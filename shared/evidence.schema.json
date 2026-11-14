@@ -1,0 +1,1366 @@
+{
+  "$defs": {
+    "AttentionComponents": {
+      "description": "Passage priority for retrieval. This is not factual confidence and not a truth score.",
+      "properties": {
+        "R": {
+          "description": "Query-token relevance in [0,1]. Not factual confidence.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "R",
+          "type": "number"
+        },
+        "G": {
+          "description": "Overlap with unresolved gaps in [0,1]. Not factual confidence.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "G",
+          "type": "number"
+        },
+        "D": {
+          "description": "Domain-fit or bridge-term score in [0,1]. Not factual confidence.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "D",
+          "type": "number"
+        },
+        "F": {
+          "description": "Recency from publish_date in [0,1]. Not factual confidence.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "F",
+          "type": "number"
+        },
+        "score": {
+          "description": "A(q,p)=0.4*R+0.3*G+0.2*D+0.1*F, clamped to [0,1]. Not factual confidence.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "R",
+        "G",
+        "D",
+        "F",
+        "score"
+      ],
+      "title": "AttentionComponents",
+      "type": "object"
+    },
+    "Checkpoint": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "investigation_id": {
+          "title": "Investigation Id",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "integer"
+        },
+        "state_json": {
+          "additionalProperties": true,
+          "title": "State Json",
+          "type": "object"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "evidence_sufficient",
+                "low_expected_value",
+                "no_useful_actions",
+                "budget_exhausted",
+                "unresolved_uncertainty"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stop Reason"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "investigation_id",
+        "step",
+        "created_at"
+      ],
+      "title": "Checkpoint",
+      "type": "object"
+    },
+    "Claim": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "scope": {
+          "default": "",
+          "title": "Scope",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "contradicted",
+            "insufficient",
+            "hypothesis"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        },
+        "span_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Span Id"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "status"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "Contradiction": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "subject_name": {
+          "title": "Subject Name",
+          "type": "string"
+        },
+        "predicate": {
+          "title": "Predicate",
+          "type": "string"
+        },
+        "supported_object": {
+          "title": "Supported Object",
+          "type": "string"
+        },
+        "conflicting_object": {
+          "title": "Conflicting Object",
+          "type": "string"
+        },
+        "original_document_id": {
+          "title": "Original Document Id",
+          "type": "string"
+        },
+        "conflicting_document_id": {
+          "title": "Conflicting Document Id",
+          "type": "string"
+        },
+        "conflicting_relationship_id": {
+          "title": "Conflicting Relationship Id",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "subject_name",
+        "predicate",
+        "supported_object",
+        "conflicting_object",
+        "original_document_id",
+        "conflicting_document_id",
+        "conflicting_relationship_id",
+        "detail"
+      ],
+      "title": "Contradiction",
+      "type": "object"
+    },
+    "ConvergenceDecision": {
+      "description": "Decision sent to and received from the convergence controller.\n\nExploration overwrites ``decision_source`` after the call. Do not treat a\nfallback rationale as a controller verdict.",
+      "properties": {
+        "investigation_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Investigation Id"
+        },
+        "approved_action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InvestigationAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "stop": {
+          "default": false,
+          "title": "Stop",
+          "type": "boolean"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "evidence_sufficient",
+                "low_expected_value",
+                "no_useful_actions",
+                "budget_exhausted",
+                "unresolved_uncertainty"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stop Reason"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "decision_source": {
+          "description": "Recorded by exploration: convergence if the endpoint was used, otherwise fallback.",
+          "enum": [
+            "convergence",
+            "fallback"
+          ],
+          "title": "Decision Source",
+          "type": "string"
+        },
+        "include_document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Include Document Ids",
+          "type": "array"
+        },
+        "archive_document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Archive Document Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rationale",
+        "decision_source"
+      ],
+      "title": "ConvergenceDecision",
+      "type": "object"
+    },
+    "Document": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "canonical_url": {
+          "title": "Canonical Url",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "origin_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Id"
+        },
+        "providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "canonical_url",
+        "title"
+      ],
+      "title": "Document",
+      "type": "object"
+    },
+    "DocumentVersion": {
+      "description": "Immutable fetched text. A new hash is a new version; an existing hash is never rewritten.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "fetched_at": {
+          "format": "date-time",
+          "title": "Fetched At",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "publish_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publish Date"
+        }
+      },
+      "required": [
+        "id",
+        "document_id",
+        "content_hash",
+        "fetched_at",
+        "content"
+      ],
+      "title": "DocumentVersion",
+      "type": "object"
+    },
+    "Entity": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "EvidenceCandidate": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "snippet": {
+          "title": "Snippet",
+          "type": "string"
+        },
+        "providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "attention": {
+          "$ref": "#/$defs/AttentionComponents"
+        },
+        "publish_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publish Date"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "title",
+        "snippet",
+        "attention"
+      ],
+      "title": "EvidenceCandidate",
+      "type": "object"
+    },
+    "EvidenceLink": {
+      "description": "A quotation can be valid and still fail to semantically support a claim.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "relationship_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relationship Id"
+        },
+        "evidence_span_id": {
+          "title": "Evidence Span Id",
+          "type": "string"
+        },
+        "stance": {
+          "enum": [
+            "supports",
+            "contradicts",
+            "mentions",
+            "insufficient"
+          ],
+          "title": "Stance",
+          "type": "string"
+        },
+        "quote_valid": {
+          "title": "Quote Valid",
+          "type": "boolean"
+        },
+        "semantic_status": {
+          "enum": [
+            "supported",
+            "contradicted",
+            "insufficient",
+            "hypothesis"
+          ],
+          "title": "Semantic Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "claim_id",
+        "evidence_span_id",
+        "stance",
+        "quote_valid",
+        "semantic_status"
+      ],
+      "title": "EvidenceLink",
+      "type": "object"
+    },
+    "EvidenceSpan": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version_id": {
+          "title": "Version Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start": {
+          "description": "Inclusive character offset into the stored document version.",
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "description": "Exclusive character offset into the stored document version.",
+          "title": "End",
+          "type": "integer"
+        },
+        "content_hash": {
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "attention": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttentionComponents"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Retrieval priority for this passage. Not factual confidence."
+        },
+        "quote_valid": {
+          "default": false,
+          "title": "Quote Valid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "version_id",
+        "document_id",
+        "text",
+        "start",
+        "end",
+        "content_hash"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
+    },
+    "Investigation": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "question": {
+          "description": "Immutable original research question.",
+          "title": "Question",
+          "type": "string"
+        },
+        "budget": {
+          "$ref": "#/$defs/InvestigationBudget"
+        },
+        "status": {
+          "default": "created",
+          "enum": [
+            "created",
+            "running",
+            "stopped",
+            "blocked"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "evidence_sufficient",
+                "low_expected_value",
+                "no_useful_actions",
+                "budget_exhausted",
+                "unresolved_uncertainty"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stop Reason"
+        },
+        "decision_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "convergence",
+                "fallback"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Source"
+        },
+        "decision_rationale": {
+          "default": "",
+          "title": "Decision Rationale",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "usage": {
+          "$ref": "#/$defs/UsageMetrics"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "live_extraction_blocked": {
+          "default": false,
+          "title": "Live Extraction Blocked",
+          "type": "boolean"
+        },
+        "blocker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blocker"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "question",
+        "budget",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Investigation",
+      "type": "object"
+    },
+    "InvestigationAction": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "target_question_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Question Id"
+        },
+        "utility": {
+          "default": 0.0,
+          "title": "Utility",
+          "type": "number"
+        },
+        "already_executed": {
+          "default": false,
+          "title": "Already Executed",
+          "type": "boolean"
+        },
+        "result_summary": {
+          "default": "",
+          "title": "Result Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "query",
+        "reason"
+      ],
+      "title": "InvestigationAction",
+      "type": "object"
+    },
+    "InvestigationBudget": {
+      "description": "Search budget. The exploration backend clamps enforcement to 2 searches, 5 fetched URLs, and 10 LLM calls.",
+      "properties": {
+        "max_searches": {
+          "default": 2,
+          "title": "Max Searches",
+          "type": "integer"
+        },
+        "max_fetched_urls": {
+          "default": 5,
+          "title": "Max Fetched Urls",
+          "type": "integer"
+        },
+        "max_llm_calls": {
+          "default": 10,
+          "title": "Max Llm Calls",
+          "type": "integer"
+        },
+        "searches_used": {
+          "default": 0,
+          "title": "Searches Used",
+          "type": "integer"
+        },
+        "urls_fetched": {
+          "default": 0,
+          "title": "Urls Fetched",
+          "type": "integer"
+        },
+        "llm_calls_used": {
+          "default": 0,
+          "title": "Llm Calls Used",
+          "type": "integer"
+        },
+        "min_utility": {
+          "default": 0.15,
+          "title": "Min Utility",
+          "type": "number"
+        },
+        "remaining_searches": {
+          "default": 2,
+          "title": "Remaining Searches",
+          "type": "integer"
+        },
+        "remaining_fetched_urls": {
+          "default": 5,
+          "title": "Remaining Fetched Urls",
+          "type": "integer"
+        },
+        "remaining_llm_calls": {
+          "default": 10,
+          "title": "Remaining Llm Calls",
+          "type": "integer"
+        }
+      },
+      "title": "InvestigationBudget",
+      "type": "object"
+    },
+    "OriginCluster": {
+      "properties": {
+        "origin_id": {
+          "title": "Origin Id",
+          "type": "string"
+        },
+        "document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Document Ids",
+          "type": "array"
+        },
+        "original_document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Original Document Ids",
+          "type": "array"
+        },
+        "derivative_document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Derivative Document Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "origin_id",
+        "document_ids",
+        "original_document_ids",
+        "derivative_document_ids"
+      ],
+      "title": "OriginCluster",
+      "type": "object"
+    },
+    "Relationship": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "subject_id": {
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "predicate": {
+          "title": "Predicate",
+          "type": "string"
+        },
+        "object_id": {
+          "title": "Object Id",
+          "type": "string"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "kind": {
+          "default": "factual",
+          "title": "Kind",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "contradicted",
+            "insufficient",
+            "hypothesis"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        },
+        "subject_name": {
+          "default": "",
+          "title": "Subject Name",
+          "type": "string"
+        },
+        "object_name": {
+          "default": "",
+          "title": "Object Name",
+          "type": "string"
+        },
+        "evidence_link_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Link Ids",
+          "type": "array"
+        },
+        "source_document_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Document Ids",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "subject_id",
+        "predicate",
+        "object_id",
+        "status"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "SourceProvenance": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "origin_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Url"
+        },
+        "origin_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Id"
+        },
+        "origin_kind": {
+          "default": "unknown",
+          "enum": [
+            "original",
+            "derivative",
+            "unknown"
+          ],
+          "title": "Origin Kind",
+          "type": "string"
+        },
+        "cited_origin_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Origin Ids",
+          "type": "array"
+        },
+        "shared_origin_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shared Origin Group"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "document_id"
+      ],
+      "title": "SourceProvenance",
+      "type": "object"
+    },
+    "UnresolvedQuestion": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "importance": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Importance",
+          "type": "number"
+        },
+        "missing_evidence": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Missing Evidence",
+          "type": "number"
+        },
+        "related_entity_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Related Entity Ids",
+          "type": "array"
+        },
+        "kind": {
+          "default": "gap",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "UnresolvedQuestion",
+      "type": "object"
+    },
+    "UsageMetrics": {
+      "description": "Measured usage. Null token and cost fields mean the API did not report them.",
+      "properties": {
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "interaction_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Interaction Ids",
+          "type": "array"
+        },
+        "search_calls": {
+          "default": 0,
+          "title": "Search Calls",
+          "type": "integer"
+        },
+        "provider_calls": {
+          "default": 0,
+          "title": "Provider Calls",
+          "type": "integer"
+        },
+        "urls_fetched": {
+          "default": 0,
+          "title": "Urls Fetched",
+          "type": "integer"
+        },
+        "fetch_calls": {
+          "default": 0,
+          "title": "Fetch Calls",
+          "type": "integer"
+        },
+        "llm_calls": {
+          "default": 0,
+          "title": "Llm Calls",
+          "type": "integer"
+        },
+        "llm_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Llm Tokens"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "cost_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Usd"
+        },
+        "providers_used": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers Used",
+          "type": "array"
+        },
+        "network_calls": {
+          "default": 0,
+          "title": "Network Calls",
+          "type": "integer"
+        },
+        "cache_hits": {
+          "default": 0,
+          "title": "Cache Hits",
+          "type": "integer"
+        },
+        "corpus_documents": {
+          "default": 0,
+          "title": "Corpus Documents",
+          "type": "integer"
+        },
+        "followups_executed": {
+          "default": 0,
+          "title": "Followups Executed",
+          "type": "integer"
+        },
+        "rejected_ungrounded_citations": {
+          "default": 0,
+          "title": "Rejected Ungrounded Citations",
+          "type": "integer"
+        },
+        "dry_run": {
+          "default": false,
+          "title": "Dry Run",
+          "type": "boolean"
+        },
+        "configuration": {
+          "default": "",
+          "title": "Configuration",
+          "type": "string"
+        }
+      },
+      "title": "UsageMetrics",
+      "type": "object"
+    }
+  },
+  "description": "Full investigation snapshot another app can read from JSON Schema alone.",
+  "properties": {
+    "contract_version": {
+      "default": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "investigation": {
+      "$ref": "#/$defs/Investigation"
+    },
+    "documents": {
+      "items": {
+        "$ref": "#/$defs/Document"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "document_versions": {
+      "items": {
+        "$ref": "#/$defs/DocumentVersion"
+      },
+      "title": "Document Versions",
+      "type": "array"
+    },
+    "evidence_spans": {
+      "items": {
+        "$ref": "#/$defs/EvidenceSpan"
+      },
+      "title": "Evidence Spans",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/Entity"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "relationships": {
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "evidence_links": {
+      "items": {
+        "$ref": "#/$defs/EvidenceLink"
+      },
+      "title": "Evidence Links",
+      "type": "array"
+    },
+    "provenance": {
+      "items": {
+        "$ref": "#/$defs/SourceProvenance"
+      },
+      "title": "Provenance",
+      "type": "array"
+    },
+    "unresolved_questions": {
+      "items": {
+        "$ref": "#/$defs/UnresolvedQuestion"
+      },
+      "title": "Unresolved Questions",
+      "type": "array"
+    },
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/EvidenceCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/InvestigationAction"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "contradictions": {
+      "items": {
+        "$ref": "#/$defs/Contradiction"
+      },
+      "title": "Contradictions",
+      "type": "array"
+    },
+    "origin_clusters": {
+      "items": {
+        "$ref": "#/$defs/OriginCluster"
+      },
+      "title": "Origin Clusters",
+      "type": "array"
+    },
+    "checkpoints": {
+      "items": {
+        "$ref": "#/$defs/Checkpoint"
+      },
+      "title": "Checkpoints",
+      "type": "array"
+    },
+    "decision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConvergenceDecision"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "investigation"
+  ],
+  "title": "ExplorationExport",
+  "type": "object",
+  "$id": "https://searchhax.local/schemas/exploration-evidence-1.0.0.json",
+  "$comment": "FrontierGraph exploration contract 1.0.0. Attention scores are not factual confidence. decision_source is recorded by exploration as convergence or fallback."
+}
