@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The web loop labels a shared wire and then drops the cluster and the contradiction
+
+Requirement: pages that cite one announcement are one origin, and a derivative amount is not stored as a second supported fact. `run_story_c` does this. The search/fetch loop does not.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_web_path_keeps_story_c_wire_as_one_origin_and_one_amount --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One mocked search returns `https://lumenarc.example/press/series-d` (`FOR IMMEDIATE RELEASE`, `$400 million`, `LF-PR-2026-031`) and `https://voltstreet.example/lumenarc` (`$480 million`, same wire). No live provider is called.
+
+Expected: `origin_clusters` contains `LF-PR-2026-031` with both documents, `$400 million` stays `supported`, and `$480 million` is not `supported`.
+
+Actual: the test fails because `origin_clusters` is empty. The provenance rows are already `original` and `derivative` with `origin_id` `LF-PR-2026-031`. Both `raised_amount` edges are `supported`, and `contradictions` is empty.
+
+Location: `exploration/backend/orchestrator.py` `_ingest_bundle` calls `classify_provenance` for `.example` URLs around lines 482–493. `origin_clusters` and `reconcile_amount_conflicts` are called only from `run_story_c` at lines 160 and 159.
+
+Deterministic: yes.
+
+Suggested correction: after web ingest, build the origin clusters from the provenance rows and run the same amount reconciliation used by Story C.
+
 ## BLOCKER — A causal demand sentence closes the gap without evidence
 
 Requirement: a link from the investment to future product demand is a hypothesis until separate evidence supports it. Naming demand in a causal sentence is not that evidence, and it does not answer the open demand question.

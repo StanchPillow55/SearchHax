@@ -5,7 +5,7 @@ No live provider call is made.
 
 from __future__ import annotations
 
-from exploration.backend.orchestrator import STORY_A_QUESTION, Orchestrator
+from exploration.backend.orchestrator import STORY_A_QUESTION, STORY_C_QUESTION, Orchestrator
 from exploration.backend.retrieval import RetrievalClient
 
 PAGE = "NVIDIA has invested $2 billion in CoreWeave."
@@ -273,3 +273,55 @@ def test_causal_demand_sentence_does_not_close_the_gap(tmp_path, monkeypatch):
     demand_open = any("demand" in question.text.lower() for question in export.unresolved_questions)
     demand_hypothesis = any(rel.status in {"hypothesis", "insufficient"} and "demand" in f"{rel.predicate} {rel.object_name} {rel.notes}".lower() for rel in extra)
     assert demand_open or demand_hypothesis
+
+
+def test_web_path_keeps_story_c_wire_as_one_origin_and_one_amount(tmp_path, monkeypatch):
+    """The same wire fetched through search is one origin, and the derivative amount is not supported."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    original = (
+        "FOR IMMEDIATE RELEASE\n"
+        "Lumenarc Dynamics raised $400 million Series D. Wire LF-PR-2026-031.\n"
+        "https://lumenarc.example/press/series-d"
+    )
+    copy = (
+        "VoltStreet reports Lumenarc Dynamics raised $480 million Series D, "
+        "citing wire LF-PR-2026-031 and https://lumenarc.example/press/series-d."
+    )
+    pages = {
+        "https://lumenarc.example/press/series-d": original,
+        "https://voltstreet.example/lumenarc": copy,
+    }
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-wire",
+            "interaction_id": "int-wire",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": url, "title": url, "summary": text[:140], "provider": "brave"}
+                        for url, text in pages.items()
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": url, "content": pages[url], "status": "ok", "provider": "telem"} for url in urls]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "wire.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    investigation = orchestrator.create(STORY_C_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    cluster = next((item for item in export.origin_clusters if item.origin_id == "LF-PR-2026-031"), None)
+    assert cluster is not None and len(cluster.document_ids) >= 2
+    amounts = [rel for rel in export.relationships if rel.predicate == "raised_amount"]
+    assert any(rel.object_name == "$400 million" and rel.status == "supported" for rel in amounts)
+    assert not any(rel.object_name == "$480 million" and rel.status == "supported" for rel in amounts)
+    assert export.contradictions

@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 6 failed, 59 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made.
+Result: 7 failed, 59 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made.
 
 Failed:
 
+- `qa/tests/test_provider_and_budget.py::test_web_path_keeps_story_c_wire_as_one_origin_and_one_amount`
 - `qa/tests/test_provider_and_budget.py::test_causal_demand_sentence_does_not_close_the_gap`
 - `qa/tests/test_provider_and_budget.py::test_negated_investment_sentence_is_not_supported`
 - `qa/tests/test_provider_and_budget.py::test_web_path_does_not_accept_two_amounts_as_supported`
@@ -21,13 +22,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 36 / 44 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 59 / 65 offline pytest tests. 2 live tests deselected.
+1. Verified P0 requirements: 36 / 45 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 59 / 66 offline pytest tests. 2 live tests deselected.
 3. Unimplemented: clickable React graph, Story B, Story D, domain routing, continuous monitoring.
-4. Blocking failures: a causal demand sentence closes the gap; a negated investment sentence becomes supported; the web loop keeps two disagreeing amounts `supported`; a provider outage stays `running`; a reason-less controller stop stays `running`; the focus handoff cancels the Story C independence search. See `qa/failure_report.md`.
-5. Integration readiness: not ready. Story C conflict detection, affirmative quote offsets, checkpoint reload, and the two-search cap pass. Demand-gap handling and the web conflict check do not.
+4. Blocking failures: the web loop drops a shared-wire cluster and leaves both amounts `supported`; a causal demand sentence closes the gap; a negated investment sentence becomes supported; two disagreeing NVIDIA amounts stay `supported`; a provider outage stays `running`; a reason-less controller stop stays `running`; the focus handoff cancels the Story C independence search. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The local Story C runner still clusters the wire and contradicts `$480 million`. The search/fetch path does not.
 6. Commit tested: `8e3e6e5` (`Merge origin/main into feat/exploration.`).
-7. Next validation priority: keep the demand question open when the only mention is a causal sentence, then stop treating a negated investment clause as support. Rerun the six failing tests.
+7. Next validation priority: after web ingest, cluster provenance that already shares a wire id and reconcile the amounts. Rerun the seven failing tests. The implementation worktree also has uncommitted focus edits; those are not part of this snapshot.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
