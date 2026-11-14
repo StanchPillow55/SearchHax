@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The default search plan spends the budget before the investigate follow-up
+
+Requirement: a passage routed to investigate is searched within the default budget of 3. Fixed angles do not consume that budget ahead of it.
+
+Snapshot: implementation `31c389b`. Uncommitted `exploration/backend/orchestrator.py` was not imported.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_plan.py::test_investigate_follow_up_runs_inside_the_default_budget --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. The plan is the five angles in `focus/app.py` lines 77–85. `max_search_calls` is 3, the slider default. The first retrieve returns two passages. The second is routed to `investigate` with title `Battery resale`.
+
+Expected: the queries include `electric vehicle demand Battery resale supporting evidence conflicting evidence`.
+
+Actual: `['electric vehicle demand', 'electric vehicle demand main causes evidence', 'electric vehicle demand evidence challenging the premise']`. `search_calls` is 3 and `queued` is 1.
+
+`focus/research_loop.py` line 38 places the whole plan ahead of any follow-up. Line 52 appends the investigate query after those angles. The loop stops at line 40 before that query is popped.
+
+Deterministic.
+
+Suggested correction: run an investigate follow-up before the remaining generic angles, or reserve a call for it inside the budget of 3.
+
 ## BLOCKER — A longer URL is rewritten into a citation of a shorter source
 
 Requirement: a citation names the page that was written. A URL that only begins with a source URL is not replaced with that source's marker.
