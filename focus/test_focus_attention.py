@@ -4,7 +4,8 @@ from focus_attention import FocusAttentionModel, Passage, canonical_url
 
 
 class TinyEmbedder:
-    """Deterministic fixture; tests verify embeddings are really used."""
+    """Deterministic fixture. encode() does not touch the network."""
+
     def encode(self, texts):
         out = []
         for text in texts:
@@ -28,31 +29,43 @@ class FocusAttentionTests(unittest.TestCase):
         )
 
     def test_canonical_url(self):
-        self.assertEqual(canonical_url("HTTPS://Example.com/story/?utm_source=x&b=2"),
-                         "https://example.com/story?b=2")
+        self.assertEqual(
+            canonical_url("HTTPS://Example.com/story/?utm_source=x&b=2"),
+            "https://example.com/story?b=2",
+        )
 
     def test_duplicate_url_and_provider_merge(self):
-        p = [Passage("a", "electric vehicle demand weakening", "https://x.example/story?utm_source=x", providers=("telem",)),
-             Passage("b", "same story", "https://x.example/story", providers=("tavily",))]
-        result = self.model.rank(p)
+        passages = [
+            Passage("a", "electric vehicle demand weakening", "https://x.example/story?utm_source=x", providers=("telem",)),
+            Passage("b", "same story", "https://x.example/story", providers=("tavily",)),
+        ]
+        result = self.model.rank(passages)
         self.assertEqual(len(result), 1)
         self.assertEqual(set(result[0].passage.providers), {"telem", "tavily"})
-        self.assertEqual(len(self.model.rank(p)), 0)
+        self.assertEqual(len(self.model.rank(passages)), 0)
 
     def test_novel_relevant_evidence_is_investigated(self):
         self.model.rank([Passage("seed", "why is electric vehicle demand weakening", "https://x.example/seed")])
-        decision = self.model.decide(Passage(
-            "battery", "electric vehicle demand battery resale",
-            "https://battery.example/report", providers=("tavily",), source_quality=0.9))
+        decision = self.model.decide(
+            Passage(
+                "battery",
+                "electric vehicle demand battery resale",
+                "https://battery.example/report",
+                providers=("tavily",),
+                source_quality=0.9,
+            )
+        )
         self.assertEqual(decision.action, "investigate")
 
     def test_relevant_long_search_snippet_clears_intent_floor(self):
-        decision = self.model.decide(Passage(
-            "search-result",
-            "Automakers brace for EV demand decline following tax credit elimination. "
-            "The report includes background, market context, and several unrelated details.",
-            "https://example.com/ev-demand",
-        ))
+        decision = self.model.decide(
+            Passage(
+                "search-result",
+                "Automakers brace for EV demand decline following tax credit elimination. "
+                "The report includes background, market context, and several unrelated details.",
+                "https://example.com/ev-demand",
+            )
+        )
         self.assertGreaterEqual(decision.score.relevance, self.model.intent_floor)
         self.assertNotEqual(decision.action, "archive")
 
@@ -61,31 +74,39 @@ class FocusAttentionTests(unittest.TestCase):
         self.assertEqual(decision.action, "archive")
 
     def test_exploration_changes_policy_not_attention(self):
-        p = Passage("p", "electric vehicle demand and battery resale value", "https://x.example")
+        passage = Passage("p", "electric vehicle demand and battery resale value", "https://x.example")
         low = FocusAttentionModel(self.model.intent, exploration=0.0)
         high = FocusAttentionModel(self.model.intent, exploration=1.0)
-        self.assertEqual(low.score(p).attention, high.score(p).attention)
+        self.assertEqual(low.score(passage).attention, high.score(passage).attention)
         self.assertGreater(low.novelty_threshold, high.novelty_threshold)
         self.assertGreater(high.investigation_budget, low.investigation_budget)
 
     def test_identical_text_different_urls_deduplicated_sequentially(self):
         text = "why is electric vehicle demand weakening due to financing"
-        result = self.model.rank([Passage("a", text, "https://a.example"),
-                                  Passage("b", text, "https://b.example")])
+        result = self.model.rank(
+            [Passage("a", text, "https://a.example"), Passage("b", text, "https://b.example")]
+        )
         self.assertEqual(result[0].action, "consider")
         self.assertEqual(result[1].action, "archive")
         self.assertEqual(result[1].score.redundancy, 1.0)
 
     def test_semantic_embeddings_not_lexical_only(self):
         model = FocusAttentionModel("electric vehicle demand", embedder=TinyEmbedder())
-        result = model.rank([Passage("a", "vehicle price impact", "https://a.example"),
-                             Passage("b", "automobile affordability trends", "https://b.example")])
+        result = model.rank(
+            [
+                Passage("a", "vehicle price impact", "https://a.example"),
+                Passage("b", "automobile affordability trends", "https://b.example"),
+            ]
+        )
         self.assertEqual(result[1].action, "archive")
         self.assertEqual(result[1].score.redundancy, 1.0)
 
     def test_unrelated_with_embeddings(self):
         model = FocusAttentionModel("electric vehicle demand", embedder=TinyEmbedder())
-        self.assertEqual(model.decide(Passage("g", "galaxy telescope observations", "https://g.example")).action, "archive")
+        self.assertEqual(
+            model.decide(Passage("g", "galaxy telescope observations", "https://g.example")).action,
+            "archive",
+        )
 
     def test_stopping_after_stagnation(self):
         self.model.rank([Passage("a", "electric vehicle demand weakening", "https://a.example")])
@@ -96,14 +117,16 @@ class FocusAttentionTests(unittest.TestCase):
 
     def test_invalid_embedding(self):
         class BadEmbedder:
-            def encode(self, texts): return [(0, 0, 0)] * len(texts)
+            def encode(self, texts):
+                return [(0, 0, 0)] * len(texts)
+
         with self.assertRaises(ValueError):
             FocusAttentionModel("test", embedder=BadEmbedder())
 
     def test_evidence_packet_excludes_unverified(self):
         self.model.rank([Passage("seed", "why is electric vehicle demand weakening", "https://a.example")])
         self.model.rank([Passage("novel", "electric vehicle demand battery resale", "https://b.example")])
-        self.assertTrue(all(x["id"] != "novel" for x in self.model.evidence_packet()))
+        self.assertTrue(all(item["id"] != "novel" for item in self.model.evidence_packet()))
 
 
 if __name__ == "__main__":
