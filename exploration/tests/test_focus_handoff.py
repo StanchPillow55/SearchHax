@@ -36,7 +36,8 @@ def _post(url, json, timeout):  # noqa: A002 - matches httpx.post
     return Response()
 
 
-def test_focus_approves_a_search_when_a_passage_is_novel(tmp_path):
+def test_first_relevant_passage_is_considered_and_does_not_approve_a_search():
+    """The new ranker files the first aligned passage as consider, not investigate."""
     request = ConvergenceEvaluateRequest(
         investigation_id="inv_focus",
         original_question="why electric vehicle demand is weakening",
@@ -71,12 +72,65 @@ def test_focus_approves_a_search_when_a_passage_is_novel(tmp_path):
     )
     raw = evaluate_with_focus(request)
     decision = evaluate_controller(request, followups_executed=0, post=_post)
+    assert raw["stop"] is True
+    assert raw["approved_action"] is None
+    assert "cand_battery=consider" in raw["rationale"]
+    assert "not verified" in raw["rationale"].lower() or "not verification" in raw["rationale"].lower()
+    assert decision.decision_source == "convergence"
+    assert decision.stop is True
+    assert decision.approved_action is None
+    assert decision.stop_reason == "unresolved_uncertainty"
+
+
+def test_focus_approves_a_search_when_a_later_passage_needs_investigation():
+    request = ConvergenceEvaluateRequest(
+        investigation_id="inv_focus",
+        original_question="why electric vehicle demand is weakening",
+        open_questions=[
+            UnresolvedQuestion(
+                id="q1",
+                text="are battery degradation and resale value affecting purchases",
+                importance=0.9,
+                missing_evidence=1.0,
+            )
+        ],
+        candidates=[
+            EvidenceCandidate(
+                id="seed",
+                url="https://x.example/seed",
+                title="Seed",
+                snippet="why electric vehicle demand is weakening",
+                providers=["fixture"],
+                attention={"R": 1.0, "G": 0.0, "D": 0.0, "F": 0.0, "score": 0.4},
+            ),
+            EvidenceCandidate(
+                id="battery",
+                url="https://battery.example/report",
+                title="Battery",
+                snippet="electric vehicle demand battery resale",
+                providers=["tavily"],
+                attention={"R": 0.5, "G": 0.2, "D": 0.0, "F": 0.0, "score": 0.3},
+            ),
+        ],
+        proposed_actions=[
+            InvestigationAction(
+                id="act_battery",
+                query="battery degradation resale value purchases",
+                reason="Open gap.",
+                utility=0.9,
+            )
+        ],
+        budget=InvestigationBudget(max_searches=2, searches_used=0),
+        usage=UsageMetrics(),
+    )
+    raw = evaluate_with_focus(request)
+    decision = evaluate_controller(request, followups_executed=0, post=_post)
     assert raw["stop"] is False
     assert decision.decision_source == "convergence"
     assert decision.stop is False
     assert decision.approved_action is not None
     assert decision.approved_action.id == "act_battery"
-    assert decision.include_document_ids == ["cand_battery"]
+    assert decision.include_document_ids == ["battery"]
 
 
 def test_focus_refuses_a_search_when_the_budget_is_spent():

@@ -1,1 +1,1 @@
-"""Convergence ranking from origin/main abe58dc. The algorithm file is unchanged."""
+"""Intent-anchored passage ranker. Exploration reaches it through focus_bridge."""
