@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `408edb3` (`Rank a fixed profile corpus with a separate knowledge-value score.`), imported by QA merge `8518504`. Parent `3826b57` added the optional contract fields. Uncommitted `demo/evaluation.json` edits were not imported.
+Latest check: implementation commit `fd2aa11` (`Merge main into feat/exploration and keep the focus tests.`). Exploration sources match `408edb3`. The new files are under `focus/`.
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 13 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
+Result: 14 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 22 passed.
 
 Failed:
 
+- `qa/tests/test_focus_fetch.py::test_failed_fetch_body_is_not_used_as_page_text`
 - `qa/tests/test_provider_and_budget.py::test_fetch_exception_does_not_split_the_search_counter`
 - `qa/tests/test_provider_and_budget.py::test_search_exception_is_recorded_instead_of_escaping`
 - `qa/tests/test_provider_and_budget.py::test_empty_failed_fetch_is_recorded`
@@ -28,13 +29,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 40 / 54 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `RET-13` passes: a 503 from Brave is not a source when Tavily returned the page, and the 503 remains in the search record.
-2. Passing tests / executed tests: 77 / 90 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
+1. Verified P0 requirements: 40 / 55 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 77 / 91 offline pytest tests. 2 live tests deselected. Focus unit tests: 22 / 22.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: a fetch exception commits the search and leaves `searches_used` at 0. A raised search error escapes `step`. The other blockers are unchanged. See `qa/failure_report.md`.
-5. Integration readiness: not ready. A fetch failure leaves search history and the investigation counters disagreeing.
-6. Commit tested: `408edb3` (`Rank a fixed profile corpus with a separate knowledge-value score.`).
-7. Next validation priority: if fetch raises after the search row is committed, record the error and make `searches_used` match the history length. Rerun the thirteen failing tests. Uncommitted `demo/evaluation.json` edits are not part of this snapshot.
+4. Blocking failures: a failed Focus fetch body replaces the search snippet. The thirteen exploration blockers from `408edb3` still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. A failed page can become the text a cited answer is written from.
+6. Commit tested: `fd2aa11` (`Merge main into feat/exploration and keep the focus tests.`).
+7. Next validation priority: skip a fetch row whose status is failed or whose error field is set, even when content is nonempty. Rerun `test_failed_fetch_body_is_not_used_as_page_text` and the thirteen older failures.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 

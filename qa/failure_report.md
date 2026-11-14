@@ -1,10 +1,36 @@
 # Failure report
 
+## BLOCKER — A failed Focus fetch body replaces the search snippet
+
+Requirement: a failed URL is skipped. The answer path keeps the search snippet instead of the error page.
+
+Snapshot: implementation `fd2aa11`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_fetch.py::test_failed_fetch_body_is_not_used_as_page_text --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. The mocked Telem fetch returns one row: url `https://news.example/missing`, status `failed`, error `HTTP 404`, content `404 Not Found. NVIDIA has invested $2 billion in CoreWeave.`
+
+Expected: `telem_fetch` omits that URL. A `consider` passage keeps the text `Search snippet only.`
+
+Actual: `AssertionError: assert 'https://news.example/missing' not in {'https://news.example/missing': '404 Not Found. NVIDIA has invested $2 billion in CoreWeave.'}`
+
+`hydrate_decisions` then replaces the snippet with that body. `focus/retrieval_adapters.py` `telem_fetch` lines 144–148 keep any nonempty `content` and never read `status` or `error`. The docstring says failed URLs are skipped.
+
+Deterministic.
+
+Suggested correction: skip a row whose status is failed or error, or whose error field is set, even when content is nonempty. Leave the search snippet in place.
+
+The thirteen exploration blockers below still fail on this commit. Exploration sources match `408edb3`.
+
 ## BLOCKER — A fetch exception commits the search and then leaves the counters at zero
 
 Requirement: search counters and search history stay consistent. A network failure is recorded. The step does not abort after part of the write has committed.
 
-Snapshot: implementation `408edb3`.
+Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -28,7 +54,7 @@ Suggested correction: record the fetch error on the investigation and keep `sear
 
 Requirement: a network failure is explicit. Bounded retries are fine. After those retries the investigation records the failure instead of aborting the step.
 
-Snapshot: implementation `408edb3`.
+Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -52,7 +78,7 @@ Suggested correction: catch the search exception after the existing retries, set
 
 Requirement: a network failure is explicit. A fetch that returns an error and no page is not a successful investigation step.
 
-Snapshot: implementation `408edb3`.
+Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`.
 
 Reproduction:
 
@@ -76,7 +102,7 @@ Suggested correction: when every fetched page has an error or no content, set `b
 
 Requirement: a network failure is explicit, and a page that was not retrieved does not become a verified source. Citation integrity requires the quotation to come from the fetched source, not from an error body.
 
-Snapshot: implementation `408edb3`. Same behavior as `2c8133a`.
+Snapshot: implementation `fd2aa11`. Exploration sources match `408edb3`. Same behavior as `2c8133a`.
 
 Reproduction:
 
