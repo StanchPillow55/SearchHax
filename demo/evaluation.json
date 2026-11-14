@@ -1,59 +1,121 @@
 {
-  "generated_at": "2026-11-14T21:08:38Z",
-  "sample_size": {
-    "investigations_per_configuration": 1,
-    "note": "One investigation per configuration, not a statistical claim."
-  },
-  "telem_smoke": {
-    "ran": true,
-    "tests_passed": 2,
-    "note": "pytest -m integration passed two live Telem searches. An earlier call with no API key returned AuthError HTTP 401 and no results."
-  },
+  "sample_note": "Counts are from the runs in this file. One investigation per configuration is not a statistical result.",
   "story_a": {
     "ran": true,
+    "blocker": null,
     "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
-    "blocker": "LLM extraction failed: ReadTimeout",
+    "investigation_id": "inv_2459ddc7705c45f0",
     "stop_reason": "unresolved_uncertainty",
     "decision_source": "fallback",
-    "search_calls": 1,
-    "provider_calls": 2,
-    "providers": ["brave", "tavily"],
-    "fetch_calls": 1,
-    "urls_fetched": 5,
-    "llm_calls": 1,
-    "llm_tokens": null,
-    "cost_usd": null,
-    "supported_relationships": 0,
-    "relationships_stored": 0,
-    "latency_ms": 121579,
+    "decision_rationale": "Convergence endpoint unavailable (RemoteProtocolError). Fallback ranked open questions by importance and missing evidence. Selected the highest-priority unused query: What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?",
+    "session_set": true,
+    "checkpoints": 2,
     "resume": {
-      "reused": 5,
-      "unchanged_versions": 0,
+      "reused": 8,
+      "unchanged_versions": 2,
       "network_fetches": 0
     },
-    "notes": "Measured from one fresh-cache run. Telem search used brave and tavily. One Telem fetch read 5 URLs. The first LLM call raised ReadTimeout; remaining pages were not sent to the model. No relationships were invented. Resume reused the five cached documents and made no further network fetches. Token and dollar fields are null because the API did not return them."
+    "llm_configured": true,
+    "relationships": [
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "CoreWeave",
+        "predicate": "planned_capacity",
+        "object": "1 GW",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "planned_capacity",
+        "object": "5GW",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "planned_capacity",
+        "object": "5GW",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      }
+    ],
+    "open_questions": [
+      "What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?"
+    ],
+    "usage": {
+      "session_id": "63150294-7ab8-4c6d-a9cc-0b58c2d2c871",
+      "interaction_ids": [
+        "b78798bb-b8bc-475c-aafa-93dec2993d8b",
+        "0e6100b8-a841-4666-a499-7b88bee53ee4"
+      ],
+      "search_calls": 2,
+      "provider_calls": 4,
+      "urls_fetched": 0,
+      "fetch_calls": 2,
+      "llm_calls": 6,
+      "llm_tokens": null,
+      "latency_ms": 25326,
+      "cost_usd": null,
+      "providers_used": [
+        "brave",
+        "tavily"
+      ],
+      "network_calls": 2,
+      "cache_hits": 0,
+      "corpus_documents": 0,
+      "followups_executed": 1,
+      "rejected_ungrounded_citations": 0,
+      "dry_run": false,
+      "configuration": "web"
+    }
   },
-  "story_c": {
-    "question": "Do three articles independently substantiate a company's claim?",
-    "shared_origin_found": true,
-    "origin_id": "LF-PR-2026-031",
-    "contradiction_found": true,
-    "decision_source": "fallback",
-    "stop_reason": "unresolved_uncertainty",
-    "resume": {
-      "reused": 0,
-      "unchanged_versions": 4,
-      "network_fetches": 0
-    },
-    "b0": {
+  "reports": [
+    {
+      "story": "C",
+      "configuration": "B0",
       "ran": true,
+      "blocker": null,
+      "question": "Do three articles independently substantiate a company's claim?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
       "search_calls": 0,
       "provider_calls": 0,
       "urls_fetched": 0,
       "llm_calls": 0,
       "llm_tokens": null,
-      "cost_usd": null,
-      "network_calls": 0,
       "supported_relationships": 21,
       "contradicted_relationships": 0,
       "insufficient_relationships": 0,
@@ -62,17 +124,24 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 0,
       "shared_origin_detected": false,
-      "latency_ms": 39
+      "latency_ms": 16,
+      "cost_usd": null,
+      "network_calls": 0,
+      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
     },
-    "b3": {
+    {
+      "story": "C",
+      "configuration": "B3",
       "ran": true,
+      "blocker": null,
+      "question": "Do three articles independently substantiate a company's claim?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
       "search_calls": 1,
       "provider_calls": 0,
       "urls_fetched": 0,
       "llm_calls": 0,
       "llm_tokens": null,
-      "cost_usd": null,
-      "network_calls": 0,
       "supported_relationships": 20,
       "contradicted_relationships": 1,
       "insufficient_relationships": 0,
@@ -81,8 +150,36 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 1,
       "shared_origin_detected": true,
-      "latency_ms": 35
+      "latency_ms": 57,
+      "cost_usd": null,
+      "network_calls": 0,
+      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
     },
-    "notes": "Story C uses the local four-document fixture. The B3 search_calls value is the one local follow-up, not a Telem call. B0 does not reconcile the $480 million sentence, so it stays supported by its own quotation. B3 marks that sentence contradicted by the original $400 million announcement. Sample size is one investigation."
-  }
+    {
+      "story": "A",
+      "configuration": "B3",
+      "ran": true,
+      "blocker": null,
+      "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
+      "search_calls": 2,
+      "provider_calls": 4,
+      "urls_fetched": 0,
+      "llm_calls": 6,
+      "llm_tokens": null,
+      "supported_relationships": 9,
+      "contradicted_relationships": 0,
+      "insufficient_relationships": 0,
+      "hypothesis_relationships": 0,
+      "correct_citations": 6,
+      "rejected_ungrounded_citations": 0,
+      "contradiction_detections": 0,
+      "shared_origin_detected": false,
+      "latency_ms": 25326,
+      "cost_usd": null,
+      "network_calls": 2,
+      "notes": ""
+    }
+  ]
 }

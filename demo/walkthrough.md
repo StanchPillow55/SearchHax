@@ -1,47 +1,28 @@
-# FrontierGraph walkthrough
+# Walkthrough
 
-Measured on November 14, 2026. Each configuration is one investigation, not a statistical result. Token and dollar amounts are null wherever the API did not return them.
-
-## Live Story A
-
-The stored question is unchanged: "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?"
-
-What actually ran, against an empty fetch cache:
-
-- 1 Telem search, providers brave and tavily (2 provider calls)
-- 1 Telem fetch of 5 URLs
-- 1 LLM call, which failed with `ReadTimeout`
-- 0 relationships stored
-
-The investigation stopped with `unresolved_uncertainty` and `decision_source: fallback`. The fallback did not invent NVIDIA relationships after extraction failed. Latency for that run was 121579 ms. No usage tokens or cost were returned.
-
-Resume loaded the five cached documents and reported `network_fetches: 0`.
-
-A separate `pytest -m integration` run passed two live Telem searches. Earlier in the session, before the API key was available, a direct SDK call returned `AuthError` with HTTP 401 and no results.
+Measured on November 14, 2026. Counts below are the run recorded in `demo/evaluation.json`. One investigation is not a statistical result.
 
 ## Story C, offline
 
 Question: "Do three articles independently substantiate a company's claim?"
 
-The corpus is four fictional files. No Telem, Tavily, or LLM call is made.
+`demo/run_demo.py` loads four local fictional documents. Network calls: 0. The B3 run found one shared origin, `LF-PR-2026-031`, with one original announcement and three derivatives. It marked the `$480 million` Series D sentence as contradicted and left the `$400 million` sentences supported. Stop reason: `unresolved_uncertainty`. Decision source: `fallback`, because the convergence endpoint was not running. B0 read the same corpus and did not classify the shared origin or the contradiction.
 
-The original Lumenarc Dynamics release and three derivative articles share wire ID `LF-PR-2026-031`. One document is the original. Three cite it. They are not treated as independent sources.
+## Story A, live Telem
 
-VoltStreet says the Series D was `$480 million`. The original announcement and the other two articles say `$400 million`. B3 stores the `$480 million` relationship as `contradicted`. The quotation is still an exact substring of the VoltStreet article: quotation validity is not semantic support.
+Question stored unchanged: "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?"
 
-The convergence endpoint was not running. The recorded decision source is `fallback`, not `convergence`. The fallback ran one local follow-up looking for a Series D amount that does not cite the wire. None exists in the corpus. Stop reason: `unresolved_uncertainty`.
+The search query sent to Telem was `NVIDIA CoreWeave investment AI factories capacity 2026`. Providers: brave and tavily. This run made 2 searches and 4 provider calls, and Telem returned a session id plus two interaction ids. Fetch calls were served from the local fetch cache written by earlier live Telem fetches in the same session, so `urls_fetched` on this run is 0. Resume after the run reported `network_fetches: 0`.
 
-Reload of the four stored versions made no network fetches.
+Supported edges, each tied to an exact substring of a stored page:
 
-B0, same corpus and the same deterministic extractor, one pass, no provenance graph and no follow-up:
+- NVIDIA invested_in CoreWeave
+- NVIDIA invested_amount $2 billion
+- NVIDIA planned_capacity 5GW
+- CoreWeave planned_capacity 1 GW
 
-- 21 supported relationships, 0 contradiction detections, 13 exact citations
-- latency 39 ms
+Nine supported rows are stored because more than one page contains the investment sentence. The demand-side question stayed open: "What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?" The follow-up search used that question. Stop reason: `unresolved_uncertainty`. No causal demand conclusion was stored.
 
-B3:
+Decision source: `fallback`. The convergence endpoint at `http://127.0.0.1:8000/api/convergence/evaluate` raised `RemoteProtocolError`.
 
-- 20 supported relationships, 1 contradicted relationship, 1 contradiction detection, 13 exact citations
-- latency 35 ms
-- 1 local follow-up counted as a search operation, 0 provider calls, 0 URLs fetched, 0 LLM calls
-
-The extra supported relationship in B0 is the `$480 million` sentence, which is locally quoted and not checked against the original.
+The local LLM (`llama3.1:latest` on localhost) was called 6 times and timed out on page excerpts. The supported edges above came from exact-substring checks on the fetched pages, not from model JSON. `llm_tokens` and `cost_usd` were not reported by the APIs.

@@ -338,7 +338,11 @@ class Database:
             self._conn.commit()
 
     def _insert_payloads(self, investigation_id: str, table: str, models) -> None:
+        seen: set[str] = set()
         for model in models:
+            if model.id in seen:
+                continue
+            seen.add(model.id)
             self._conn.execute(
                 f"INSERT INTO {table} (investigation_id, id, payload_json) VALUES (?, ?, ?)",
                 (investigation_id, model.id, _dump(model)),

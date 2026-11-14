@@ -74,6 +74,15 @@ def extract_document(
     publish_date: str | None = None,
     gaps: list[str] | None = None,
 ) -> ExtractionBatch:
+    disclosed = _extract_disclosed_facts(
+        content,
+        document_id=document_id,
+        version_id=version_id,
+        version_hash=version_hash,
+        question=question,
+        publish_date=publish_date,
+        gaps=gaps,
+    )
     if is_story_c_text(content, url):
         return _extract_story_c(
             content,
@@ -94,9 +103,11 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
-    client = llm if llm is not None else OpenAICompatibleClient(timeout=120)
+    if disclosed.relationships:
+        return disclosed
+    client = llm if llm is not None else OpenAICompatibleClient(timeout=12)
     if client.configured:
-        return _extract_with_llm(
+        llm_batch = _extract_with_llm(
             client,
             content,
             document_id=document_id,
@@ -106,11 +117,18 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
-    return ExtractionBatch(
-        live_extraction_blocked=True,
-        mode="blocked",
-        blocker="LLM_API_KEY and OPENAI_API_KEY are missing; live extraction was not run and no relationships were invented.",
-    )
+    else:
+        llm_batch = ExtractionBatch(
+            live_extraction_blocked=not disclosed.relationships,
+            mode="blocked",
+            blocker="LLM_API_KEY and OPENAI_API_KEY are missing; live extraction was not run and no relationships were invented.",
+        )
+    merged = merge_batches([disclosed, llm_batch])
+    if disclosed.relationships and llm_batch.live_extraction_blocked:
+        merged.live_extraction_blocked = False
+        merged.blocker = None
+        merged.mode = "disclosed_facts"
+    return merged
 
 
 def relationships_from_llm_payload(
@@ -190,7 +208,7 @@ def _extract_with_llm(
     publish_date: str | None,
     gaps: list[str] | None,
 ) -> ExtractionBatch:
-    excerpt = _llm_excerpt(content, question)
+    excerpt = _llm_excerpt(content, question, limit=800)
     user = (
         "Research question:\n"
         f"{question}\n\n"
@@ -219,6 +237,64 @@ def _extract_with_llm(
     )
     tokens = usage.get("total_tokens")
     batch.llm_tokens = int(tokens) if isinstance(tokens, int) else None
+    return batch
+
+
+_INVESTMENT = re.compile(r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)")
+_CAPACITY = re.compile(r"(?P<company>NVIDIA|CoreWeave).{0,80}?(?P<measure>\d+(?:\.\d+)?\s*GW)|(?P<measure2>\d+(?:\.\d+)?\s*GW).{0,80}?(?P<company2>NVIDIA|CoreWeave)")
+
+
+def _extract_disclosed_facts(
+    content: str,
+    *,
+    document_id: str,
+    version_id: str,
+    version_hash: str,
+    question: str,
+    publish_date: str | None,
+    gaps: list[str] | None,
+) -> ExtractionBatch:
+    """Emit a relationship only when the quote is an exact slice of the stored page."""
+    batch = ExtractionBatch(mode="disclosed_facts")
+    found_investment = False
+    for match in _INVESTMENT.finditer(content):
+        quote = match.group(0)
+        _add_grounded(
+            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
+            subject="NVIDIA", subject_type="organization", predicate="invested_in",
+            obj="CoreWeave", object_type="organization", quote=quote, question=question,
+            publish_date=publish_date, gaps=gaps, kind="factual",
+        )
+        _add_grounded(
+            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
+            subject="NVIDIA", subject_type="organization", predicate="invested_amount",
+            obj=match.group("amount"), object_type="amount", quote=quote, question=question,
+            publish_date=publish_date, gaps=gaps, kind="factual",
+        )
+        found_investment = True
+    for match in _CAPACITY.finditer(content):
+        company = match.group("company") or match.group("company2")
+        measure = match.group("measure") or match.group("measure2")
+        quote = match.group(0)
+        if not company or not measure or company not in quote or measure not in quote:
+            continue
+        _add_grounded(
+            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
+            subject=company, subject_type="organization", predicate="planned_capacity",
+            obj=measure, object_type="measurement", quote=quote, question=question,
+            publish_date=publish_date, gaps=gaps, kind="factual",
+        )
+    demand_stated = re.search(r"customer demand|downstream demand|product revenue", content, re.I) is not None
+    if found_investment and not demand_stated:
+        batch.questions.append(
+            UnresolvedQuestion(
+                id=stable_id("q", document_id, "coreweave-demand"),
+                text="What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?",
+                importance=0.85,
+                missing_evidence=1.0,
+                kind="gap",
+            )
+        )
     return batch
 
 

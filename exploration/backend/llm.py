@@ -51,6 +51,7 @@ class OpenAICompatibleClient:
         payload = {
             "model": self.model,
             "temperature": 0,
+            "max_tokens": 300,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},
