@@ -179,6 +179,74 @@ def test_story_c_survives_reload_without_new_external_calls(tmp_path):
         second.graph.save(loaded)
 
 
+def test_completed_web_investigation_reloads_without_new_calls(tmp_path, monkeypatch):
+    """A stopped web investigation reuses stored pages. A fresh cache does not refetch them."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave."
+    calls = {"n": 0}
+
+    def search_fn(query, session_id):
+        del query, session_id
+        calls["n"] += 1
+        return {
+            "session_id": "sess-reload",
+            "interaction_id": f"int-{calls['n']}",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": f"https://news.example/page-{calls['n']}",
+                            "title": "NVIDIA",
+                            "summary": text,
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        calls["n"] += 1
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    path = tmp_path / "web.sqlite"
+    first = Orchestrator(path, retrieval=_client(tmp_path, search_fn, fetch_fn), post=_down)
+    investigation = first.create(STORY_A_QUESTION, mode="web")
+    first.step(investigation.id)
+    finished = first.step(investigation.id)
+    assert finished.investigation.status == "stopped"
+    assert finished.documents
+    assert finished.relationships
+    searches_used = finished.investigation.budget.searches_used
+    question = finished.investigation.question
+    first.database.close()
+
+    def explode(*_args, **_kwargs):
+        calls["n"] += 1
+        raise AssertionError("reload issued an external call")
+
+    fresh = RetrievalClient(
+        cache_dir=tmp_path / "fresh-cache",
+        dry_run=False,
+        search_fn=explode,
+        fetch_fn=explode,
+        sleeper=lambda _seconds: None,
+    )
+    before = calls["n"]
+    second = Orchestrator(path, retrieval=fresh, post=_down)
+    stats = second.resume(investigation.id)
+    reloaded = second.step(investigation.id)
+    assert stats["network_fetches"] == 0
+    assert calls["n"] == before
+    assert reloaded.investigation.status == "stopped"
+    assert reloaded.investigation.question == question
+    assert reloaded.investigation.budget.searches_used == searches_used
+    assert len(reloaded.documents) == len(finished.documents)
+    assert len(reloaded.relationships) == len(finished.relationships)
+
+
 def test_controller_approval_executes_and_malformed_payload_does_not(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
     monkeypatch.setenv("LLM_API_KEY", "qa-dummy")
