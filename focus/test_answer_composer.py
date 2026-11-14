@@ -66,6 +66,18 @@ class AnswerComposerTests(unittest.TestCase):
         self.assertIn("exact answer without references", result.markdown)
         self.assertEqual(result.cited_source_ids, ())
 
+    def test_normalizes_local_model_numeric_and_url_citations(self):
+        result = compose_answer(
+            "why is electric vehicle demand weakening", self.decisions,
+            provider="local", strict_citations=False,
+            transport=lambda payload: {"choices": [{"message": {
+                "content": "Affordability is a factor [1]. More detail: https://example.com/price"
+            }}]},
+        )
+        self.assertEqual(result.cited_source_ids, ("S1",))
+        self.assertIn("[S1]", result.markdown)
+        self.assertIn("https://example.com/price", result.markdown)
+
 
 if __name__ == "__main__":
     unittest.main()

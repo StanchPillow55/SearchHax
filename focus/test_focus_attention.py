@@ -149,6 +149,22 @@ class ResearchLoopTests(unittest.TestCase):
         self.assertEqual(result.search_calls, len(calls))
         self.assertGreaterEqual(result.accepted, 1)
 
+    def test_query_plan_runs_multiple_explicit_searches(self):
+        from research_loop import run_research
+        model = FocusAttentionModel('electric vehicle demand', exploration=0.0)
+        calls = []
+        result = run_research(
+            model, lambda query: calls.append(query) or [],
+            max_search_calls=3, max_stagnant_batches=3,
+            query_plan=('electric vehicle demand causes', 'electric vehicle demand counterevidence'),
+        )
+        self.assertEqual(result.search_calls, 3)
+        self.assertEqual(calls, [
+            'electric vehicle demand',
+            'electric vehicle demand causes',
+            'electric vehicle demand counterevidence',
+        ])
+
     def test_normalized_provider_results(self):
         from retrieval_adapters import normalize_results
         data={'results':[{'title':'EV','content':'Vehicle pricing','url':'https://a.example'},
