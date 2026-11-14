@@ -2,7 +2,7 @@
 
 Milestone: live Story A plus offline Story C, after the grounded-quote fix.
 
-Commit: see `git rev-parse --short HEAD` after this checkpoint is committed. The SHA is filled in by the commit that adds this file; until that commit exists, the working tree is uncommitted.
+Commit: `7f16d8f` on `feat/exploration`. Unit tests: 15 passed in `exploration/tests/test_exploration.py`.
 
 ## Verification level
 
