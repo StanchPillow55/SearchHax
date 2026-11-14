@@ -16,6 +16,8 @@ from focus_attention import FocusDecision
 
 
 _CITATION_RE = re.compile(r"\[(S\d+)\]")
+_NUMERIC_CITATION_RE = re.compile(r"\[(\d+)\]")
+_PAREN_CITATION_RE = re.compile(r"\((?:source\s*)?(S\d+|\d+)\)", re.IGNORECASE)
 
 
 class AnswerGenerationError(RuntimeError):
@@ -123,6 +125,26 @@ def _references(answer: str, sources: tuple[AnswerSource, ...]) -> tuple[str, ..
     if not cited:
         raise AnswerGenerationError("The answer contained no citations")
     return cited
+
+
+def _normalize_citations(answer: str, sources: tuple[AnswerSource, ...]) -> str:
+    """Normalize citation styles commonly emitted by small local models."""
+    def numeric(match: re.Match[str]) -> str:
+        number = int(match.group(1))
+        return f"[S{number}]" if 1 <= number <= len(sources) else match.group(0)
+
+    answer = _NUMERIC_CITATION_RE.sub(numeric, answer)
+
+    def parenthetical(match: re.Match[str]) -> str:
+        value = match.group(1)
+        number = int(value[1:]) if value.upper().startswith("S") else int(value)
+        return f"[S{number}]" if 1 <= number <= len(sources) else match.group(0)
+
+    answer = _PAREN_CITATION_RE.sub(parenthetical, answer)
+    for number, source in enumerate(sources, start=1):
+        if source.url in answer:
+            answer = answer.replace(source.url, f"[S{number}]")
+    return answer
 
 
 def compose_answer(
@@ -256,7 +278,7 @@ def compose_answer(
     else:
         payload = transport(request_payload)
 
-    answer = _response_text(payload)
+    answer = _normalize_citations(_response_text(payload), sources)
     if strict_citations:
         cited = _references(answer, sources)
     else:

@@ -1,7 +1,7 @@
 """Bounded discovery loop: verification *search*, not verified truth."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Sequence
 from focus_attention import FocusAttentionModel, FocusDecision, Passage
 
 
@@ -24,7 +24,8 @@ def followup_query(decision: FocusDecision, original_intent: str) -> str:
 def run_research(model: FocusAttentionModel,
                  retrieve: Callable[[str], list[Passage]],
                  *, max_search_calls: int = 3,
-                 max_stagnant_batches: int = 2) -> ResearchRun:
+                 max_stagnant_batches: int = 2,
+                 query_plan: Sequence[str] = ()) -> ResearchRun:
     """Fetch, rank, and target novel findings within a strict request budget.
 
     Results from follow-ups are new *candidates*, not verified evidence.
@@ -32,7 +33,9 @@ def run_research(model: FocusAttentionModel,
     """
     all_decisions: list[FocusDecision] = []
     queries: list[str] = []
-    pending = [model.intent]
+    # A supplied plan makes Deep Investigation deterministic and auditable.
+    # Without one, only novel candidates generate targeted follow-ups.
+    pending = [model.intent, *query_plan]
     processed_investigations: set[str] = set()
     while pending and not model.should_stop(
             max_search_calls=max_search_calls,

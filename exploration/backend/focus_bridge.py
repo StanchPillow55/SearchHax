@@ -121,6 +121,33 @@ def focus_http_response(payload: dict) -> dict:
     return body
 
 
+class _InProcessResponse:
+    """Minimal stand-in for an httpx response, so the orchestrator's ``post``
+    hook can reach focus in the same process without a running HTTP server.
+    """
+
+    def __init__(self, body: dict) -> None:
+        self._body = body
+
+    def raise_for_status(self) -> None:  # pragma: no cover - always ok here
+        return None
+
+    def json(self) -> dict:
+        return self._body
+
+
+def focus_post(url: str, *, json: dict, timeout=None) -> _InProcessResponse:
+    """Route the convergence request straight through focus, in process.
+
+    Matches the call shape ``evaluate_controller`` uses for ``httpx.post``:
+    positional URL, keyword ``json`` body, optional ``timeout``. The URL and
+    timeout are ignored because no socket is opened. This is how a live
+    pipeline run uses the focus ranker as the convergence controller.
+    """
+
+    return _InProcessResponse(focus_http_response(json))
+
+
 def _stopped(
     request: ConvergenceEvaluateRequest,
     reason: str,
