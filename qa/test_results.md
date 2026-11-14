@@ -8,7 +8,7 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 13 failed, 76 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
+Result: 13 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
 
 Failed:
 
@@ -28,8 +28,8 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 39 / 53 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 76 / 89 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
+1. Verified P0 requirements: 40 / 54 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `RET-13` passes: a 503 from Brave is not a source when Tavily returned the page, and the 503 remains in the search record.
+2. Passing tests / executed tests: 77 / 90 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
 4. Blocking failures: a fetch exception commits the search and leaves `searches_used` at 0. A raised search error escapes `step`. The other blockers are unchanged. See `qa/failure_report.md`.
 5. Integration readiness: not ready. A fetch failure leaves search history and the investigation counters disagreeing.

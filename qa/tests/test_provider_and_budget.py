@@ -585,3 +585,47 @@ def test_fetch_exception_does_not_split_the_search_counter(tmp_path, monkeypatch
     assert loaded.investigation.status in {"stopped", "blocked"}
     assert loaded.investigation.budget.searches_used == loaded.investigation.usage.search_calls == len(history)
     assert loaded.documents == []
+
+
+def test_failed_provider_does_not_become_a_source_when_another_succeeds(tmp_path, monkeypatch):
+    """Brave failing does not count as a source when Tavily returned the page."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-partial",
+            "interaction_id": "int-partial",
+            "provider_runs": [
+                {"provider": "brave", "status": 503, "error": "unavailable", "results": []},
+                {
+                    "provider": "tavily",
+                    "status": "ok",
+                    "results": [
+                        {"url": "https://news.example/a", "title": "A", "summary": text, "provider": "tavily"}
+                    ],
+                },
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "partial.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    export = orchestrator.step(orchestrator.create(STORY_A_QUESTION, mode="web").id)
+    assert [document.providers for document in export.documents] == [["tavily"]]
+    assert export.investigation.usage.providers_used == ["tavily"]
+    assert any(rel.status == "supported" for rel in export.relationships)
+    versions = {version.id: version for version in export.document_versions}
+    for span in export.evidence_spans:
+        version = versions[span.version_id]
+        assert version.content[span.start : span.end] == span.text
+    raw = orchestrator.database._conn.execute("SELECT raw_json FROM search_history").fetchone()[0]
+    assert "503" in raw
+    assert "brave" in raw
