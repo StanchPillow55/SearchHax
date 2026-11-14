@@ -2,7 +2,7 @@
 
 Milestone: live Story A plus offline Story C, after the grounded-quote fix.
 
-Commit: `7f16d8f` on `feat/exploration`. Unit tests: 15 passed in `exploration/tests/test_exploration.py`.
+Commit: recorded after this checkpoint. Unit tests: `exploration/.venv/bin/pytest -m "not integration"` — 31 passed, 2 integration tests deselected.
 
 ## Verification level
 
@@ -16,7 +16,7 @@ Unit tests last run: `exploration/.venv/bin/pytest exploration/tests/test_explor
 
 Story C B3: shared origin `LF-PR-2026-031`, 1 contradiction, 0 network calls, stop `unresolved_uncertainty`.
 
-Story A `inv_2459ddc7705c45f0`: 2 Telem searches, 4 provider calls, 9 supported relationships, 1 follow-up, decision source `fallback` (`RemoteProtocolError` from the convergence URL), stop `unresolved_uncertainty`, resume network fetches 0. Page bodies on this run came from the fetch cache. `urls_fetched` is 0 for that reason. `cost_usd` and `llm_tokens` are null.
+Story A `inv_8e46a18764e64eb0`, empty fetch cache: 2 Telem searches, 4 provider calls, 5 URLs fetched, 6 supported relationships (`invested_in` CoreWeave and `invested_amount` $2 billion, each on three pages), 1 follow-up, decision source `fallback` (`RemoteProtocolError`), stop `unresolved_uncertainty`, resume network fetches 0. `cost_usd` and `llm_tokens` are null.
 
 ## Files
 
@@ -29,15 +29,14 @@ Story A `inv_2459ddc7705c45f0`: 2 Telem searches, 4 provider calls, 9 supported 
 ## Known limitations
 
 - Convergence was not running. The labeled fallback selected the follow-up.
-- Local `llama3.1:latest` timed out on page excerpts. Supported Story A edges are exact substrings of fetched pages, not LLM JSON.
-- The same investment sentence is stored once per source page, so the supported count is not a count of distinct facts.
-- `urls_fetched` does not increase when a URL is already in the fetch cache.
+- Local `llama3.1:latest` did not return JSON for the two pages that lacked the investment sentence. Supported edges are the exact sentence `NVIDIA has invested $2 billion in CoreWeave`, not model JSON.
+- The same sentence is stored once per source page, so 6 supported rows are 2 facts on 3 pages.
 - No React UI. The CLI and HTTP API are the exploration surface.
+- Convergence was not running, so the follow-up is the labeled fallback.
 
-## Still open from the original goal
+## Still open
 
-- A cold-cache Story A in which `urls_fetched` is greater than 0 on the same run as the grounded edges.
-- An LLM extraction that returns before timeout and adds grounded quotes of its own.
+- An LLM extraction that returns before timeout and adds its own grounded quotes.
 - A live response from `POST /api/convergence/evaluate`.
 - Human step: keep `TELEM_API_KEY`, `TAVILY_API_KEY`, and `LLM_*` in the gitignored `.env`. Do not commit it.
 

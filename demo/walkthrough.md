@@ -12,17 +12,15 @@ Question: "Do three articles independently substantiate a company's claim?"
 
 Question stored unchanged: "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?"
 
-The search query sent to Telem was `NVIDIA CoreWeave investment AI factories capacity 2026`. Providers: brave and tavily. This run made 2 searches and 4 provider calls, and Telem returned a session id plus two interaction ids. Fetch calls were served from the local fetch cache written by earlier live Telem fetches in the same session, so `urls_fetched` on this run is 0. Resume after the run reported `network_fetches: 0`.
+The search query sent to Telem was `NVIDIA CoreWeave investment AI factories capacity 2026`. Providers: brave and tavily. Investigation `inv_8e46a18764e64eb0` started with an empty fetch cache. It made 2 searches, 4 provider calls, and fetched 5 URLs. Telem returned a session id and two interaction ids. Resume afterwards reported `network_fetches: 0`.
 
-Supported edges, each tied to an exact substring of a stored page:
+Supported edges are exact substrings of the stored pages, three copies of each because three pages contain the same sentence:
 
 - NVIDIA invested_in CoreWeave
 - NVIDIA invested_amount $2 billion
-- NVIDIA planned_capacity 5GW
-- CoreWeave planned_capacity 1 GW
 
-Nine supported rows are stored because more than one page contains the investment sentence. The demand-side question stayed open: "What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?" The follow-up search used that question. Stop reason: `unresolved_uncertainty`. No causal demand conclusion was stored.
+The demand-side question stayed open: "What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?" The follow-up search used that question. Stop reason: `unresolved_uncertainty`. No causal demand conclusion was stored.
 
 Decision source: `fallback`. The convergence endpoint at `http://127.0.0.1:8000/api/convergence/evaluate` raised `RemoteProtocolError`.
 
-The local LLM (`llama3.1:latest` on localhost) was called 6 times and timed out on page excerpts. The supported edges above came from exact-substring checks on the fetched pages, not from model JSON. `llm_tokens` and `cost_usd` were not reported by the APIs.
+The local LLM was called twice on pages that did not contain that investment sentence. The supported edges came from the exact sentence `NVIDIA has invested $2 billion in CoreWeave`, not from model JSON. `llm_tokens` and `cost_usd` were not reported.

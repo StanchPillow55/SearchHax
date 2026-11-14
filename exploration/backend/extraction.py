@@ -107,7 +107,7 @@ def extract_document(
         return disclosed
     client = llm if llm is not None else OpenAICompatibleClient(timeout=12)
     if client.configured:
-        llm_batch = _extract_with_llm(
+        return _extract_with_llm(
             client,
             content,
             document_id=document_id,
@@ -117,18 +117,11 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
-    else:
-        llm_batch = ExtractionBatch(
-            live_extraction_blocked=not disclosed.relationships,
-            mode="blocked",
-            blocker="LLM_API_KEY and OPENAI_API_KEY are missing; live extraction was not run and no relationships were invented.",
-        )
-    merged = merge_batches([disclosed, llm_batch])
-    if disclosed.relationships and llm_batch.live_extraction_blocked:
-        merged.live_extraction_blocked = False
-        merged.blocker = None
-        merged.mode = "disclosed_facts"
-    return merged
+    return ExtractionBatch(
+        live_extraction_blocked=True,
+        mode="blocked",
+        blocker="LLM_API_KEY and OPENAI_API_KEY are missing; live extraction was not run and no relationships were invented.",
+    )
 
 
 def relationships_from_llm_payload(
@@ -241,7 +234,6 @@ def _extract_with_llm(
 
 
 _INVESTMENT = re.compile(r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)")
-_CAPACITY = re.compile(r"(?P<company>NVIDIA|CoreWeave).{0,80}?(?P<measure>\d+(?:\.\d+)?\s*GW)|(?P<measure2>\d+(?:\.\d+)?\s*GW).{0,80}?(?P<company2>NVIDIA|CoreWeave)")
 
 
 def _extract_disclosed_facts(
@@ -272,18 +264,6 @@ def _extract_disclosed_facts(
             publish_date=publish_date, gaps=gaps, kind="factual",
         )
         found_investment = True
-    for match in _CAPACITY.finditer(content):
-        company = match.group("company") or match.group("company2")
-        measure = match.group("measure") or match.group("measure2")
-        quote = match.group(0)
-        if not company or not measure or company not in quote or measure not in quote:
-            continue
-        _add_grounded(
-            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
-            subject=company, subject_type="organization", predicate="planned_capacity",
-            obj=measure, object_type="measurement", quote=quote, question=question,
-            publish_date=publish_date, gaps=gaps, kind="factual",
-        )
     demand_stated = re.search(r"customer demand|downstream demand|product revenue", content, re.I) is not None
     if found_investment and not demand_stated:
         batch.questions.append(
