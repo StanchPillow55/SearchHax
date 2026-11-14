@@ -213,6 +213,85 @@ def test_sdk_search_follows_the_documented_request(monkeypatch):
     assert bundle.provider_call_count == 1
 
 
+def test_controller_stop_without_reason_code_still_stops(tmp_path, monkeypatch):
+    """A controller stop has to end the investigation.
+
+    ``stop: true`` with a rationale and no stop_reason is a usable decision.
+    The loop must not stay ``running``.
+    """
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    calls = {"n": 0}
+
+    def search_fn(query, session_id):
+        del session_id
+        calls["n"] += 1
+        return {
+            "session_id": "sess-stop",
+            "interaction_id": "int-stop",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://example.com/nvidia",
+                            "title": "NVIDIA",
+                            "summary": "NVIDIA has invested $2 billion in CoreWeave.",
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {
+            "results": [
+                {
+                    "url": urls[0],
+                    "content": "NVIDIA has invested $2 billion in CoreWeave.",
+                    "status": "ok",
+                    "provider": "telem",
+                }
+            ]
+        }
+
+    def post(url, json, timeout):  # noqa: A002
+        del url, json, timeout
+
+        class Response:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"stop": True, "rationale": "controller says stop without a reason code"}
+
+        return Response()
+
+    orchestrator = Orchestrator(
+        tmp_path / "stop.sqlite",
+        retrieval=RetrievalClient(
+            cache_dir=tmp_path / "cache",
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+        ),
+        post=post,
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    orchestrator.step(investigation.id)
+    stopped = orchestrator.step(investigation.id)
+    again = orchestrator.step(investigation.id)
+    assert stopped.decision is not None
+    assert stopped.decision.decision_source == "convergence"
+    assert stopped.decision.stop is True
+    assert stopped.investigation.status == "stopped"
+    assert stopped.investigation.stop_reason is not None
+    assert again.investigation.status == "stopped"
+    assert calls["n"] == 1
+
+
 def test_same_url_from_two_providers_is_one_focus_passage():
     from focus.focus_attention import FocusAttentionModel, Passage
 

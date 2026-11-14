@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A controller stop without a reason code leaves the investigation running
+
+Requirement: a valid controller response leads to the corresponding action. `stop: true` ends the investigation, so status becomes `stopped`.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_and_versions.py::test_controller_stop_without_reason_code_still_stops --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first step retrieves one mocked page containing `NVIDIA has invested $2 billion in CoreWeave.` The second step posts to a controller that returns `{"stop": true, "rationale": "controller says stop without a reason code"}`. No live provider is called.
+
+Expected: `status` is `stopped` and `stop_reason` is set. A third step does not search.
+
+Actual: `decision.stop` is true, `decision.decision_source` is `convergence`, `decision.stop_reason` is null, and `investigation.status` stays `running`. The third step also stays `running`. The provider was called once.
+
+Location: `exploration/backend/convergence.py` line 87 stores `stop_reason` only when the code is one of the five literals, so a missing code becomes null. `exploration/backend/orchestrator.py` line 355 applies the stop only when both `decision.stop` and `decision.stop_reason` are set. The same conjunction is at line 237 for Story C. A later step returns immediately only when status is already `stopped` or `blocked`.
+
+Deterministic: yes.
+
+Suggested correction: when `decision.stop` is true, set status to `stopped`. If the payload omitted a known reason, record `unresolved_uncertainty` rather than dropping the stop.
+
 ## BLOCKER — Focus handoff refuses the Story C independence search
 
 Requirement: an unresolved important relationship generates a follow-up, and the convergence path can approve that action. Archiving the four known articles is not a reason to cancel a search for a source outside that set.
