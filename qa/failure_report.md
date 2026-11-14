@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — An empty failed fetch stays `running` and drops the error
+
+Requirement: a network failure is explicit. A fetch that returns an error and no page is not a successful investigation step.
+
+Snapshot: implementation `408edb3`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_empty_failed_fetch_is_recorded --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Search returns `https://news.example/missing`. Fetch returns `status` `error`, `error` `HTTP 404`, and an empty body. No live provider is called.
+
+Expected: status is `stopped`, and the blocker, stop reason, or rationale contains `404`, `error`, or `unavailable`. No document is stored.
+
+Actual: status stays `running`. `blocker`, `stop_reason`, and rationale are empty. Documents and relationships are empty. `fetch_calls` is 1 and `urls_fetched` is 1.
+
+Location: `exploration/backend/orchestrator.py` lines 472–474 skip a page with no content and never read `page.status` or `page.error`.
+
+Deterministic: yes.
+
+Suggested correction: when every fetched page has an error or no content, set `blocker` to those errors, set status to `stopped`, and set `stop_reason` to `unresolved_uncertainty`.
+
 ## BLOCKER — A failed fetch body is stored as supported evidence
 
 Requirement: a network failure is explicit, and a page that was not retrieved does not become a verified source. Citation integrity requires the quotation to come from the fetched source, not from an error body.

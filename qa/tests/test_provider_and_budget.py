@@ -444,3 +444,52 @@ def test_failed_fetch_is_not_replayed_from_cache(tmp_path, monkeypatch):
         version = next(item for item in export.document_versions if item.id == span.version_id)
         assert version.content[span.start : span.end] == span.text
         assert not span.text.startswith("404")
+
+
+def test_empty_failed_fetch_is_recorded(tmp_path, monkeypatch):
+    """A fetch that returns an error and no body does not look like a run still in progress."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-empty",
+            "interaction_id": "int-empty",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/missing",
+                            "title": "Missing",
+                            "summary": "NVIDIA has invested $2 billion in CoreWeave.",
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": "", "status": "error", "error": "HTTP 404", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "empty.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    export = orchestrator.step(orchestrator.create(STORY_A_QUESTION, mode="web").id)
+    assert export.documents == []
+    assert export.relationships == []
+    visible = " ".join(
+        part
+        for part in (
+            export.investigation.blocker,
+            export.investigation.stop_reason,
+            export.investigation.decision_rationale,
+        )
+        if part
+    ).lower()
+    assert export.investigation.status == "stopped"
+    assert any(token in visible for token in ("404", "error", "unavailable"))
