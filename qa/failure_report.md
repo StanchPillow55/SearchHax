@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A cached page is stored with cache_hits at zero
+
+Requirement: measured usage counts a page that was read from the fetch cache. `cache_hits` is not left at zero when the provider fetch function was not called.
+
+Snapshot: implementation `fd2aa11`. Uncommitted edits in the implementation worktree were not imported.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cache_metrics.py::test_cached_fetch_increments_cache_hits --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. Two investigations share one cache directory. The page is `NVIDIA has invested $2 billion in CoreWeave.` The first run calls fetch once. The second run does not call fetch and still stores one document.
+
+Expected: the second investigation's `usage.cache_hits` is 1.
+
+Actual: `assert 0 == 1`. The second usage is `cache_hits=0`, `urls_fetched=0`, `fetch_calls=1`, and one document is stored.
+
+`exploration/backend/retrieval.py` lines 176–179 reuse a cached body and set `from_cache`. Nothing in the backend assigns `UsageMetrics.cache_hits`. The orchestrator does not read `from_cache`.
+
+Deterministic.
+
+Suggested correction: when a stored page comes from the fetch cache, increment `usage.cache_hits`. Do not report zero cache hits for that page.
+
 ## BLOCKER — A possessive CoreWeave match is stored as an investment in CoreWeave
 
 Requirement: a supported edge matches the claim in the stored sentence. Cutting the sentence at CoreWeave does not make CoreWeave the object.
