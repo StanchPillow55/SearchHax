@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A quarter number is rewritten into a source citation
+
+Requirement: a bare parenthetical number is not a citation. The answer does not attach a source to "quarter (1)".
+
+Snapshot: implementation `31c389b`. Uncommitted `exploration/backend/orchestrator.py`, `pyproject.toml`, and `exploration/tests/test_integrated_pipeline.py` were not imported.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_parenthetical.py::test_quarter_number_is_not_a_source_citation --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live model is called. The only source is `https://example.com/price`. The model text is `Demand fell in quarter (1).` The call uses `strict_citations=False`.
+
+Expected: the markdown still contains `(1)`, and `cited_source_ids` is empty.
+
+Actual: `Demand fell in quarter [S1].` The Sources section lists `[S1]` as `https://example.com/price`. `cited_source_ids` is `("S1",)`.
+
+`focus/answer_composer.py` line 20 is `_PAREN_CITATION_RE = re.compile(r"\((?:source\s*)?(S\d+|\d+)\)", re.IGNORECASE)`. The `source` prefix is optional, so `(1)` matches. Lines 138–143 replace it with `[S1]`.
+
+Deterministic.
+
+Suggested correction: rewrite `(source 1)` and `(S1)` only. Leave a bare `(1)` unchanged.
+
 ## BLOCKER — The default search plan spends the budget before the investigate follow-up
 
 Requirement: a passage routed to investigate is searched within the default budget of 3. Fixed angles do not consume that budget ahead of it.
