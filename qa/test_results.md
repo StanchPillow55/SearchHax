@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `2c8133a` (`Route exploration through the updated focus ranker.`), imported by QA merge `e0248be`. Uncommitted `demo/evaluation.json` edits in the implementation worktree were not imported.
+Latest check: implementation commit `408edb3` (`Rank a fixed profile corpus with a separate knowledge-value score.`), imported by QA merge `8518504`. Parent `3826b57` added the optional contract fields. Uncommitted `demo/evaluation.json` edits were not imported.
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,7 +8,7 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 9 failed, 61 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
+Result: 9 failed, 75 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
 
 Failed:
 
@@ -24,13 +24,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 37 / 48 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `CHK-3` passes: a stopped web investigation reloads from stored pages with a fresh cache and makes no external call.
-2. Passing tests / executed tests: 61 / 70 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
-3. Unimplemented: clickable React graph, Story B, Story D, domain routing, continuous monitoring.
-4. Blocking failures: a failed fetch body becomes supported evidence. The other eight blockers are unchanged. See `qa/failure_report.md`.
-5. Integration readiness: not ready. An HTTP 404 body can become a supported investment edge.
-6. Commit tested: `2c8133a` (`Route exploration through the updated focus ranker.`).
-7. Next validation priority: refuse a fetch whose status is `error` before extracting edges. Rerun the nine failing tests. Uncommitted implementation edits are not part of this snapshot.
+1. Verified P0 requirements: 38 / 49 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `PRF-1` passes on `408edb3`: the profile corpus stays offline and the committed metrics match a fresh run.
+2. Passing tests / executed tests: 75 / 84 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
+3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
+4. Blocking failures: the same nine blockers still fail on `408edb3`. The profile commit does not change them. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The profile corpus is internally consistent. The web loop still stores a 404 body as a supported edge.
+6. Commit tested: `408edb3` (`Rank a fixed profile corpus with a separate knowledge-value score.`).
+7. Next validation priority: refuse a fetch whose status is `error` before extracting edges. Rerun the nine failing tests. Uncommitted `demo/evaluation.json` edits are not part of this snapshot.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
