@@ -2,7 +2,7 @@
 
 Milestone: live Story A plus offline Story C, after the grounded-quote fix.
 
-Commit: recorded after this checkpoint. Unit tests: `exploration/.venv/bin/pytest -m "not integration"` — 31 passed, 2 integration tests deselected.
+Implementation checkpoint: `a7c454f` on `feat/exploration`. Unit tests: `exploration/.venv/bin/pytest -m "not integration"` — 31 passed, 2 integration tests deselected.
 
 ## Verification level
 
