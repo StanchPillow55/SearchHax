@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A failed fetch body is stored as supported evidence
+
+Requirement: a network failure is explicit, and a page that was not retrieved does not become a verified source. Citation integrity requires the quotation to come from the fetched source, not from an error body.
+
+Snapshot: implementation `2c8133a`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_failed_fetch_body_is_not_stored_as_evidence --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Search returns `https://news.example/missing`. Fetch returns `status` `error`, `error` `HTTP 404`, and a body that begins `404 Not Found` and also contains `NVIDIA has invested $2 billion in CoreWeave.` No live provider is called.
+
+Expected: no source document is stored and no relationship is `supported`.
+
+Actual: one document is stored. `invested_in` `CoreWeave` and `invested_amount` `$2 billion` are both `supported`. Status stays `running` and `blocker` is empty.
+
+Location: `exploration/backend/orchestrator.py` line 462 uses `page.content` and does not read `page.status` or `page.error`. `exploration/backend/retrieval.py` line 215 writes that body into the fetch cache, and line 176 reuses any cached object that has content.
+
+Deterministic: yes.
+
+Suggested correction: do not store or cache a page whose status is `error` or whose error field is set. Record the fetch error on the investigation. Do not extract relationships from that body.
+
 ## BLOCKER — The string `false` becomes a stop and drops the approved search
 
 Requirement: a controller approval runs that query. A value that is not a boolean is not a stop. A malformed body is rejected as fallback rather than recorded as a convergence decision.

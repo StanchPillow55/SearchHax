@@ -325,3 +325,54 @@ def test_web_path_keeps_story_c_wire_as_one_origin_and_one_amount(tmp_path, monk
     assert any(rel.object_name == "$400 million" and rel.status == "supported" for rel in amounts)
     assert not any(rel.object_name == "$480 million" and rel.status == "supported" for rel in amounts)
     assert export.contradictions
+
+
+def test_failed_fetch_body_is_not_stored_as_evidence(tmp_path, monkeypatch):
+    """A fetch that reports an error is not a source, even when the body contains the sentence."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    body = "404 Not Found\nThe rumor page includes this leftover line: NVIDIA has invested $2 billion in CoreWeave."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-404",
+            "interaction_id": "int-404",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/missing",
+                            "title": "Missing",
+                            "summary": "NVIDIA CoreWeave",
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {
+            "results": [
+                {
+                    "url": urls[0],
+                    "content": body,
+                    "status": "error",
+                    "error": "HTTP 404",
+                    "provider": "telem",
+                }
+            ]
+        }
+
+    orchestrator = Orchestrator(
+        tmp_path / "missing.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    supported = [rel for rel in export.relationships if rel.status == "supported"]
+    assert supported == []
+    assert export.documents == []
