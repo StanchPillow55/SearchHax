@@ -1,0 +1,435 @@
+{
+  "sample_note": "Counts are from the runs in this file. One investigation per configuration is not a statistical result.",
+  "story_a": {
+    "ran": true,
+    "blocker": null,
+    "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
+    "investigation_id": "inv_99aa92ab6bb5459e",
+    "stop_reason": "budget_exhausted",
+    "decision_source": "convergence",
+    "decision_rationale": "Focus routed cand_f838b5670e406084, cand_d641201c6f28bca1 to investigate. Approved the unused search action act_b10601be173bba41. Investigation is not factual verification.",
+    "session_set": true,
+    "checkpoints": 2,
+    "resume": {
+      "reused": 6,
+      "unchanged_versions": 2,
+      "network_fetches": 0
+    },
+    "llm_configured": true,
+    "relationships": [
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "research report",
+        "predicate": "has not been published by",
+        "object": "U.S. Department of Justice",
+        "status": "insufficient"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "research report",
+        "predicate": "submitted to",
+        "object": "U.S. Department of Justice",
+        "status": "supported"
+      }
+    ],
+    "open_questions": [
+      "What grounded evidence connects the investigation to the open interest: advanced packaging?",
+      "The excerpt is truncated mid-sentence at the funding statement ('supported by Cont'), so the funding source and study details are unavailable.",
+      "The excerpt contains only a disclaimer and does not discuss NVIDIA, its investments, GPU customers, or AI capacity expansion, so the research question cannot be addressed from this text."
+    ],
+    "usage": {
+      "session_id": "8056d64a-21d3-49e8-9d6e-3ad1c3e7b9e7",
+      "interaction_ids": [
+        "b2184241-63bb-4f59-9eba-fdec8b5df385",
+        "75fd44e1-2ebb-4021-bcfc-ae31df87b1fc"
+      ],
+      "search_calls": 2,
+      "provider_calls": 4,
+      "urls_fetched": 5,
+      "fetch_calls": 2,
+      "llm_calls": 6,
+      "llm_tokens": 851,
+      "latency_ms": 24306,
+      "cost_usd": null,
+      "providers_used": [
+        "brave",
+        "tavily"
+      ],
+      "network_calls": 4,
+      "cache_hits": 0,
+      "corpus_documents": 0,
+      "followups_executed": 1,
+      "rejected_ungrounded_citations": 1,
+      "dry_run": false,
+      "configuration": "web"
+    },
+    "profile_enabled": true,
+    "decision_source_is_fallback": false,
+    "candidate_scores": [
+      {
+        "url": "https://investors.coreweave.com/news/news-details/2026/NVIDIA-and-CoreWeave-Strengthen-Collaboration-to-Accelerate-Buildout-of-AI-Factories/default.aspx",
+        "attention_score": 0.2857142857142857,
+        "attention": {
+          "R": 0.21428571428571427,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.2857142857142857
+        },
+        "knowledge_value": {
+          "R": 0.23076923076923078,
+          "N": 0.9850427350427351,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.3039529914529915,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://www.ojp.gov/pdffiles1/nij/grants/228091.pdf",
+        "attention_score": 0.33766233766233766,
+        "attention": {
+          "R": 0.07142857142857142,
+          "G": 0.36363636363636365,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.33766233766233766
+        },
+        "knowledge_value": {
+          "R": 0.3076923076923077,
+          "N": 0.9950433705080545,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.3256839195500906,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://www.sbsheriff.org/wp-content/uploads/2019/12/SOP-CSI-004-12-Trace-Evidence-Collection.pdf",
+        "attention_score": 0.33766233766233766,
+        "attention": {
+          "R": 0.07142857142857142,
+          "G": 0.36363636363636365,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.33766233766233766
+        },
+        "knowledge_value": {
+          "R": 0.07692307692307693,
+          "N": 0.9958275382475661,
+          "B": 1.0,
+          "I": 0.5,
+          "C": 0.0,
+          "score": 0.5681876537926608,
+          "bridge_trigger": "semiconductor",
+          "bridge_terms": [
+            "packaging"
+          ]
+        }
+      },
+      {
+        "url": "https://www.insiderfinance.io/news/nvidia-invests-in-coreweave-to-build-ai-factories",
+        "attention_score": 0.34285714285714286,
+        "attention": {
+          "R": 0.35714285714285715,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.34285714285714286
+        },
+        "knowledge_value": {
+          "R": 0.6153846153846154,
+          "N": 0.9698275862068966,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.396303050397878,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://www.coreweave.com/news/nvidia-and-coreweave-strengthen-collaboration-to-accelerate-buildout-of-ai-factories",
+        "attention_score": 0.2571428571428572,
+        "attention": {
+          "R": 0.14285714285714285,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.2571428571428572
+        },
+        "knowledge_value": {
+          "R": 0.5384615384615384,
+          "N": 0.9869753979739508,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.3813592341088723,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://www.regulation.govt.nz/assets/Resource-Documents/RPE-Quick-Guide-Investigations-and-Evidence.pdf",
+        "attention_score": 0.33766233766233766,
+        "attention": {
+          "R": 0.07142857142857142,
+          "G": 0.36363636363636365,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.33766233766233766
+        },
+        "knowledge_value": {
+          "R": 0.23076923076923078,
+          "N": 0.9949622166246851,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.30643286184847895,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://nvidianews.nvidia.com/news/nvidia-and-coreweave-strengthen-collaboration-to-accelerate-buildout-of-ai-factories",
+        "attention_score": 0.2571428571428572,
+        "attention": {
+          "R": 0.14285714285714285,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.2571428571428572
+        },
+        "knowledge_value": {
+          "R": 0.23076923076923078,
+          "N": 0.985200845665962,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.3039925191087982,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      },
+      {
+        "url": "https://www.linkedin.com/posts/coreweave_nvidia-and-coreweave-strengthen-collaboration-activity-7421552832610279424-FzW9",
+        "attention_score": 0.34285714285714286,
+        "attention": {
+          "R": 0.35714285714285715,
+          "G": 0.0,
+          "D": 1.0,
+          "F": 0.0,
+          "score": 0.34285714285714286
+        },
+        "knowledge_value": {
+          "R": 0.46153846153846156,
+          "N": 0.9774774774774775,
+          "B": 0.0,
+          "I": 0.0,
+          "C": 0.0,
+          "score": 0.3597539847539848,
+          "bridge_trigger": null,
+          "bridge_terms": []
+        }
+      }
+    ],
+    "supported_facts": [
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "source_document_ids": [
+          "doc_f8295e7471e50418"
+        ]
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "source_document_ids": [
+          "doc_f8295e7471e50418"
+        ]
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "source_document_ids": [
+          "doc_b0048ec766ddb9d3"
+        ]
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "source_document_ids": [
+          "doc_b0048ec766ddb9d3"
+        ]
+      },
+      {
+        "subject": "research report",
+        "predicate": "submitted to",
+        "object": "U.S. Department of Justice",
+        "source_document_ids": [
+          "doc_301fa3172b56b124"
+        ]
+      }
+    ],
+    "attestations": [
+      {
+        "id": "claim_nvidia_coreweave",
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "text": "NVIDIA invested in CoreWeave."
+      },
+      {
+        "id": "claim_capacity_expansion",
+        "subject": "capacity expansion",
+        "predicate": "expansion_status",
+        "object": "under investigation",
+        "text": "Capacity expansion is under investigation."
+      }
+    ],
+    "profile_context": {
+      "id": "profile_ai_infrastructure",
+      "interests": [
+        "AI systems",
+        "GPUs",
+        "data-center capacity",
+        "semiconductor",
+        "advanced packaging"
+      ],
+      "goals": [
+        "Track GPUs supply across AI systems",
+        "Follow data-center capacity"
+      ],
+      "known_claims": [
+        {
+          "id": "claim_nvidia_coreweave",
+          "subject": "NVIDIA",
+          "predicate": "invested_in",
+          "object": "CoreWeave",
+          "text": "NVIDIA invested in CoreWeave."
+        },
+        {
+          "id": "claim_capacity_expansion",
+          "subject": "capacity expansion",
+          "predicate": "expansion_status",
+          "object": "under investigation",
+          "text": "Capacity expansion is under investigation."
+        }
+      ],
+      "unresolved_interests": [
+        "advanced packaging"
+      ],
+      "notes": "Static read-only fixture. Interests are AI systems, GPUs, data-center capacity, semiconductor, and the open interest advanced packaging. Ceramics are not a listed interest. Known claims are profile priors, not sourced web evidence."
+    }
+  },
+  "reports": [
+    {
+      "story": "C",
+      "configuration": "B0",
+      "ran": true,
+      "blocker": null,
+      "question": "Do three articles independently substantiate a company's claim?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
+      "search_calls": 0,
+      "provider_calls": 0,
+      "urls_fetched": 0,
+      "llm_calls": 0,
+      "llm_tokens": null,
+      "supported_relationships": 21,
+      "contradicted_relationships": 0,
+      "insufficient_relationships": 0,
+      "hypothesis_relationships": 0,
+      "correct_citations": 13,
+      "rejected_ungrounded_citations": 0,
+      "contradiction_detections": 0,
+      "shared_origin_detected": false,
+      "latency_ms": 12,
+      "cost_usd": null,
+      "network_calls": 0,
+      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
+    },
+    {
+      "story": "C",
+      "configuration": "B3",
+      "ran": true,
+      "blocker": null,
+      "question": "Do three articles independently substantiate a company's claim?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
+      "search_calls": 1,
+      "provider_calls": 0,
+      "urls_fetched": 0,
+      "llm_calls": 0,
+      "llm_tokens": null,
+      "supported_relationships": 20,
+      "contradicted_relationships": 1,
+      "insufficient_relationships": 0,
+      "hypothesis_relationships": 0,
+      "correct_citations": 13,
+      "rejected_ungrounded_citations": 0,
+      "contradiction_detections": 1,
+      "shared_origin_detected": true,
+      "latency_ms": 39,
+      "cost_usd": null,
+      "network_calls": 0,
+      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
+    },
+    {
+      "story": "A",
+      "configuration": "B3",
+      "ran": true,
+      "blocker": null,
+      "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
+      "sample_size": 1,
+      "sample_note": "One investigation, not a statistical claim.",
+      "search_calls": 2,
+      "provider_calls": 4,
+      "urls_fetched": 5,
+      "llm_calls": 6,
+      "llm_tokens": 851,
+      "supported_relationships": 5,
+      "contradicted_relationships": 0,
+      "insufficient_relationships": 1,
+      "hypothesis_relationships": 0,
+      "correct_citations": 3,
+      "rejected_ungrounded_citations": 1,
+      "contradiction_detections": 0,
+      "shared_origin_detected": false,
+      "latency_ms": 24306,
+      "cost_usd": null,
+      "network_calls": 4,
+      "notes": ""
+    }
+  ]
+}
