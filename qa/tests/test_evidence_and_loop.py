@@ -245,6 +245,15 @@ def test_completed_web_investigation_reloads_without_new_calls(tmp_path, monkeyp
     assert reloaded.investigation.budget.searches_used == searches_used
     assert len(reloaded.documents) == len(finished.documents)
     assert len(reloaded.relationships) == len(finished.relationships)
+    assert reloaded.investigation.usage.search_calls == searches_used
+    assert len(second.database.search_queries(investigation.id)) == searches_used
+    assert reloaded.investigation.decision_source == "fallback"
+    versions = {version.id: version for version in reloaded.document_versions}
+    assert reloaded.evidence_spans
+    for span in reloaded.evidence_spans:
+        version = versions[span.version_id]
+        assert version.content[span.start : span.end] == span.text
+    assert reloaded.checkpoints[-1].stop_reason == reloaded.investigation.stop_reason
 
 
 def test_two_web_investigations_keep_separate_graphs(tmp_path, monkeypatch):
