@@ -14,3 +14,10 @@ env/
 
 # OS
 .DS_Store
+
+# Exploration runtime state
+exploration/cache/
+exploration/data/
+*.sqlite
+*.sqlite3
+node_modules/

@@ -1,0 +1,29 @@
+{
+  "question": "Do three articles independently substantiate a company's claim?",
+  "documents": [
+    {
+      "file": "original.md",
+      "url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics Announces Helios Array and $400 Million Series D",
+      "publish_date": "2026-03-04"
+    },
+    {
+      "file": "northline.md",
+      "url": "https://northline.example/2026/03/lumenarc-helios",
+      "title": "Northline Desk: Lumenarc Dynamics Series D",
+      "publish_date": "2026-03-05"
+    },
+    {
+      "file": "voltstreet.md",
+      "url": "https://voltstreet.example/markets/lumenarc-series-d",
+      "title": "VoltStreet Markets: Lumenarc Dynamics Series D",
+      "publish_date": "2026-03-05"
+    },
+    {
+      "file": "harbor.md",
+      "url": "https://harborbrief.example/lumenarc-helios-array",
+      "title": "Harbor Brief: Lumenarc Dynamics Helios Array",
+      "publish_date": "2026-03-06"
+    }
+  ]
+}
