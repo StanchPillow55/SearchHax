@@ -329,10 +329,16 @@ class Orchestrator:
         investigation.decision_source = decision.decision_source
         investigation.decision_rationale = decision.rationale
         guard = BudgetGuard(investigation.budget)
-        if decision.approved_action and not decision.stop:
+        already_searched = {query.strip().lower() for query in self.database.search_queries(investigation.id)}
+        action = decision.approved_action
+        duplicate_query = bool(action and action.query.strip().lower() in already_searched)
+        if duplicate_query and action is not None:
+            action.already_executed = True
+            action.result_summary = "Skipped a query that was already searched."
+        if action and not decision.stop and not duplicate_query:
             try:
                 bundle = self.retrieval.search(
-                    decision.approved_action.query,
+                    action.query,
                     session_id=investigation.session_id,
                     guard=guard,
                 )
@@ -428,7 +434,8 @@ class Orchestrator:
         investigation = export.investigation
         ranked = []
         for document in bundle.documents:
-            attention = score_passage(investigation.question, document.snippet or document.title, None, document.publish_date)
+            gaps = [question.text for question in export.unresolved_questions]
+            attention = score_passage(investigation.question, document.snippet or document.title, gaps, document.publish_date)
             ranked.append((attention.score, document, attention))
         ranked.sort(key=lambda item: item[0], reverse=True)
         chosen = [item for item in ranked if item[1].canonical_url not in {doc.canonical_url for doc in export.documents}]

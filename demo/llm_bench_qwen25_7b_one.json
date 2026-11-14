@@ -1,0 +1,38 @@
+{
+  "id": "original.md",
+  "timeout": false,
+  "schema_valid": true,
+  "wall_s": 51.481,
+  "load_s": 4.594,
+  "prompt_eval_s": 2.272,
+  "gen_s": 44.571,
+  "prompt_tokens": 206,
+  "output_tokens": 156,
+  "emitted": 3,
+  "quote_matches": 1,
+  "invented": 2,
+  "supported": 1,
+  "expected_hit": false,
+  "rows": [
+    {
+      "status": "insufficient",
+      "subject": "Lumenarc Dynamics",
+      "predicate": "announced",
+      "object": "the Helios Array, a planned network of compute campuses."
+    },
+    {
+      "status": "insufficient",
+      "subject": "Lumenarc Dynamics",
+      "predicate": "closed",
+      "object": "$400 million Series D financing"
+    },
+    {
+      "status": "supported",
+      "subject": "Mara Ellison",
+      "predicate": "said",
+      "object": "the financing funds construction of that first campus"
+    }
+  ],
+  "model": "qwen2.5:7b-instruct-q4_K_M",
+  "processor_note": "measured outside the app on one Story C passage"
+}
