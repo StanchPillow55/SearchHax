@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A total provider outage stays `running` and drops the error
+
+Requirement: network failures are handled explicitly. A search where every provider fails must stop, and the failure must be visible on the investigation. It must not invent documents.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_provider_outage_is_recorded_and_the_investigation_stops --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The mocked search returns Brave status 503 `unavailable` and Tavily status 429 `rate limit`, both with empty results. No fetch runs. No live provider is called.
+
+Expected: `status` is `stopped`, and `blocker`, `stop_reason`, or `decision_rationale` names the 503, the 429, or the provider error text. `documents` and `relationships` stay empty.
+
+Actual: `status` is `running`, `stop_reason` is null, `blocker` is null, and `decision_rationale` is empty. `documents` and `relationships` are empty. One search was consumed.
+
+Location: `exploration/backend/retrieval.py` keeps the failures on `SearchBundle.provider_errors`, and the stored `raw.provider_runs` at lines 396–405 keep provider and status but drop `error`. `exploration/backend/orchestrator.py` `_initial_web_step` lines 292–310 only stops when `live_extraction_blocked` is set. An empty result set never sets that flag, so the outage is discarded and the investigation stays `running`.
+
+Deterministic: yes.
+
+Suggested correction: when `provider_errors` is non-empty and no document content was stored, set `blocker` to those errors, set status to `stopped`, and set `stop_reason` to `unresolved_uncertainty`.
+
 ## BLOCKER — A controller stop without a reason code leaves the investigation running
 
 Requirement: a valid controller response leads to the corresponding action. `stop: true` ends the investigation, so status becomes `stopped`.
