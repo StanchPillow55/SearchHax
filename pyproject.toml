@@ -18,5 +18,5 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["searchhax*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+# Pytest configuration lives in pytest.ini (it collects the exploration, focus,
+# and tavily suites). Kept out of here to avoid two competing config sources.

@@ -19,6 +19,7 @@ from shared.contracts import (
     ExplorationExport,
     Investigation,
     InvestigationBudget,
+    ResearchProfile,
     SourceProvenance,
     UnresolvedQuestion,
 )
@@ -33,6 +34,7 @@ from exploration.backend.extraction import ExtractionBatch, extract_document, me
 from exploration.backend.llm import OpenAICompatibleClient
 from exploration.backend.graph import EvidenceGraph
 from exploration.backend.ids import content_hash, new_id, stable_id
+from exploration.backend.knowledge_value import score_knowledge_value
 from exploration.backend.planner import generate_actions, initial_search_query
 from exploration.backend.retrieval import RetrievalClient, normalize_url
 from exploration.backend.story_c import STORY_C_QUESTION, load_story_c
@@ -55,8 +57,20 @@ class Orchestrator:
         self.post = post
         self.convergence_url = convergence_url
 
-    def create(self, question: str, budget: InvestigationBudget | None = None, *, mode: str = "web") -> Investigation:
+    def create(
+        self,
+        question: str,
+        budget: InvestigationBudget | None = None,
+        *,
+        mode: str = "web",
+        profile: ResearchProfile | None = None,
+    ) -> Investigation:
         now = _now()
+        metadata: dict = {"mode": mode}
+        if profile is not None:
+            # Read-only profile snapshot. It conditions knowledge-value scoring
+            # of live candidates; it is never stored as sourced web evidence.
+            metadata["profile_snapshot"] = profile.model_dump(mode="json")
         investigation = Investigation(
             id=new_id("inv"),
             question=question.strip(),
@@ -65,10 +79,45 @@ class Orchestrator:
             usage={"configuration": mode},
             created_at=now,
             updated_at=now,
-            metadata={"mode": mode},
+            metadata=metadata,
         )
         self.database.insert_investigation(investigation)
         return investigation
+
+    def _profile(self, export: ExplorationExport) -> ResearchProfile | None:
+        """Return the investigation's read-only profile, if one was attached."""
+        if export.profile is not None:
+            return export.profile
+        raw = export.investigation.metadata.get("profile_snapshot")
+        if not raw:
+            return None
+        return ResearchProfile.model_validate(raw)
+
+    def _add_profile_questions(self, export: ExplorationExport) -> None:
+        """Seed open questions from the profile's unresolved interests.
+
+        This is the profile-conditioned signal focus and convergence reason
+        over. It does not change the immutable investigation question, does not
+        fabricate evidence, and is skipped when no profile is attached.
+        """
+        profile = self._profile(export)
+        if profile is None:
+            return
+        export.profile = profile
+        existing = {question.text.strip().lower() for question in export.unresolved_questions}
+        for interest in profile.unresolved_interests:
+            text = f"What grounded evidence connects the investigation to the open interest: {interest}?"
+            if text.strip().lower() in existing:
+                continue
+            export.unresolved_questions.append(
+                UnresolvedQuestion(
+                    id=stable_id("q", export.investigation.id, "profile", interest),
+                    text=text,
+                    importance=0.8,
+                    missing_evidence=1.0,
+                    kind="profile_interest",
+                )
+            )
 
     def get(self, investigation_id: str) -> ExplorationExport:
         return self.graph.load(investigation_id)
@@ -299,6 +348,7 @@ class Orchestrator:
         investigation.budget = guard.budget
         self._record_search(investigation, bundle, network=not bundle.dry_run)
         self._ingest_bundle(export, bundle, guard)
+        self._add_profile_questions(export)
         investigation.status = "running"
         investigation.updated_at = _now()
         self._persist(export)
@@ -444,6 +494,7 @@ class Orchestrator:
 
     def _ingest_bundle(self, export: ExplorationExport, bundle, guard: BudgetGuard) -> None:
         investigation = export.investigation
+        profile = self._profile(export)
         ranked = []
         for document in bundle.documents:
             gaps = [question.text for question in export.unresolved_questions]
@@ -501,6 +552,12 @@ class Orchestrator:
                     notes="Provider provenance is retained. Source independence is unresolved until a citation or shared origin is found.",
                 )
             )
+            # Knowledge value is computed against the read-only profile when one
+            # is attached. It is a separate signal from query attention, which
+            # is unchanged above. No profile means no knowledge-value score.
+            knowledge = (
+                score_knowledge_value(content, profile) if profile is not None else None
+            )
             export.candidates.append(
                 EvidenceCandidate(
                     id=stable_id("cand", document.id),
@@ -510,6 +567,7 @@ class Orchestrator:
                     snippet=merged.snippet,
                     providers=list(merged.providers),
                     attention=attention,
+                    knowledge_value=knowledge,
                     publish_date=merged.publish_date,
                 )
             )
