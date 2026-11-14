@@ -1,6 +1,34 @@
 # Failure report
 
-Snapshot `8e3e6e5` (`feat/exploration`, merged into QA as `6dab401`): no blocking failures.
+## BLOCKER — Focus handoff refuses the Story C independence search
+
+Requirement: an unresolved important relationship generates a follow-up, and the convergence path can approve that action. Archiving the four known articles is not a reason to cancel a search for a source outside that set.
+
+Snapshot: implementation `8e3e6e5`. QA file `qa/tests/test_focus_and_versions.py`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_and_versions.py::test_focus_approves_the_story_c_independence_search --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The Story C run builds one open question, importance 0.9 and missing evidence 1.0, and one unused action whose utility is 0.9. `evaluate_with_focus` is then called with that request. The default HTTP path is not involved. No network call is made.
+
+Expected: `stop` is false and `approved_action.query` contains `LF-PR-2026-031`.
+
+Actual: `stop` is true, `stop_reason` is `low_expected_value`, and `approved_action` is null. The rationale is `Focus archived every candidate` for all four Story C candidate ids. The same shape is already stored in `demo/integration/story_c_focus_decision.json`.
+
+Location: `exploration/backend/focus_bridge.py` lines 54–84. `FocusAttentionModel.decide` archives a passage whose lexical overlap with the original question is under 0.20. `evaluate_with_focus` treats "every candidate archived" as a stop and never reads `proposed_actions` in that branch.
+
+Deterministic: yes.
+
+Suggested correction: when a pending action's utility is at least `budget.min_utility`, approve that action even if the pages already in hand are archived. Those pages are the shared-origin set. The follow-up exists to look outside it.
+
+The fallback path is separate and still runs this follow-up. `run_story_c` with a down controller records `decision_source=fallback` and keeps the independence question. This blocker is the focus handoff, not that fallback.
+
+## Earlier snapshot
+
+The `8e3e6e5` offline suite aside from the test above had no blocking failures.
 
 Command: `/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=line -p no:cacheprovider --override-ini=testpaths=`
 

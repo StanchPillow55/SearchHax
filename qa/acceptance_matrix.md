@@ -1,8 +1,8 @@
 # Acceptance matrix
 
-Earlier snapshot: `edf9e32`. Release check: `c81ea8e`, see `qa/release_report.md`.
+Latest implementation commit tested: `8e3e6e5`. QA branch `qa/exploration-verification`.
 
-Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in that commit. Developer tests were not treated as proof.
+Statuses below are from `qa/tests/` run against that commit. Developer tests were not treated as proof. Live Telem was not called.
 
 | ID | Description | Priority | Expected behavior | Code | Test | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -15,7 +15,7 @@ Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in
 | RET-7 | Fetch cache reuse | P0 | A second fetch of the same URL does not call the provider | `retrieval.py` `fetch` | `test_fetch_batch_cap_and_cache_reuse` | VERIFIED | Passed. One provider call |
 | ATT-1 | Score range and formula | P0 | `0.4R+0.3G+0.2D+0.1F` stays in 0–1 | `attention.py` `score_passage` | `test_attention_formula_bounds_and_gap_effect` | VERIFIED | Passed |
 | ATT-2 | Gaps change the score | P0 | Passing a gap raises G and the score | `attention.py` | same test | VERIFIED | Passed for the function |
-| ATT-3 | Gaps change fetch choice | P0 | The open gap decides which snippet is fetched when one slot remains | `orchestrator.py` line 426 | `test_unresolved_gap_changes_which_page_is_fetched` | FAILED | Fetch selected the query-only URL. See failure report |
+| ATT-3 | Gaps change fetch choice | P0 | The open gap decides which snippet is fetched when one slot remains | `orchestrator.py` `_ingest_bundle` | `test_unresolved_gap_changes_which_page_is_fetched` | VERIFIED | Passed on `8e3e6e5`. The fetch receives the gap URL |
 | ATT-4 | Attention is not confidence | P0 | The score field is documented as not factual confidence, and a bad quote is not supported | `attention.py`, `extraction.py` | attention test and `test_quotes_must_exist_and_bad_quotes_cannot_support_edges` | VERIFIED | Passed |
 | EXT-1 | Stable claim ids | P0 | The same document and quote produce the same claim id | `extraction.py` | quote test | VERIFIED | Passed |
 | EXT-2 | Exact quotations and offsets | P0 | Span text equals the stored slice | `verification.py` `assess_quotation` | quote test and Story C helper | VERIFIED | Passed |
@@ -30,12 +30,18 @@ Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in
 | GRF-6 | Export provenance | P0 | API export still contains spans and provenance | `main.py` export route | `test_api_export_exposes_graph_and_quotes` | VERIFIED | Passed |
 | LOOP-1 | Controller approval | P0 | A usable approval runs that query and records `convergence` | `convergence.py`, `orchestrator.py` | `test_controller_approval_executes_and_malformed_payload_does_not` | VERIFIED | Passed |
 | LOOP-2 | Malformed controller body | P0 | A non-object body is `fallback` and is not treated as the controller action | `convergence.py` `evaluate_controller` | `test_malformed_controller_payload_is_rejected` | VERIFIED | Passed |
-| LOOP-3 | Duplicate follow-up | P0 | A query already in search history is not sent again | `orchestrator.py` lines 327–331 | `test_duplicate_controller_query_is_not_executed` | FAILED | Same query searched twice |
+| LOOP-3 | Duplicate follow-up | P0 | A query already in search history is not sent again | `orchestrator.py` `_follow_up_web_step` | `test_duplicate_controller_query_is_not_executed` | VERIFIED | Passed on `8e3e6e5`. The repeated query is skipped |
 | LOOP-4 | Original question | P0 | The stored question cannot be replaced | `graph.py` `save` | reload test | VERIFIED | `ValueError` on rewrite |
 | LOOP-5 | Fallback when the controller is down | P0 | Connection failure is labeled `fallback` | `planner.py` `fallback_decision` | Story C test with a down post | VERIFIED | `decision_source` is `fallback` |
 | CHK-1 | Counters after restore | P0 | `searches_used` and search history match after reopen | `database.py` | reload test | VERIFIED | Passed |
 | DEMO-1 | Story C metrics | P0 | B3 counts match the export; B0 does not claim the origin or the contradiction; network calls stay 0 | `baseline.py` | Story C test | VERIFIED | Passed |
-| DEMO-2 | Story A recorded run | P0 | The written rationale matches the run, and supported rows are distinct grounded facts | `demo/evaluation.json`, `cold/story.sqlite` | consistency test plus read-only audit of `inv_8e46a18764e64eb0` | FAILED | Rationale matches the fallback. The 6 rows are 2 facts on 3 pages, not 6 distinct relationships. See `qa/release_report.md` |
+| DEMO-2 | Story A recorded run | P0 | The written rationale matches the run, and the repeated sentence is disclosed | `demo/evaluation.json` | `test_committed_story_a_record_is_internally_consistent` | VERIFIED | Rationale matches the RemoteProtocolError fallback. `extraction_note` says the six rows are one sentence on three pages |
 | DEMO-3 | Live Telem smoke | P0 | One authorized live search | `retrieval.py` `_sdk_search` | not run | IMPLEMENTED / UNVERIFIED | QA did not spend a live call. The committed demo file records an earlier search |
 | UI-1 | Clickable graph | P0 | A frontend can open a relationship and its quotation | no React app | API export test | NOT IMPLEMENTED | Export has the data. `exploration/README.md` says there is no React UI |
+| RET-8 | Telem request shape | P0 | Search is called with full content off, the session, and the configured providers | `retrieval.py` `_sdk_search` | `test_sdk_search_follows_the_documented_request` | VERIFIED | Passed against a fake client. No network call |
+| GRF-7 | Document versions | P0 | Two hashes of one document both remain stored | `database.py` `insert_version_if_absent` | `test_distinct_document_versions_both_survive` | VERIFIED | Passed. Replay of the first hash does not replace the second |
+| CHK-2 | Decision in the checkpoint | P0 | A controller decision is still present after reopen | `checkpoints.py` `save_checkpoint` | `test_checkpoint_keeps_the_controller_decision` | VERIFIED | Passed. `state_json.decision` reloads |
+| LOOP-6 | Original question | P0 | The Story A search string does not replace the stored question | `planner.py` `initial_search_query` | `test_story_a_search_formulation_does_not_replace_the_question` | VERIFIED | Passed. Stored question unchanged; search query is the short form |
+| FOC-1 | Focus follow-up on Story C | P0 | The utility-0.9 independence action is approved even though the four known pages are archived | `focus_bridge.py` `evaluate_with_focus` | `test_focus_approves_the_story_c_independence_search` | FAILED | Focus returns `stop=true`, `low_expected_value`, `approved_action=null`. See failure report |
+| FOC-2 | Same URL, two providers | P0 | Brave and Tavily copies of one URL are one passage | `focus/focus_attention.py` `rank` | `test_same_url_from_two_providers_is_one_focus_passage` | VERIFIED | Passed. One decision, canonical URL without the tracking parameter |
 | P2-1 | Domain routing and monitoring | P2 | Specialist policies and continuous source checks | none | none | NOT IMPLEMENTED | Out of the committed package |

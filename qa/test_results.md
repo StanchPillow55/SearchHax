@@ -1,19 +1,24 @@
 # Test results
 
-Latest check: implementation commit `8e3e6e5`. QA merge `6dab401` on `qa/exploration-verification`.
+Latest check: implementation commit `8e3e6e5` on QA branch `qa/exploration-verification`.
+
+Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
 ```text
-53 passed, 2 deselected, exit status 0
-focus/test_focus_attention.py: 5 passed
+python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-1. Verified P0 requirements: the offline P0 checks that failed on `edf9e32` pass on `8e3e6e5`. Live Telem was not repeated. A live Convergence server was not part of this run.
-2. Passing tests / executed tests: 53 / 53 offline pytest tests, plus 5 focus unit tests. 2 live tests deselected.
+Result: 1 failed, 58 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made.
+
+Failed: `qa/tests/test_focus_and_versions.py::test_focus_approves_the_story_c_independence_search`.
+
+1. Verified P0 requirements: 35 / 38 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 58 / 59 offline pytest tests. 2 live tests deselected.
 3. Unimplemented: clickable React graph, Story B, Story D, domain routing, continuous monitoring.
-4. Blocking failures: none on `8e3e6e5`.
-5. Integration readiness: offline Story C, focus handoff, and stored Story A replay pass. This run did not call a live Convergence process.
+4. Blocking failures: the focus handoff stops Story C at `low_expected_value` and does not approve the utility-0.9 independence search. See `qa/failure_report.md`.
+5. Integration readiness: not ready for the focus controller. The fallback Story C path, quote checks, checkpoint reload, and the stored Story A replay pass. A live Convergence process was not called.
 6. Commit tested: `8e3e6e5` (`Merge origin/main into feat/exploration.`).
-7. Next validation priority: one budgeted live Telem smoke only if the owner authorizes another credit spend.
+7. Next validation priority: fix `evaluate_with_focus` so an archived shared-origin set does not cancel a high-utility follow-up, then rerun `test_focus_approves_the_story_c_independence_search`.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
