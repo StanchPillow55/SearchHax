@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A raised provider error escapes the investigation step
+
+Requirement: a network failure is explicit. Bounded retries are fine. After those retries the investigation records the failure instead of aborting the step.
+
+Snapshot: implementation `408edb3`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_search_exception_is_recorded_instead_of_escaping --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search function raises `Unavailable` with `status_code` 503 and message `provider unavailable`. No live provider is called.
+
+Expected: `step` returns an export whose status is `stopped` or `blocked`, and the blocker, stop reason, or rationale contains `503`, `unavailable`, or `error`. No document is stored. Fetch is not called. The provider is called at most 3 times.
+
+Actual: `step` raises `Unavailable: provider unavailable`. A direct call left the stored investigation at status `created`, with `blocker` empty, `search_calls` 0, and 3 provider attempts.
+
+Location: `exploration/backend/orchestrator.py` lines 291–298 catch only `BudgetExceededError`. `exploration/backend/retrieval.py` `call_with_retries` retries status 503 and then re-raises at line 312.
+
+Deterministic: yes.
+
+Suggested correction: catch the search exception after the existing retries, set `blocker` to that error, set status to `stopped`, and set `stop_reason` to `unresolved_uncertainty`. Do not invent documents.
+
 ## BLOCKER — An empty failed fetch stays `running` and drops the error
 
 Requirement: a network failure is explicit. A fetch that returns an error and no page is not a successful investigation step.

@@ -493,3 +493,46 @@ def test_empty_failed_fetch_is_recorded(tmp_path, monkeypatch):
     ).lower()
     assert export.investigation.status == "stopped"
     assert any(token in visible for token in ("404", "error", "unavailable"))
+
+
+def test_search_exception_is_recorded_instead_of_escaping(tmp_path, monkeypatch):
+    """A raised provider error is stored on the investigation after the bounded retries."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+
+    class Unavailable(Exception):
+        status_code = 503
+
+    calls = {"search": 0, "fetch": 0}
+
+    def search_fn(query, session_id):
+        del query, session_id
+        calls["search"] += 1
+        raise Unavailable("provider unavailable")
+
+    def fetch_fn(urls, session_id):
+        del urls, session_id
+        calls["fetch"] += 1
+        raise AssertionError("fetch ran after a search exception")
+
+    orchestrator = Orchestrator(
+        tmp_path / "raise.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    visible = " ".join(
+        part
+        for part in (
+            export.investigation.blocker,
+            export.investigation.stop_reason,
+            export.investigation.decision_rationale,
+        )
+        if part
+    ).lower()
+    assert export.investigation.status in {"stopped", "blocked"}
+    assert any(token in visible for token in ("503", "unavailable", "error"))
+    assert export.documents == []
+    assert export.relationships == []
+    assert calls["fetch"] == 0
+    assert calls["search"] <= 3

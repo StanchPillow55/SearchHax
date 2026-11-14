@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 11 failed, 76 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
+Result: 12 failed, 76 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
 
 Failed:
 
+- `qa/tests/test_provider_and_budget.py::test_search_exception_is_recorded_instead_of_escaping`
 - `qa/tests/test_provider_and_budget.py::test_empty_failed_fetch_is_recorded`
 - `qa/tests/test_provider_and_budget.py::test_failed_fetch_is_not_replayed_from_cache`
 - `qa/tests/test_provider_and_budget.py::test_failed_fetch_body_is_not_stored_as_evidence`
@@ -26,13 +27,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 39 / 51 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `GRF-10` passes: two web investigations in one database keep separate documents and edges. `GRF-5` also checks that the contradicted Story C link uses stance `contradicts`.
-2. Passing tests / executed tests: 76 / 87 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
+1. Verified P0 requirements: 39 / 52 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `GRF-10` passes: two web investigations in one database keep separate documents and edges.
+2. Passing tests / executed tests: 76 / 88 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: an empty failed fetch stays `running` with no recorded error. A failed fetch body is also stored and replayed from cache. The other blockers are unchanged. See `qa/failure_report.md`.
-5. Integration readiness: not ready. A fetch error is invisible when the body is empty, and it becomes a supported edge when the body is not.
+4. Blocking failures: a raised provider error escapes `step` and leaves the investigation `created`. An empty failed fetch stays `running`. A failed fetch body is stored and replayed from cache. The other blockers are unchanged. See `qa/failure_report.md`.
+5. Integration readiness: not ready. A 503 exception becomes an uncaught error instead of a recorded stop.
 6. Commit tested: `408edb3` (`Rank a fixed profile corpus with a separate knowledge-value score.`).
-7. Next validation priority: record a fetch error whether the body is empty or not, and do not cache an error body. Rerun the eleven failing tests. Uncommitted `demo/evaluation.json` edits are not part of this snapshot.
+7. Next validation priority: catch a search exception after the bounded retries and record it. Rerun the twelve failing tests. Uncommitted `demo/evaluation.json` edits are not part of this snapshot.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
