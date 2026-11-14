@@ -89,6 +89,32 @@ def test_relationship_schema_and_nvidia_text_is_not_invented():
     assert blocked.mode == "blocked"
 
 
+def test_local_ollama_request_is_not_sent(monkeypatch):
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("local Ollama was contacted")
+
+    monkeypatch.setattr("httpx.Client.post", refuse)
+    blocked = extract_document(
+        "NVIDIA invested $2 billion in CoreWeave and announced 5 GW of AI factories.",
+        url="https://nvidia.com/news/coreweave",
+        document_id="doc_local",
+        version_id="ver_local",
+        version_hash="hash",
+        question="How do NVIDIA's investments reinforce AI capacity?",
+        llm=OpenAICompatibleClient(
+            api_key="local-test",
+            base_url="http://127.0.0.1:11434/v1",
+            model="qwen2.5:7b-instruct-q4_K_M",
+            timeout=1,
+        ),
+    )
+    assert blocked.relationships == []
+    assert blocked.live_extraction_blocked is True
+    assert blocked.mode == "blocked"
+    assert "experimental" in (blocked.blocker or "").lower()
+    assert "not sent" in (blocked.blocker or "").lower()
+
+
 def test_story_c_finds_shared_origin_and_contradiction_without_network(tmp_path):
     orchestrator = Orchestrator(tmp_path / "story.sqlite", retrieval=_offline_retrieval(tmp_path), post=_down)
     export = orchestrator.run_story_c()

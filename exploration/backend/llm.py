@@ -7,7 +7,9 @@ invent token counts. Callers still have to ground every quotation.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -16,6 +18,15 @@ from exploration.backend.config import HTTP_TIMEOUT_SECONDS, llm_api_key, llm_ba
 
 class LLMNotConfigured(RuntimeError):
     pass
+
+
+class LocalExtractionUnavailable(LLMNotConfigured):
+    """Local generation does not finish inside the extraction deadline."""
+
+
+def local_ollama_endpoint(base_url: str) -> bool:
+    host = (urlparse(base_url).hostname or "").lower()
+    return host in {"localhost", "127.0.0.1", "::1"}
 
 
 def strip_json_fence(text: str) -> str:
@@ -47,6 +58,11 @@ class OpenAICompatibleClient:
     def complete_json(self, system: str, user: str) -> tuple[dict[str, Any], dict[str, Any]]:
         if not self.api_key:
             raise LLMNotConfigured("LLM_API_KEY and OPENAI_API_KEY are missing")
+        if local_ollama_endpoint(self.base_url) and os.environ.get("LLM_FORCE_LOCAL") != "1":
+            raise LocalExtractionUnavailable(
+                "Local LLM extraction is experimental for "
+                f"{self.model} at {self.base_url}. The request was not sent, and no relationships were invented."
+            )
         url = f"{self.base_url}/chat/completions"
         payload = {
             "model": self.model,
@@ -70,4 +86,6 @@ class OpenAICompatibleClient:
         content = body["choices"][0]["message"]["content"]
         parsed = json.loads(strip_json_fence(content))
         usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        usage.setdefault("model", self.model)
+        usage.setdefault("backend", "openai-compatible")
         return parsed, usage

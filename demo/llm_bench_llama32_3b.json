@@ -1,0 +1,275 @@
+{
+  "model": "llama3.2:latest",
+  "think": null,
+  "timeout_s": 90,
+  "cold": [
+    {
+      "id": "original.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 23.763,
+      "load_s": 2.344,
+      "prompt_eval_s": 0.935,
+      "gen_s": 20.453,
+      "prompt_tokens": 204,
+      "output_tokens": 177,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "announced",
+          "object": "the Helios Array, a planned network of compute campuses"
+        },
+        {
+          "status": "supported",
+          "subject": "Northwind Capital",
+          "predicate": "led",
+          "object": "a $400 million Series D financing"
+        },
+        {
+          "status": "supported",
+          "subject": "Mara Ellison",
+          "predicate": "said",
+          "object": "the financing funds construction of that first campus"
+        }
+      ]
+    },
+    {
+      "id": "northline.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 24.176,
+      "load_s": 0.007,
+      "prompt_eval_s": 1.608,
+      "gen_s": 22.546,
+      "prompt_tokens": 204,
+      "output_tokens": 164,
+      "emitted": 3,
+      "quote_matches": 0,
+      "invented": 3,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "has closed",
+          "object": "$400 million Series D led by Northwind Capital"
+        },
+        {
+          "status": "insufficient",
+          "subject": "The release",
+          "predicate": "places",
+          "object": "the Helios Array's first campus in Red Mesa, Arizona"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Northline",
+          "predicate": "republishes",
+          "object": "that Lumenarc Dynamics announcement"
+        }
+      ]
+    },
+    {
+      "id": "voltstreet.md",
+      "timeout": false,
+      "schema_valid": false,
+      "parse_error": "JSONDecodeError",
+      "wall_s": 28.011,
+      "raw_preview": "{\n\n  \"relationships\": [\n    {\n      \"subject\": \"Lumenarc Dynamics\",\n      \"predicate\": \"closed\",\n      \"object\": \"$480 million Series D led by Northwind Capital\",\n      \"quote\": \"according to the company's March 4, 2026 press release (wire "
+    },
+    {
+      "id": "harbor.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 23.141,
+      "load_s": 0.004,
+      "prompt_eval_s": 1.161,
+      "gen_s": 21.963,
+      "prompt_tokens": 200,
+      "output_tokens": 167,
+      "emitted": 3,
+      "quote_matches": 0,
+      "invented": 3,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D financing led by Northwind Capital"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "is planned to reach",
+          "object": "1.8 GW of compute capacity by 2029"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "has a first campus in",
+          "object": "Red Mesa, Arizona"
+        }
+      ]
+    },
+    {
+      "id": "cedar.txt",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 1.264,
+      "load_s": 0.008,
+      "prompt_eval_s": 0.385,
+      "gen_s": 0.855,
+      "prompt_tokens": 89,
+      "output_tokens": 7,
+      "emitted": 0,
+      "quote_matches": 0,
+      "invented": 0,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": []
+    }
+  ],
+  "warm": [
+    {
+      "id": "original.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 23.333,
+      "load_s": 0.005,
+      "prompt_eval_s": 1.35,
+      "gen_s": 21.973,
+      "prompt_tokens": 204,
+      "output_tokens": 177,
+      "emitted": 3,
+      "quote_matches": 2,
+      "invented": 1,
+      "supported": 2,
+      "expected_hit": true,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "announced",
+          "object": "the Helios Array, a planned network of compute campuses"
+        },
+        {
+          "status": "supported",
+          "subject": "Northwind Capital",
+          "predicate": "led",
+          "object": "a $400 million Series D financing"
+        },
+        {
+          "status": "supported",
+          "subject": "Mara Ellison",
+          "predicate": "said",
+          "object": "the financing funds construction of that first campus"
+        }
+      ]
+    },
+    {
+      "id": "northline.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 20.292,
+      "load_s": 0.01,
+      "prompt_eval_s": 0.13,
+      "gen_s": 20.124,
+      "prompt_tokens": 204,
+      "output_tokens": 164,
+      "emitted": 3,
+      "quote_matches": 0,
+      "invented": 3,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "has closed",
+          "object": "$400 million Series D led by Northwind Capital"
+        },
+        {
+          "status": "insufficient",
+          "subject": "The release",
+          "predicate": "places",
+          "object": "the Helios Array's first campus in Red Mesa, Arizona"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Northline",
+          "predicate": "republishes",
+          "object": "that Lumenarc Dynamics announcement"
+        }
+      ]
+    },
+    {
+      "id": "voltstreet.md",
+      "timeout": false,
+      "schema_valid": false,
+      "parse_error": "JSONDecodeError",
+      "wall_s": 26.983,
+      "raw_preview": "{\n\n  \"relationships\": [\n    {\n      \"subject\": \"Lumenarc Dynamics\",\n      \"predicate\": \"closed\",\n      \"object\": \"$480 million Series D led by Northwind Capital\",\n      \"quote\": \"according to the company's March 4, 2026 press release (wire "
+    },
+    {
+      "id": "harbor.md",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 21.114,
+      "load_s": 0.004,
+      "prompt_eval_s": 0.12,
+      "gen_s": 20.956,
+      "prompt_tokens": 200,
+      "output_tokens": 167,
+      "emitted": 3,
+      "quote_matches": 0,
+      "invented": 3,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": [
+        {
+          "status": "insufficient",
+          "subject": "Lumenarc Dynamics",
+          "predicate": "closed",
+          "object": "$400 million Series D financing led by Northwind Capital"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "is planned to reach",
+          "object": "1.8 GW of compute capacity by 2029"
+        },
+        {
+          "status": "insufficient",
+          "subject": "Helios Array",
+          "predicate": "has a first campus in",
+          "object": "Red Mesa, Arizona"
+        }
+      ]
+    },
+    {
+      "id": "cedar.txt",
+      "timeout": false,
+      "schema_valid": true,
+      "wall_s": 1.262,
+      "load_s": 0.203,
+      "prompt_eval_s": 0.254,
+      "gen_s": 0.768,
+      "prompt_tokens": 89,
+      "output_tokens": 7,
+      "emitted": 0,
+      "quote_matches": 0,
+      "invented": 0,
+      "supported": 0,
+      "expected_hit": false,
+      "rows": []
+    }
+  ]
+}
