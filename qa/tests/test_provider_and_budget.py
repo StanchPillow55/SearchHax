@@ -536,3 +536,52 @@ def test_search_exception_is_recorded_instead_of_escaping(tmp_path, monkeypatch)
     assert export.relationships == []
     assert calls["fetch"] == 0
     assert calls["search"] <= 3
+
+
+def test_fetch_exception_does_not_split_the_search_counter(tmp_path, monkeypatch):
+    """A fetch failure after a committed search does not leave history and usage disagreeing."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-fetch",
+            "interaction_id": "int-fetch",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": "https://news.example/a", "title": "A", "summary": text, "provider": "brave"}
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del urls, session_id
+        raise ConnectionError("fetch failed")
+
+    orchestrator = Orchestrator(
+        tmp_path / "fetch-raise.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    raised = None
+    try:
+        orchestrator.step(investigation.id)
+    except Exception as exc:
+        raised = type(exc).__name__
+    loaded = orchestrator.get(investigation.id)
+    history = orchestrator.database.search_queries(investigation.id)
+    assert raised is None, (
+        raised,
+        loaded.investigation.status,
+        loaded.investigation.budget.searches_used,
+        loaded.investigation.usage.search_calls,
+        history,
+    )
+    assert loaded.investigation.status in {"stopped", "blocked"}
+    assert loaded.investigation.budget.searches_used == loaded.investigation.usage.search_calls == len(history)
+    assert loaded.documents == []
