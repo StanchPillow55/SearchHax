@@ -1,0 +1,134 @@
+{
+  "contract_version": "1.0.0",
+  "investigation_id": "inv_1045a838ece0411f",
+  "original_question": "Do three articles independently substantiate a company's claim?",
+  "open_questions": [
+    {
+      "id": "q_a7c1cdd95fea9a5b",
+      "text": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+      "importance": 0.9,
+      "missing_evidence": 1.0,
+      "related_entity_ids": [],
+      "kind": "independence"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_8013839138c969d1",
+      "document_id": "doc_c175b5fb7c341cdd",
+      "url": "https://voltstreet.example/markets/lumenarc-series-d",
+      "title": "VoltStreet Markets: Lumenarc Dynamics Series D",
+      "snippet": "VoltStreet Markets — March 5, 2026  Lumenarc Dynamics closed a $480 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).  The cited release says the Heli",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.7222222222222222,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.35277665995975854
+      },
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "cand_ace3066ee576643e",
+      "document_id": "doc_62df11034b2c30e1",
+      "url": "https://harborbrief.example/lumenarc-helios-array",
+      "title": "Harbor Brief: Lumenarc Dynamics Helios Array",
+      "snippet": "Harbor Brief — March 6, 2026  A March 4, 2026 Lumenarc Dynamics announcement (https://lumenarc.example/press/2026-03-04-helios-array, wire ID LF-PR-2026-031) says the company closed a $400 million Series D financing led by Northwind Capital.  The announcement says the Helios Arra",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.6111111111111112,
+        "D": 0.0,
+        "F": 0.7906103286384977,
+        "score": 0.31953722334004026
+      },
+      "publish_date": "2026-03-06"
+    },
+    {
+      "id": "cand_bd30d5d0522c2a02",
+      "document_id": "doc_3f2a75bb069f1c3b",
+      "url": "https://northline.example/2026/03/lumenarc-helios",
+      "title": "Northline Desk: Lumenarc Dynamics Series D",
+      "snippet": "Northline Desk — March 5, 2026  Lumenarc Dynamics has closed a $400 million Series D led by Northwind Capital, according to the company's March 4, 2026 press release (wire ID LF-PR-2026-031, https://lumenarc.example/press/2026-03-04-helios-array).  The release says the Helios Arr",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.7777777777777778,
+        "D": 0.0,
+        "F": 0.7896713615023474,
+        "score": 0.36944332662642526
+      },
+      "publish_date": "2026-03-05"
+    },
+    {
+      "id": "cand_d0920470d3bc4fd1",
+      "document_id": "doc_5fbbe8344dbae98d",
+      "url": "https://lumenarc.example/press/2026-03-04-helios-array",
+      "title": "Lumenarc Dynamics Announces Helios Array and $400 Million Series D",
+      "snippet": "FOR IMMEDIATE RELEASE  Wire ID: LF-PR-2026-031  Red Mesa, Arizona — March 4, 2026 — Lumenarc Dynamics today announced the Helios Array, a planned network of compute campuses, and closed a $400 million Series D financing led by Northwind Capital.  The company said the Helios Array",
+      "providers": [
+        "fixture"
+      ],
+      "attention": {
+        "R": 0.14285714285714285,
+        "G": 0.6111111111111112,
+        "D": 0.0,
+        "F": 0.7887323943661972,
+        "score": 0.31934942991281023
+      },
+      "publish_date": "2026-03-04"
+    }
+  ],
+  "proposed_actions": [
+    {
+      "id": "act_f815e3516b8b074a",
+      "query": "independent primary confirmation of the Lumenarc Dynamics Series D amount that does not cite wire LF-PR-2026-031",
+      "reason": "Open independence question ranked by importance 0.90 and missing evidence 1.00.",
+      "target_question_id": "q_a7c1cdd95fea9a5b",
+      "utility": 0.9,
+      "already_executed": false,
+      "result_summary": ""
+    }
+  ],
+  "budget": {
+    "max_searches": 2,
+    "max_fetched_urls": 5,
+    "max_llm_calls": 10,
+    "searches_used": 0,
+    "urls_fetched": 0,
+    "llm_calls_used": 0,
+    "min_utility": 0.15,
+    "remaining_searches": 2,
+    "remaining_fetched_urls": 5,
+    "remaining_llm_calls": 10
+  },
+  "usage": {
+    "session_id": null,
+    "interaction_ids": [],
+    "search_calls": 0,
+    "provider_calls": 0,
+    "urls_fetched": 0,
+    "fetch_calls": 0,
+    "llm_calls": 0,
+    "llm_tokens": null,
+    "latency_ms": 11,
+    "cost_usd": null,
+    "providers_used": [
+      "fixture"
+    ],
+    "network_calls": 0,
+    "cache_hits": 0,
+    "corpus_documents": 4,
+    "followups_executed": 0,
+    "rejected_ungrounded_citations": 0,
+    "dry_run": false,
+    "configuration": "B3"
+  }
+}

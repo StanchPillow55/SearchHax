@@ -16,6 +16,8 @@
       "network_fetches": 0
     },
     "cache": "empty at start",
+    "demonstration": "precomputed",
+    "extraction_note": "Supported Story A edges are the disclosed sentence NVIDIA has invested $2 billion in CoreWeave, repeated on three pages. They were not produced by a hosted or local model.",
     "llm_configured": true,
     "relationships": [
       {
