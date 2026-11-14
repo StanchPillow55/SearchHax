@@ -143,3 +143,39 @@ def test_live_profile_scores_candidates_and_records_the_focus_decision(tmp_path,
     assert second.investigation.question == STORY_A_QUESTION
     assert second.investigation.decision_source == "convergence"
     assert any(question.kind == "profile_interest" for question in second.unresolved_questions)
+
+
+def test_recorded_profile_scores_match_the_formulas():
+    """The committed live record's attention and knowledge-value scores match their formulas."""
+    recorded = json.loads((Path(__file__).resolve().parents[2] / "demo" / "integrated_profile_evaluation.json").read_text())
+    story = recorded["story_a"]
+    assert story["profile_enabled"] is True
+    assert story["decision_source"] == "convergence"
+    assert story["decision_source_is_fallback"] is False
+    for item in story["candidate_scores"]:
+        attention = item["attention"]
+        attention_score = 0.4 * attention["R"] + 0.3 * attention["G"] + 0.2 * attention["D"] + 0.1 * attention["F"]
+        assert attention_score == attention["score"] == item["attention_score"]
+        knowledge = item["knowledge_value"]
+        knowledge_score = (
+            0.25 * knowledge["R"]
+            + 0.25 * knowledge["N"]
+            + 0.20 * knowledge["B"]
+            + 0.20 * knowledge["I"]
+            + 0.10 * knowledge["C"]
+        )
+        assert knowledge_score == knowledge["score"]
+        assert 0.0 <= knowledge["score"] <= 1.0
+
+
+def test_recorded_profile_run_counts_every_stored_page():
+    """Each stored candidate is a fetched URL or a counted cache hit."""
+    recorded = json.loads((Path(__file__).resolve().parents[2] / "demo" / "integrated_profile_evaluation.json").read_text())
+    story = recorded["story_a"]
+    usage = story["usage"]
+    stored = len(story["candidate_scores"])
+    assert usage["urls_fetched"] + usage["cache_hits"] == stored, (
+        usage["urls_fetched"],
+        usage["cache_hits"],
+        stored,
+    )

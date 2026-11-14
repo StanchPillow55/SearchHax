@@ -98,6 +98,14 @@ Deterministic.
 
 Suggested correction: when a stored page comes from the fetch cache, increment `usage.cache_hits`. Do not report zero cache hits for that page.
 
+The same gap is in the recorded run `demo/integrated_profile_evaluation.json` on `6d87f2c`. That file lists 8 candidate URLs. `urls_fetched` is 5 and `cache_hits` is 0. A stored page is either a network fetch or a cache hit, so those two counters have to add up to 8.
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_profile_value.py::test_recorded_profile_run_counts_every_stored_page --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Expected: `5 + cache_hits == 8`. Actual: `(5, 0, 8)`.
+
 ## BLOCKER — A possessive CoreWeave match is stored as an investment in CoreWeave
 
 Requirement: a supported edge matches the claim in the stored sentence. Cutting the sentence at CoreWeave does not make CoreWeave the object.

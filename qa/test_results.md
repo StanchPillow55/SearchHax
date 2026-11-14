@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `393de45` (`Pass live candidates through knowledge value into focus and convergence.`). Uncommitted `demo/run_demo.py` was not imported. The twenty-two QA failures from `31c389b` still fail.
+Latest check: implementation commit `6d87f2c` (`Record the bounded live profile-enabled integration run.`). The twenty-two QA failures from `31c389b` still fail. The recorded profile file adds one more reproduction of the cache-counter gap.
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 24 failed, 78 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
+Result: 25 failed, 79 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
 
 Failed:
 
+- `qa/tests/test_profile_value.py::test_recorded_profile_run_counts_every_stored_page`
 - `exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_runs_a_follow_up_through_convergence`
 - `exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_stops_when_no_useful_action`
 - `qa/tests/test_focus_parenthetical.py::test_quarter_number_is_not_a_source_citation`
@@ -39,13 +40,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 41 / 64 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `PRF-2` passes: with the existing web key guard satisfied by `qa-dummy`, live candidates receive a knowledge-value score in 0–1, the question is unchanged, and `decision_source` is `convergence`.
-2. Passing tests / executed tests: 78 / 102 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
+1. Verified P0 requirements: 42 / 65 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `PRF-3` passes: the recorded profile scores match the attention and knowledge-value formulas.
+2. Passing tests / executed tests: 79 / 104 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: the twenty-two QA failures from `31c389b` still fail. The two new integration tests fail before search because `TELEM_API_KEY` is unset, so the injected client never runs. That is the existing web guard, and the same path passes once the guard is satisfied. See `qa/failure_report.md`.
-5. Integration readiness: not ready. The profile score is recorded, and the earlier blockers remain.
-6. Commit tested: `393de45` (`Pass live candidates through knowledge value into focus and convergence.`). Uncommitted `demo/run_demo.py` was not imported.
-7. Next validation priority: the twenty-two QA failures are unchanged. The new integration tests need the same dummy `TELEM_API_KEY` the other offline web tests set, or they stay blocked before search.
+4. Blocking failures: the recorded profile run stores 8 candidate URLs with `urls_fetched` 5 and `cache_hits` 0. The other blockers on this commit still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The live record's page count and its fetch counter disagree.
+6. Commit tested: `6d87f2c` (`Record the bounded live profile-enabled integration run.`).
+7. Next validation priority: make `urls_fetched + cache_hits` equal the number of stored candidate pages. Rerun `test_recorded_profile_run_counts_every_stored_page` and the twenty-four older failures. The Department of Justice supported row in that file has no stored quote, so that citation was not rechecked against the page.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
