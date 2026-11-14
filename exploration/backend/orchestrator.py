@@ -30,6 +30,7 @@ from exploration.backend.config import default_db_path, llm_api_key, telem_confi
 from exploration.backend.convergence import build_request, evaluate_controller
 from exploration.backend.database import Database
 from exploration.backend.extraction import ExtractionBatch, extract_document, merge_batches
+from exploration.backend.llm import OpenAICompatibleClient
 from exploration.backend.graph import EvidenceGraph
 from exploration.backend.ids import content_hash, new_id, stable_id
 from exploration.backend.planner import generate_actions, initial_search_query
@@ -273,6 +274,7 @@ class Orchestrator:
             self._persist(export)
             save_checkpoint(self.database, export, step=1, summary="Blocked before search: TELEM_API_KEY missing. No results were invented.")
             return self.graph.load(investigation.id)
+        started = _now_seconds()
         guard = BudgetGuard(investigation.budget)
         try:
             bundle = self.retrieval.search(
@@ -289,6 +291,7 @@ class Orchestrator:
         investigation.updated_at = _now()
         self._persist(export)
         save_checkpoint(self.database, export, step=1, summary="Initial Telem search and shortlisted fetch.")
+        investigation.usage.latency_ms = _elapsed_ms(started)
         if investigation.live_extraction_blocked and not export.relationships:
             investigation.status = "stopped"
             investigation.stop_reason = "unresolved_uncertainty"
@@ -300,6 +303,8 @@ class Orchestrator:
             investigation.updated_at = _now()
             self._persist(export)
             save_checkpoint(self.database, export, step=2, summary="Stopped without a follow-up because extraction is blocked.", stop_reason="unresolved_uncertainty")
+        else:
+            self._persist(export)
         return self.graph.load(investigation.id)
 
     def _follow_up_web_step(self, export: ExplorationExport) -> ExplorationExport:
@@ -430,6 +435,7 @@ class Orchestrator:
         chosen = chosen[: min(5, investigation.budget.remaining_fetched_urls)]
         pages = []
         if chosen:
+            fetched_before = investigation.budget.urls_fetched
             pages = self.retrieval.fetch(
                 [item[1].canonical_url for item in chosen],
                 session_id=investigation.session_id,
@@ -438,6 +444,8 @@ class Orchestrator:
             investigation.budget = guard.budget
             investigation.usage.fetch_calls += 1
             investigation.usage.urls_fetched = investigation.budget.urls_fetched
+            if investigation.budget.urls_fetched > fetched_before:
+                investigation.usage.network_calls += 1
         page_by_url = {page.canonical_url: page for page in pages}
         batches: list[ExtractionBatch] = []
         for _score, merged, attention in chosen:
@@ -486,8 +494,7 @@ class Orchestrator:
                     publish_date=merged.publish_date,
                 )
             )
-            batch = self._extract_page(investigation, guard, document, version)
-            batches.append(batch)
+            batches.append(self._extract_page(investigation, guard, document, version))
         if not batches:
             return
         merged_batch = merge_batches(batches)
@@ -498,20 +505,31 @@ class Orchestrator:
         export.evidence_links.extend(merged_batch.links)
         export.unresolved_questions.extend(merged_batch.questions)
         investigation.usage.rejected_ungrounded_citations += merged_batch.rejected_ungrounded
-        if merged_batch.live_extraction_blocked:
+        if merged_batch.live_extraction_blocked and not merged_batch.relationships:
             investigation.live_extraction_blocked = True
             investigation.blocker = merged_batch.blocker
         if merged_batch.llm_tokens is not None:
             investigation.usage.llm_tokens = (investigation.usage.llm_tokens or 0) + merged_batch.llm_tokens
 
     def _extract_page(self, investigation: Investigation, guard: BudgetGuard, document: Document, version: DocumentVersion) -> ExtractionBatch:
-        if llm_api_key():
-            try:
-                guard.authorize_llm()
-            except BudgetExceededError:
-                return ExtractionBatch(live_extraction_blocked=True, mode="blocked", blocker="LLM call budget exhausted.")
-            investigation.budget = guard.budget
-            investigation.usage.llm_calls += 1
+        disclosed = extract_document(
+            version.content,
+            url=document.canonical_url,
+            document_id=document.id,
+            version_id=version.id,
+            version_hash=version.content_hash,
+            question=investigation.question,
+            publish_date=version.publish_date,
+            llm=OpenAICompatibleClient(api_key=""),
+        )
+        if disclosed.relationships or not llm_api_key():
+            return disclosed
+        try:
+            guard.authorize_llm()
+        except BudgetExceededError:
+            return disclosed
+        investigation.budget = guard.budget
+        investigation.usage.llm_calls += 1
         return extract_document(
             version.content,
             url=document.canonical_url,

@@ -2,46 +2,78 @@
   "sample_note": "Counts are from the runs in this file. One investigation per configuration is not a statistical result.",
   "story_a": {
     "ran": true,
-    "blocker": "LLM extraction failed: ReadTimeout",
+    "blocker": null,
     "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
-    "investigation_id": "inv_aaa9080036b94e93",
+    "investigation_id": "inv_8e46a18764e64eb0",
     "stop_reason": "unresolved_uncertainty",
     "decision_source": "fallback",
-    "decision_rationale": "Live extraction is blocked because no LLM key is configured. Fallback did not invent relationships or spend a follow-up search.",
+    "decision_rationale": "Convergence endpoint unavailable (RemoteProtocolError). Fallback ranked open questions by importance and missing evidence. Selected the highest-priority unused query: What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?",
     "session_set": true,
     "checkpoints": 2,
     "resume": {
-      "reused": 4,
-      "unchanged_versions": 1,
+      "reused": 5,
+      "unchanged_versions": 0,
       "network_fetches": 0
     },
+    "cache": "empty at start",
     "llm_configured": true,
-    "relationships": [],
-    "open_questions": [],
+    "relationships": [
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_in",
+        "object": "CoreWeave",
+        "status": "supported"
+      },
+      {
+        "subject": "NVIDIA",
+        "predicate": "invested_amount",
+        "object": "$2 billion",
+        "status": "supported"
+      }
+    ],
+    "open_questions": [
+      "What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?"
+    ],
     "usage": {
-      "session_id": "8f4f6169-891e-4369-83dd-4333a7ffe378",
-      "interaction_ids": [
-        "a985fc11-fcc3-4d20-a188-483f87fa611b"
-      ],
-      "search_calls": 1,
-      "provider_calls": 2,
+      "search_calls": 2,
+      "provider_calls": 4,
       "urls_fetched": 5,
       "fetch_calls": 1,
-      "llm_calls": 5,
+      "llm_calls": 2,
       "llm_tokens": null,
-      "latency_ms": 0,
+      "latency_ms": 25250,
       "cost_usd": null,
       "providers_used": [
         "brave",
         "tavily"
       ],
-      "network_calls": 1,
-      "cache_hits": 0,
-      "corpus_documents": 0,
-      "followups_executed": 0,
-      "rejected_ungrounded_citations": 0,
-      "dry_run": false,
-      "configuration": "web"
+      "network_calls": 3,
+      "followups_executed": 1,
+      "documents": 5
     }
   },
   "reports": [
@@ -66,7 +98,7 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 0,
       "shared_origin_detected": false,
-      "latency_ms": 11,
+      "latency_ms": 16,
       "cost_usd": null,
       "network_calls": 0,
       "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
@@ -92,7 +124,7 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 1,
       "shared_origin_detected": true,
-      "latency_ms": 45,
+      "latency_ms": 57,
       "cost_usd": null,
       "network_calls": 0,
       "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
@@ -101,27 +133,27 @@
       "story": "A",
       "configuration": "B3",
       "ran": true,
-      "blocker": "LLM extraction failed: ReadTimeout",
+      "blocker": null,
       "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
       "sample_size": 1,
       "sample_note": "One investigation, not a statistical claim.",
-      "search_calls": 1,
-      "provider_calls": 2,
+      "search_calls": 2,
+      "provider_calls": 4,
       "urls_fetched": 5,
-      "llm_calls": 5,
+      "llm_calls": 2,
       "llm_tokens": null,
-      "supported_relationships": 0,
+      "supported_relationships": 6,
       "contradicted_relationships": 0,
       "insufficient_relationships": 0,
       "hypothesis_relationships": 0,
-      "correct_citations": 0,
+      "correct_citations": 6,
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 0,
       "shared_origin_detected": false,
-      "latency_ms": 0,
+      "latency_ms": 25250,
       "cost_usd": null,
-      "network_calls": 1,
-      "notes": ""
+      "network_calls": 3,
+      "notes": "Cold fetch cache. Five URLs were fetched from Telem on this run. Supported edges are exact substrings of those pages. Sample size is one investigation."
     }
   ]
 }

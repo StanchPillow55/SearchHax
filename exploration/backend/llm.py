@@ -33,7 +33,7 @@ class OpenAICompatibleClient:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
-        timeout: float = HTTP_TIMEOUT_SECONDS,
+        timeout: float = 15.0,
     ):
         self.api_key = api_key if api_key is not None else llm_api_key()
         self.base_url = (base_url or llm_base_url()).rstrip("/")
@@ -51,6 +51,7 @@ class OpenAICompatibleClient:
         payload = {
             "model": self.model,
             "temperature": 0,
+            "max_tokens": 300,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},

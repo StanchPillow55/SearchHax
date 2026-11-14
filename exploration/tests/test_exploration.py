@@ -81,6 +81,28 @@ def test_quote_must_be_an_exact_substring():
     assert not bad.valid and bad.start is None
 
 
+def test_disclosed_investment_quote_is_supported_without_inventing_demand():
+    from exploration.backend.extraction import extract_document
+    from exploration.backend.llm import OpenAICompatibleClient
+
+    content = "In addition, NVIDIA has invested $2 billion in CoreWeave Class A common stock at a purchase price of $87.20 per share."
+    batch = extract_document(
+        content,
+        url="https://nvidianews.nvidia.com/news/coreweave",
+        document_id="doc-nv",
+        version_id="ver-nv",
+        version_hash="hash",
+        question="How do NVIDIA's investments and AI capacity expansion reinforce one another?",
+        llm=OpenAICompatibleClient(api_key=""),
+    )
+    supported = [rel for rel in batch.relationships if rel.status == "supported"]
+    assert any(rel.predicate == "invested_in" and rel.object_name == "CoreWeave" for rel in supported)
+    assert any(rel.predicate == "invested_amount" and rel.object_name == "$2 billion" for rel in supported)
+    assert all(rel.predicate != "causes_demand" for rel in batch.relationships)
+    assert batch.questions
+    assert batch.questions[0].kind == "gap"
+
+
 def test_ungrounded_llm_relationship_is_insufficient():
     content = "Lumenarc Dynamics closed a $400 million Series D."
     batch = relationships_from_llm_payload(

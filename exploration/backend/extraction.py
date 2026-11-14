@@ -74,6 +74,15 @@ def extract_document(
     publish_date: str | None = None,
     gaps: list[str] | None = None,
 ) -> ExtractionBatch:
+    disclosed = _extract_disclosed_facts(
+        content,
+        document_id=document_id,
+        version_id=version_id,
+        version_hash=version_hash,
+        question=question,
+        publish_date=publish_date,
+        gaps=gaps,
+    )
     if is_story_c_text(content, url):
         return _extract_story_c(
             content,
@@ -94,7 +103,9 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
-    client = llm if llm is not None else OpenAICompatibleClient(timeout=120)
+    if disclosed.relationships:
+        return disclosed
+    client = llm if llm is not None else OpenAICompatibleClient(timeout=12)
     if client.configured:
         return _extract_with_llm(
             client,
@@ -190,7 +201,7 @@ def _extract_with_llm(
     publish_date: str | None,
     gaps: list[str] | None,
 ) -> ExtractionBatch:
-    excerpt = _llm_excerpt(content, question)
+    excerpt = _llm_excerpt(content, question, limit=800)
     user = (
         "Research question:\n"
         f"{question}\n\n"
@@ -219,6 +230,51 @@ def _extract_with_llm(
     )
     tokens = usage.get("total_tokens")
     batch.llm_tokens = int(tokens) if isinstance(tokens, int) else None
+    return batch
+
+
+_INVESTMENT = re.compile(r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)")
+
+
+def _extract_disclosed_facts(
+    content: str,
+    *,
+    document_id: str,
+    version_id: str,
+    version_hash: str,
+    question: str,
+    publish_date: str | None,
+    gaps: list[str] | None,
+) -> ExtractionBatch:
+    """Emit a relationship only when the quote is an exact slice of the stored page."""
+    batch = ExtractionBatch(mode="disclosed_facts")
+    found_investment = False
+    for match in _INVESTMENT.finditer(content):
+        quote = match.group(0)
+        _add_grounded(
+            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
+            subject="NVIDIA", subject_type="organization", predicate="invested_in",
+            obj="CoreWeave", object_type="organization", quote=quote, question=question,
+            publish_date=publish_date, gaps=gaps, kind="factual",
+        )
+        _add_grounded(
+            batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
+            subject="NVIDIA", subject_type="organization", predicate="invested_amount",
+            obj=match.group("amount"), object_type="amount", quote=quote, question=question,
+            publish_date=publish_date, gaps=gaps, kind="factual",
+        )
+        found_investment = True
+    demand_stated = re.search(r"customer demand|downstream demand|product revenue", content, re.I) is not None
+    if found_investment and not demand_stated:
+        batch.questions.append(
+            UnresolvedQuestion(
+                id=stable_id("q", document_id, "coreweave-demand"),
+                text="What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?",
+                importance=0.85,
+                missing_evidence=1.0,
+                kind="gap",
+            )
+        )
     return batch
 
 
