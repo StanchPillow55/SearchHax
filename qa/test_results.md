@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `31c389b` (`Collect Exploration, Focus, and Tavily tests from the repo root.`). Parent `8ce60e9` closes the convergence loop through the focus ranker. The nineteen failures from `fd2aa11` still fail.
+Latest check: implementation commit `393de45` (`Pass live candidates through knowledge value into focus and convergence.`). Uncommitted `demo/run_demo.py` was not imported. The twenty-two QA failures from `31c389b` still fail.
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,10 +8,12 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 22 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
+Result: 24 failed, 78 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
 
 Failed:
 
+- `exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_runs_a_follow_up_through_convergence`
+- `exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_stops_when_no_useful_action`
 - `qa/tests/test_focus_parenthetical.py::test_quarter_number_is_not_a_source_citation`
 - `qa/tests/test_focus_plan.py::test_investigate_follow_up_runs_inside_the_default_budget`
 - `qa/tests/test_focus_url_citation.py::test_longer_url_is_not_cited_as_the_shorter_source`
@@ -37,13 +39,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 40 / 63 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 77 / 99 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
+1. Verified P0 requirements: 41 / 64 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `PRF-2` passes: with the existing web key guard satisfied by `qa-dummy`, live candidates receive a knowledge-value score in 0–1, the question is unchanged, and `decision_source` is `convergence`.
+2. Passing tests / executed tests: 78 / 102 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: `quarter (1)` is rewritten as a citation of `https://example.com/price`. The default search plan spends the budget of 3 before the investigate follow-up. The other blockers on `31c389b` still fail. See `qa/failure_report.md`.
-5. Integration readiness: not ready. The citation normalizer can attach a source to a parenthetical number.
-6. Commit tested: `31c389b` (`Collect Exploration, Focus, and Tavily tests from the repo root.`). Uncommitted `exploration/backend/orchestrator.py`, `pyproject.toml`, and `exploration/tests/test_integrated_pipeline.py` were not imported.
-7. Next validation priority: rewrite `(source 1)` and `(S1)` only. Leave a bare `(1)` unchanged. Rerun `test_quarter_number_is_not_a_source_citation` and the twenty-one older failures.
+4. Blocking failures: the twenty-two QA failures from `31c389b` still fail. The two new integration tests fail before search because `TELEM_API_KEY` is unset, so the injected client never runs. That is the existing web guard, and the same path passes once the guard is satisfied. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The profile score is recorded, and the earlier blockers remain.
+6. Commit tested: `393de45` (`Pass live candidates through knowledge value into focus and convergence.`). Uncommitted `demo/run_demo.py` was not imported.
+7. Next validation priority: the twenty-two QA failures are unchanged. The new integration tests need the same dummy `TELEM_API_KEY` the other offline web tests set, or they stay blocked before search.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 

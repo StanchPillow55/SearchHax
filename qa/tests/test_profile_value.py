@@ -80,3 +80,66 @@ def test_committed_profile_evaluation_matches_a_fresh_run(tmp_path):
             assert actual["attention"]["score"] == recorded["attention"]["score"]
             assert actual["knowledge_value"]["score"] == recorded["knowledge_value"]["score"]
             assert actual["knowledge_value"]["C"] == recorded["knowledge_value"]["C"] == 0.0
+
+
+def test_live_profile_scores_candidates_and_records_the_focus_decision(tmp_path, monkeypatch):
+    """A dummy key satisfies the web guard. The injected client makes no network call."""
+    from shared.contracts import ResearchProfile
+
+    from exploration.backend.focus_bridge import focus_post
+    from exploration.backend.orchestrator import STORY_A_QUESTION
+
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave. The buildout emphasizes advanced packaging."
+    profile = ResearchProfile(
+        id="profile-qa",
+        interests=["advanced packaging"],
+        goals=["packaging"],
+        unresolved_interests=["advanced packaging"],
+        known_claims=[],
+        notes="qa",
+    )
+
+    def search_fn(query, session_id):
+        del query, session_id
+        search_fn.n = getattr(search_fn, "n", 0) + 1
+        url = "https://news.example/a" if search_fn.n == 1 else "https://news.example/b"
+        body = text if search_fn.n == 1 else "Customer demand for the capacity expansion remains unmeasured."
+        return {
+            "session_id": "sess-profile",
+            "interaction_id": f"int-{search_fn.n}",
+            "provider_runs": [
+                {"provider": "brave", "results": [{"url": url, "title": "P", "summary": body, "provider": "brave"}]}
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        body = text if urls[0].endswith("/a") else "Customer demand for the capacity expansion remains unmeasured."
+        return {"results": [{"url": urls[0], "content": body, "status": "ok", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "profile-web.sqlite",
+        retrieval=RetrievalClient(
+            cache_dir=tmp_path / "cache",
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+        ),
+        post=focus_post,
+    )
+    created = orchestrator.create(STORY_A_QUESTION, mode="web", profile=profile)
+    first = orchestrator.step(created.id)
+    scored = [candidate.knowledge_value for candidate in first.candidates if candidate.knowledge_value is not None]
+    assert scored
+    assert all(0.0 <= item.score <= 1.0 for item in scored)
+    assert all(candidate.attention is not None for candidate in first.candidates)
+    assert {(rel.predicate, rel.status) for rel in first.relationships if rel.status == "supported"} == {
+        ("invested_amount", "supported"),
+        ("invested_in", "supported"),
+    }
+    second = orchestrator.step(created.id)
+    assert second.investigation.question == STORY_A_QUESTION
+    assert second.investigation.decision_source == "convergence"
+    assert any(question.kind == "profile_interest" for question in second.unresolved_questions)
