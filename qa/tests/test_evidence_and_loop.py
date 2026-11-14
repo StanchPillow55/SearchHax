@@ -247,6 +247,56 @@ def test_completed_web_investigation_reloads_without_new_calls(tmp_path, monkeyp
     assert len(reloaded.relationships) == len(finished.relationships)
 
 
+def test_two_web_investigations_keep_separate_graphs(tmp_path, monkeypatch):
+    """Saving a second investigation does not replace the first investigation's edges."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave."
+    path = tmp_path / "shared.sqlite"
+
+    def run(url: str):
+        def search_fn(query, session_id):
+            del query, session_id
+            return {
+                "session_id": "sess-shared",
+                "interaction_id": "int-shared",
+                "provider_runs": [
+                    {
+                        "provider": "brave",
+                        "results": [{"url": url, "title": "NVIDIA", "summary": text, "provider": "brave"}],
+                    }
+                ],
+            }
+
+        def fetch_fn(urls, session_id):
+            del session_id
+            return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+        orchestrator = Orchestrator(path, retrieval=_client(tmp_path, search_fn, fetch_fn), post=_down)
+        created = orchestrator.create(STORY_A_QUESTION, mode="web")
+        return orchestrator, orchestrator.step(created.id)
+
+    first_orchestrator, first = run("https://news.example/first")
+    _second_orchestrator, second = run("https://news.example/second")
+    reloaded = first_orchestrator.get(first.investigation.id)
+    assert reloaded.investigation.question == first.investigation.question
+    assert len(reloaded.relationships) == len(first.relationships) == 2
+    assert len(second.relationships) == 2
+    assert {document.id for document in reloaded.documents}.isdisjoint({document.id for document in second.documents})
+    assert reloaded.entities and second.entities
+    assert reloaded.entities[0].id == second.entities[0].id
+    for export in (reloaded, second):
+        versions = {version.id: version for version in export.document_versions}
+        documents = {document.id for document in export.documents}
+        for relationship in export.relationships:
+            assert relationship.document_id in documents
+            for link_id in relationship.evidence_link_ids:
+                link = next(item for item in export.evidence_links if item.id == link_id)
+                span = next(item for item in export.evidence_spans if item.id == link.evidence_span_id)
+                version = versions[span.version_id]
+                assert span.document_id == relationship.document_id
+                assert version.content[span.start : span.end] == span.text
+
+
 def test_controller_approval_executes_and_malformed_payload_does_not(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
     monkeypatch.setenv("LLM_API_KEY", "qa-dummy")
@@ -600,6 +650,15 @@ def _assert_story_c_graph(export: ExplorationExport) -> None:
             version = versions[span.version_id]
             assert version.content[span.start : span.end] == span.text
             assert link.quote_valid is True
+            if rel.status == "contradicted":
+                assert link.stance == "contradicts"
+                assert link.semantic_status == "contradicted"
+            if rel.status == "supported":
+                assert link.stance == "supports"
+    document_ids = {document.id for document in export.documents}
+    for item in export.contradictions:
+        assert item.original_document_id in document_ids
+        assert item.conflicting_document_id in document_ids
     kinds = {item.document_id: item.origin_kind for item in export.provenance}
     assert "original" in kinds.values()
     assert "derivative" in kinds.values()
