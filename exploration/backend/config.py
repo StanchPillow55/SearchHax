@@ -40,6 +40,10 @@ def story_c_dir() -> Path:
     return EXPLORATION_ROOT / "fixtures" / "story_c"
 
 
+def profile_fixture_dir() -> Path:
+    return EXPLORATION_ROOT / "fixtures" / "profiles"
+
+
 def replay_fixture_path() -> Path:
     return EXPLORATION_ROOT / "fixtures" / "replay" / "synthetic_search.json"
 
