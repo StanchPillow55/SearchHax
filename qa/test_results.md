@@ -1,6 +1,21 @@
 # Test results
 
-Latest release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
+Latest check: implementation commit `8e3e6e5`. QA merge `6dab401` on `qa/exploration-verification`.
+
+```text
+53 passed, 2 deselected, exit status 0
+focus/test_focus_attention.py: 5 passed
+```
+
+1. Verified P0 requirements: the offline P0 checks that failed on `edf9e32` pass on `8e3e6e5`. Live Telem was not repeated. A live Convergence server was not part of this run.
+2. Passing tests / executed tests: 53 / 53 offline pytest tests, plus 5 focus unit tests. 2 live tests deselected.
+3. Unimplemented: clickable React graph, Story B, Story D, domain routing, continuous monitoring.
+4. Blocking failures: none on `8e3e6e5`.
+5. Integration readiness: offline Story C, focus handoff, and stored Story A replay pass. This run did not call a live Convergence process.
+6. Commit tested: `8e3e6e5` (`Merge origin/main into feat/exploration.`).
+7. Next validation priority: one budgeted live Telem smoke only if the owner authorizes another credit spend.
+
+Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
 Previous snapshot `edf9e32` remains below.
 

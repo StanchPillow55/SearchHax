@@ -1,6 +1,16 @@
 # Failure report
 
-Current release findings are in `qa/release_report.md` for commit `c81ea8e`. The entity-save crash and the missing-key demo rationale from `edf9e32` are closed on that commit. The duplicate-query and gap-ranking failures remain, and the six Story A rows are two facts on three pages.
+Snapshot `8e3e6e5` (`feat/exploration`, merged into QA as `6dab401`): no blocking failures.
+
+Command: `/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=line -p no:cacheprovider --override-ini=testpaths=`
+
+Result: 53 passed, 2 live tests deselected, exit status 0. `python -m unittest test_focus_attention.py` from `focus/` : 5 passed. No Telem, Tavily, or LLM call was made.
+
+The entity-save crash, duplicate controller query, gap-ranking miss, and inconsistent Story A rationale from `edf9e32` stay closed. No new blocker showed up in the focus handoff (`72dfbe1`, `0c04abe`, `8e3e6e5`).
+
+Earlier findings:
+
+Current release findings below were for commit `c81ea8e`. The entity-save crash and the missing-key demo rationale from `edf9e32` were closed before `ec31c60`. The duplicate-query and gap-ranking failures were open at `c81ea8e` and closed by `ec31c60`. The six Story A rows are two facts on three pages.
 
 Snapshot: `edf9e32` (`feat/exploration`, "Record the exploration investigation milestone").
 

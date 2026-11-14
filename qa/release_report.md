@@ -1,6 +1,10 @@
 # Release candidate
 
-Tested implementation commit: `ec31c60` on `feat/exploration`.
+Latest import: `8e3e6e5` on `feat/exploration` / `main`. QA merge: `6dab401`.
+
+Offline result on that commit: 53 passed, 2 live tests deselected, exit status 0. Focus ranker unit tests: 5 passed. No blocking failures. The notes below still describe the `ec31c60` pass and remain true for the checks they name.
+
+Tested implementation commit for the previous pass: `ec31c60` on `feat/exploration`.
 
 QA import: `4a5d009` on `qa/exploration-verification`.
 
