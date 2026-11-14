@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A Tavily failure discards pages Telem already returned
+
+Requirement: one provider failing does not drop passages the other provider returned. The failure is recorded.
+
+Snapshot: implementation `fd2aa11`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_providers.py::test_one_provider_failure_keeps_the_other_providers_pages --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. `search(..., "both")` is used. Telem returns `https://telem.example`. Tavily raises `RuntimeError: tavily unavailable`.
+
+Expected: the call returns the Telem page. The Tavily error is recorded.
+
+Actual: `('RuntimeError', [], ['telem', 'tavily'])`. Telem ran, then Tavily ran, and the returned list is empty because the exception left `search`.
+
+`focus/retrieval_adapters.py` lines 213–217 append each provider's rows and do not catch a provider exception. The Telem rows are local to that call and are discarded.
+
+Deterministic.
+
+Suggested correction: keep the passages from the provider that succeeded and record the other provider's error. Do not raise those passages away.
+
 ## BLOCKER — An unknown citation stays in an answer that also has a valid one
 
 Requirement: an unknown citation marker is rejected. A displayed answer does not contain a source id that was not supplied.
