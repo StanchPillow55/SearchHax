@@ -629,3 +629,48 @@ def test_failed_provider_does_not_become_a_source_when_another_succeeds(tmp_path
     raw = orchestrator.database._conn.execute("SELECT raw_json FROM search_history").fetchone()[0]
     assert "503" in raw
     assert "brave" in raw
+
+
+def test_possessive_coreweave_is_not_an_investment_in_coreweave(tmp_path, monkeypatch):
+    """A match that stops at CoreWeave must not support an investment in CoreWeave."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave's rival Lambda."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-rival",
+            "interaction_id": "int-rival",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/rival",
+                            "title": "Rival",
+                            "summary": text,
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "rival.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller not called")),
+    )
+    export = orchestrator.step(orchestrator.create(STORY_A_QUESTION, mode="web").id)
+    supported = [
+        rel
+        for rel in export.relationships
+        if rel.status == "supported" and rel.predicate == "invested_in" and rel.object_name == "CoreWeave"
+    ]
+    assert supported == []
+    for span in export.evidence_spans:
+        assert span.text == text or "rival" in span.text

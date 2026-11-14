@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A possessive CoreWeave match is stored as an investment in CoreWeave
+
+Requirement: a supported edge matches the claim in the stored sentence. Cutting the sentence at CoreWeave does not make CoreWeave the object.
+
+Snapshot: implementation `fd2aa11`. Uncommitted edits in the implementation worktree were not imported.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_possessive_coreweave_is_not_an_investment_in_coreweave --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. The page is `NVIDIA has invested $2 billion in CoreWeave's rival Lambda.`
+
+Expected: no supported `invested_in` edge whose object is CoreWeave. If a span is stored, it includes `rival`.
+
+Actual: one supported `invested_in` relationship with object CoreWeave. The stored span is `NVIDIA has invested $2 billion in CoreWeave`. `rival` is not in the span. `invested_amount` `$2 billion` is also supported.
+
+`exploration/backend/extraction.py` line 236 is `_INVESTMENT = re.compile(r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)")`. There is no word boundary after CoreWeave, so `CoreWeave's` matches. `_extract_disclosed_facts` stores `match.group(0)`.
+
+Deterministic.
+
+Suggested correction: require a word boundary after CoreWeave. Do not mark `invested_in` CoreWeave supported when the sentence continues with `'s`.
+
 ## BLOCKER — A Tavily failure discards pages Telem already returned
 
 Requirement: one provider failing does not drop passages the other provider returned. The failure is recorded.
