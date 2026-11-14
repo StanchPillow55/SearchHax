@@ -53,6 +53,58 @@ class AttentionComponents(_Model):
     )
 
 
+class KnowledgeValue(_Model):
+    """Additive knowledge-value heuristic. Not query attention, not a probability, and not factual confidence."""
+
+    R: float = Field(ge=0, le=1, description="Overlap with profile interests and goals in [0,1]. Not factual confidence.")
+    N: float = Field(ge=0, le=1, description="Share of passage tokens absent from known claims in [0,1]. Not factual confidence.")
+    B: float = Field(
+        ge=0,
+        le=1,
+        description=(
+            "1 only when a profile interest and a DOMAIN_BRIDGES bridge term both occur "
+            "and the bridge term is outside known claims; otherwise 0. Not factual confidence."
+        ),
+    )
+    I: float = Field(ge=0, le=1, description="Overlap with the unresolved profile interest in [0,1]. Not factual confidence.")
+    C: float = Field(
+        ge=0,
+        le=1,
+        description=(
+            "1 only when the passage contradicts a known claim with the same subject and predicate "
+            "and a different object; otherwise 0. Not factual confidence."
+        ),
+    )
+    score: float = Field(
+        ge=0,
+        le=1,
+        description="U=0.25*R+0.25*N+0.20*B+0.20*I+0.10*C, clamped to [0,1]. A heuristic, not a probability and not factual confidence.",
+    )
+    bridge_trigger: str | None = None
+    bridge_terms: list[str] = Field(default_factory=list)
+
+
+class KnownClaim(_Model):
+    """A prior the profile already holds. This is not sourced web evidence."""
+
+    id: str
+    subject: str
+    predicate: str
+    object: str
+    text: str = ""
+
+
+class ResearchProfile(_Model):
+    """Static read-only research profile. Not an account and not web evidence."""
+
+    id: str
+    interests: list[str] = Field(default_factory=list)
+    goals: list[str] = Field(default_factory=list)
+    known_claims: list[KnownClaim] = Field(default_factory=list)
+    unresolved_interests: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
 class InvestigationBudget(_Model):
     """Search budget. The exploration backend clamps enforcement to 2 searches, 5 fetched URLs, and 10 LLM calls."""
 
@@ -216,6 +268,10 @@ class EvidenceCandidate(_Model):
     snippet: str
     providers: list[str] = Field(default_factory=list)
     attention: AttentionComponents
+    knowledge_value: KnowledgeValue | None = Field(
+        default=None,
+        description="Optional knowledge-value score. Distinct from attention, which stays the query-retrieval score.",
+    )
     publish_date: str | None = None
 
 
@@ -355,6 +411,10 @@ class ExplorationExport(_Model):
     origin_clusters: list[OriginCluster] = Field(default_factory=list)
     checkpoints: list[Checkpoint] = Field(default_factory=list)
     decision: ConvergenceDecision | None = None
+    profile: ResearchProfile | None = Field(
+        default=None,
+        description="Optional read-only profile snapshot. Absent on investigations that have no profile.",
+    )
 
 
 def evidence_json_schema() -> dict[str, Any]:
