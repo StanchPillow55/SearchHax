@@ -1,6 +1,6 @@
 # Acceptance matrix
 
-Commit tested: `edf9e323d3ce7810b81c4f88d99bba48700e07dc`.
+Earlier snapshot: `edf9e32`. Release check: `c81ea8e`, see `qa/release_report.md`.
 
 Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in that commit. Developer tests were not treated as proof.
 
@@ -21,7 +21,7 @@ Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in
 | EXT-2 | Exact quotations and offsets | P0 | Span text equals the stored slice | `verification.py` `assess_quotation` | quote test and Story C helper | VERIFIED | Passed |
 | EXT-3 | Invalid quotations | P0 | A quote absent from the page cannot be a supported edge | `extraction.py` `_add_grounded` | quote test | VERIFIED | `caused` stayed unsupported |
 | EXT-4 | Extraction failure | P0 | A structured-output exception returns a blocked batch | `extraction.py` `_extract_with_llm` | `test_extraction_failure_does_not_crash_or_invent_relationships` | VERIFIED | Passed |
-| EXT-5 | Repeated entity on a later page | P0 | The investigation save survives a second document with the same entity | `orchestrator.py` line 494, `database.py` line 342 | `test_repeated_entity_on_follow_up_does_not_crash` | FAILED | `IntegrityError` on `entities` |
+| EXT-5 | Repeated entity on a later page | P0 | The investigation save survives a second document with the same entity | `database.py` lines 341–345 | `test_repeated_entity_on_follow_up_does_not_crash` | VERIFIED | Passed on `c81ea8e` |
 | GRF-1 | Evidence links and quotes | P0 | Supported and contradicted edges point at a real span | Story C graph | `test_story_c_provenance_contradiction_and_metrics` | VERIFIED | Passed |
 | GRF-2 | Versions and reload | P0 | Graph, question, and search history survive a new process | `database.py` `load_export` | `test_story_c_survives_reload_without_new_external_calls` | VERIFIED | Passed. Zero external calls |
 | GRF-3 | Shared origin | P0 | Four Story C documents form one `LF-PR-2026-031` cluster | `verification.py` `classify_provenance` | Story C test | VERIFIED | 1 original, 3 derivatives |
@@ -35,7 +35,7 @@ Statuses are from the QA tests in `qa/tests/` and from `demo/evaluation.json` in
 | LOOP-5 | Fallback when the controller is down | P0 | Connection failure is labeled `fallback` | `planner.py` `fallback_decision` | Story C test with a down post | VERIFIED | `decision_source` is `fallback` |
 | CHK-1 | Counters after restore | P0 | `searches_used` and search history match after reopen | `database.py` | reload test | VERIFIED | Passed |
 | DEMO-1 | Story C metrics | P0 | B3 counts match the export; B0 does not claim the origin or the contradiction; network calls stay 0 | `baseline.py` | Story C test | VERIFIED | Passed |
-| DEMO-2 | Story A recorded run | P0 | Retrieved evidence produces supported relationships, and the written rationale matches the run | `demo/evaluation.json` | `test_committed_story_a_record_is_internally_consistent` | FAILED | Rationale says the key is missing; `llm_calls` is 5; relationships are empty |
+| DEMO-2 | Story A recorded run | P0 | The written rationale matches the run, and supported rows are distinct grounded facts | `demo/evaluation.json`, `cold/story.sqlite` | consistency test plus read-only audit of `inv_8e46a18764e64eb0` | FAILED | Rationale matches the fallback. The 6 rows are 2 facts on 3 pages, not 6 distinct relationships. See `qa/release_report.md` |
 | DEMO-3 | Live Telem smoke | P0 | One authorized live search | `retrieval.py` `_sdk_search` | not run | IMPLEMENTED / UNVERIFIED | QA did not spend a live call. The committed demo file records an earlier search |
 | UI-1 | Clickable graph | P0 | A frontend can open a relationship and its quotation | no React app | API export test | NOT IMPLEMENTED | Export has the data. `exploration/README.md` says there is no React UI |
 | P2-1 | Domain routing and monitoring | P2 | Specialist policies and continuous source checks | none | none | NOT IMPLEMENTED | Out of the committed package |

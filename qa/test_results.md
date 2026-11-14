@@ -1,5 +1,9 @@
 # Test results
 
+Latest release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
+
+Previous snapshot `edf9e32` remains below.
+
 Implementation commit: `edf9e323d3ce7810b81c4f88d99bba48700e07dc` (`edf9e32` on `feat/exploration`).
 
 QA worktree: `/Users/bradleyharaguchi/SearchHax-QA` branch `qa/exploration-verification` at that same commit, plus these QA files.

@@ -1,5 +1,7 @@
 # Failure report
 
+Current release findings are in `qa/release_report.md` for commit `c81ea8e`. The entity-save crash and the missing-key demo rationale from `edf9e32` are closed on that commit. The duplicate-query and gap-ranking failures remain, and the six Story A rows are two facts on three pages.
+
 Snapshot: `edf9e32` (`feat/exploration`, "Record the exploration investigation milestone").
 
 QA command: `/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests -q --tb=line -p no:cacheprovider --override-ini=testpaths=qa/tests`
