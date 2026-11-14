@@ -132,3 +132,54 @@ def test_third_distinct_search_stops_on_budget(tmp_path, monkeypatch):
     for span in third.evidence_spans:
         version = next(item for item in third.document_versions if item.id == span.version_id)
         assert version.content[span.start : span.end] == span.text
+
+
+def test_web_path_does_not_accept_two_amounts_as_supported(tmp_path, monkeypatch):
+    """Two exact but disagreeing investment sentences cannot both stay supported."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    pages = {
+        "https://news.example/two": "NVIDIA has invested $2 billion in CoreWeave.",
+        "https://news.example/five": "NVIDIA has invested $5 billion in CoreWeave.",
+    }
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-conflict",
+            "interaction_id": "int-conflict",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": url, "title": "NVIDIA", "summary": text, "provider": "brave"}
+                        for url, text in pages.items()
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {
+            "results": [
+                {"url": url, "content": pages[url], "status": "ok", "provider": "telem"} for url in urls
+            ]
+        }
+
+    orchestrator = Orchestrator(
+        tmp_path / "conflict.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller not called")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    amounts = [rel for rel in export.relationships if rel.predicate == "invested_amount"]
+    supported = [rel for rel in amounts if rel.status == "supported"]
+    assert len(amounts) == 2
+    for rel in amounts:
+        link = next(item for item in export.evidence_links if item.id == rel.evidence_link_ids[0])
+        span = next(item for item in export.evidence_spans if item.id == link.evidence_span_id)
+        version = next(item for item in export.document_versions if item.id == span.version_id)
+        assert version.content[span.start : span.end] == span.text
+    assert export.contradictions or len(supported) < 2
+    assert not (len(supported) == 2 and not export.contradictions)

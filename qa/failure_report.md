@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The web loop accepts two contradictory amounts as supported
+
+Requirement: contradictory claims are not accepted together without qualification. Provenance verification labels conflict. Story C does this. A normal web investigation does not.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_web_path_does_not_accept_two_amounts_as_supported --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One mocked search returns two pages. One says `NVIDIA has invested $2 billion in CoreWeave.` The other says `NVIDIA has invested $5 billion in CoreWeave.` Both quotations match the stored page text. No live provider is called.
+
+Expected: a contradiction is recorded, or the two `invested_amount` edges are not both `supported`.
+
+Actual: both edges are `supported`, `contradictions` is empty, and each edge's notes are empty.
+
+Location: `exploration/backend/orchestrator.py` calls `reconcile_amount_conflicts` only from `run_story_c` (line 159). `_ingest_bundle` appends relationships and never reconciles them. Web pages that are not `*.example` are stored with `origin_kind` `unknown` at lines 485–491, so even a later reconcile would not know which page is the original.
+
+Deterministic: yes.
+
+Suggested correction: after web extraction, run the same conflict check used for Story C. Do not leave two different amounts for the same subject and predicate `supported` with an empty contradiction list.
+
 ## BLOCKER — A total provider outage stays `running` and drops the error
 
 Requirement: network failures are handled explicitly. A search where every provider fails must stop, and the failure must be visible on the investigation. It must not invent documents.
