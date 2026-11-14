@@ -8,6 +8,7 @@ from pathlib import Path
 from exploration.backend.convergence import build_request, evaluate_controller
 from exploration.backend.focus_bridge import evaluate_with_focus, focus_http_response
 from exploration.backend.orchestrator import Orchestrator
+from exploration.backend.retrieval import RetrievalClient
 from shared.contracts import (
     ConvergenceEvaluateRequest,
     EvidenceCandidate,
@@ -144,3 +145,105 @@ def test_story_c_handoff_keeps_exact_quotes_and_labels_the_extractor(tmp_path):
     assert len(record["story_a"]["relationships"]) == 6
     assert pairs == {("invested_in", "CoreWeave"), ("invested_amount", "$2 billion")}
     assert record["story_a"]["demonstration"] == "precomputed"
+
+
+def test_integrated_investigation_resumes_without_repeating_retrieval(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEM_API_KEY", "resume-dummy")
+    calls = {"search": 0, "fetch": 0}
+    page = "NVIDIA has invested $2 billion in CoreWeave."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        calls["search"] += 1
+        return {
+            "session_id": "sess-resume",
+            "interaction_id": "int-resume",
+            "by_provider": [
+                {
+                    "provider": "brave",
+                    "status": "ok",
+                    "results": [
+                        {
+                            "provider": "brave",
+                            "url": "https://example.com/nvidia",
+                            "title": "NVIDIA CoreWeave",
+                            "snippet": page,
+                            "publish_date": "2026-01-15",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        calls["fetch"] += 1
+        return {"results": [{"url": urls[0], "content": page, "status": "ok", "provider": "telem"}]}
+
+    db_path = tmp_path / "integrated.sqlite"
+    cache = tmp_path / "cache"
+    first = Orchestrator(
+        db_path,
+        retrieval=RetrievalClient(
+            cache_dir=cache,
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+            tavily_extract_fn=lambda _url: "",
+        ),
+        post=_post,
+    )
+    created = first.create("alpha beta gamma delta", mode="web")
+    first.step(created.id)
+    finished = first.step(created.id)
+    assert calls["search"] >= 1
+    assert calls["fetch"] >= 1
+    assert finished.investigation.decision_source == "convergence"
+    assert finished.decision is not None
+    assert finished.decision.rationale
+    searches_used = finished.investigation.budget.searches_used
+    urls_fetched = finished.investigation.budget.urls_fetched
+    completed_searches = calls["search"]
+    completed_fetches = calls["fetch"]
+    first.database.close()
+
+    def repeated_search(*_args, **_kwargs):
+        calls["search"] += 1
+        raise AssertionError("resume repeated a completed search")
+
+    def repeated_fetch(*_args, **_kwargs):
+        calls["fetch"] += 1
+        raise AssertionError("resume repeated a completed fetch")
+
+    second = Orchestrator(
+        db_path,
+        retrieval=RetrievalClient(
+            cache_dir=cache,
+            dry_run=False,
+            search_fn=repeated_search,
+            fetch_fn=repeated_fetch,
+            sleeper=lambda _seconds: None,
+            tavily_extract_fn=lambda _url: "",
+        ),
+        post=_post,
+    )
+    loaded = second.get(created.id)
+    latest = loaded.checkpoints[-1]
+    assert latest.state_json["decision_source"] == "convergence"
+    assert latest.state_json["decision_rationale"] == finished.decision.rationale
+    assert latest.state_json["decision"]["rationale"] == finished.decision.rationale
+    assert latest.state_json["decision"]["decision_source"] == "convergence"
+    assert latest.state_json["budget"]["searches_used"] == searches_used
+    assert loaded.decision is not None
+    assert loaded.decision.rationale == finished.decision.rationale
+    assert len(loaded.documents) == len(finished.documents)
+    assert len(loaded.relationships) == len(finished.relationships)
+    stats = second.resume(created.id)
+    assert stats["network_fetches"] == 0
+    assert calls["search"] == completed_searches
+    assert calls["fetch"] == completed_fetches
+    reloaded = second.get(created.id)
+    assert reloaded.investigation.budget.searches_used == searches_used
+    assert reloaded.investigation.budget.urls_fetched == urls_fetched
+    assert reloaded.investigation.question == finished.investigation.question

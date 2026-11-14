@@ -29,6 +29,11 @@ def local_ollama_endpoint(base_url: str) -> bool:
     return host in {"localhost", "127.0.0.1", "::1"}
 
 
+def anthropic_endpoint(base_url: str) -> bool:
+    host = (urlparse(base_url).hostname or "").lower()
+    return host == "api.anthropic.com" or host.endswith(".anthropic.com")
+
+
 def strip_json_fence(text: str) -> str:
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -64,16 +69,33 @@ class OpenAICompatibleClient:
                 f"{self.model} at {self.base_url}. The request was not sent, and no relationships were invented."
             )
         url = f"{self.base_url}/chat/completions"
-        payload = {
+        is_anthropic = anthropic_endpoint(self.base_url)
+        # Anthropic models (Haiku especially) are more verbose than gpt-4o-mini,
+        # and the extraction JSON can be large; 300 tokens truncates it mid-string.
+        max_tokens = 1024 if is_anthropic else 300
+        payload: dict[str, Any] = {
             "model": self.model,
-            "temperature": 0,
-            "max_tokens": 300,
-            "response_format": {"type": "json_object"},
+            "max_tokens": max_tokens,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
         }
+        if not is_anthropic:
+            # Newer Claude models reject `temperature` (deprecated). Only send
+            # it to endpoints that still accept it.
+            payload["temperature"] = 0
+        if is_anthropic:
+            # Anthropic's OpenAI-compatibility layer rejects response_format
+            # {"type": "json_object"} with a 400. It only accepts json_schema
+            # with strict:true, which cannot express this loosely-typed nested
+            # shape. Drop the field and rely on the system prompt instead; the
+            # caller already strips code fences and parses defensively.
+            payload["messages"][0]["content"] = (
+                f"{system}\n\nReturn only a single JSON object. No prose, no code fences."
+            )
+        else:
+            payload["response_format"] = {"type": "json_object"}
         timeout = httpx.Timeout(self.timeout, connect=10.0)
         with httpx.Client(timeout=timeout) as client:
             response = client.post(

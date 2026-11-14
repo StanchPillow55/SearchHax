@@ -24,6 +24,7 @@ def save_checkpoint(
         "stop_reason": export.investigation.stop_reason,
         "decision_source": export.investigation.decision_source,
         "decision_rationale": export.investigation.decision_rationale,
+        "decision": export.decision.model_dump(mode="json") if export.decision is not None else None,
         "budget": export.investigation.budget.model_dump(mode="json"),
         "usage": export.investigation.usage.model_dump(mode="json"),
         "session_id": export.investigation.session_id,
