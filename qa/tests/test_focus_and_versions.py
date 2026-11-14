@@ -292,6 +292,79 @@ def test_controller_stop_without_reason_code_still_stops(tmp_path, monkeypatch):
     assert calls["n"] == 1
 
 
+def test_string_false_stop_does_not_drop_the_approved_search(tmp_path, monkeypatch):
+    """The string false is not a stop. The approved search still runs."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave."
+    approved = "independent measurement of CoreWeave customer demand"
+    queries: list[str] = []
+
+    def search_fn(query, session_id):
+        del session_id
+        queries.append(query)
+        return {
+            "session_id": "sess-false",
+            "interaction_id": f"int-{len(queries)}",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": "https://news.example/nvidia", "title": "NVIDIA", "summary": text, "provider": "brave"}
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    def post(url, json, timeout):  # noqa: A002
+        del url, json, timeout
+
+        class Response:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "stop": "false",
+                    "rationale": "string false means continue",
+                    "approved_action": {
+                        "id": "act-demand",
+                        "query": approved,
+                        "reason": "the page does not state demand",
+                        "utility": 0.9,
+                    },
+                }
+
+        return Response()
+
+    orchestrator = Orchestrator(
+        tmp_path / "false.sqlite",
+        retrieval=RetrievalClient(
+            cache_dir=tmp_path / "cache-false",
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+        ),
+        post=post,
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    orchestrator.step(investigation.id)
+    followed = orchestrator.step(investigation.id)
+    assert followed.decision is not None
+    ran_approved = approved in queries
+    rejected = followed.investigation.decision_source == "fallback"
+    assert ran_approved or rejected
+    assert not (
+        followed.investigation.decision_source == "convergence"
+        and followed.decision.stop is True
+        and followed.decision.approved_action is None
+    )
+
+
 def test_same_url_from_two_providers_is_one_focus_passage():
     from focus.focus_attention import FocusAttentionModel, Passage
 

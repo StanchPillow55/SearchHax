@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 7 failed, 60 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
+Result: 8 failed, 60 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. `python -m unittest test_focus_attention.py` from `focus/` : 12 passed.
 
 Failed:
 
+- `qa/tests/test_focus_and_versions.py::test_string_false_stop_does_not_drop_the_approved_search`
 - `qa/tests/test_provider_and_budget.py::test_web_path_keeps_story_c_wire_as_one_origin_and_one_amount`
 - `qa/tests/test_provider_and_budget.py::test_causal_demand_sentence_does_not_close_the_gap`
 - `qa/tests/test_provider_and_budget.py::test_negated_investment_sentence_is_not_supported`
@@ -22,13 +23,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 36 / 45 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 60 / 67 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
+1. Verified P0 requirements: 36 / 46 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 60 / 68 offline pytest tests. 2 live tests deselected. Focus unit tests: 12 / 12.
 3. Unimplemented: clickable React graph, Story B, Story D, domain routing, continuous monitoring.
-4. Blocking failures: the same six non-focus blockers remain. The focus handoff still refuses the Story C independence search, now because all four candidates are `consider` and the bridge stops with `unresolved_uncertainty` without reading `proposed_actions`. See `qa/failure_report.md`.
-5. Integration readiness: not ready. The local Story C runner still clusters the wire and contradicts `$480 million`. The search/fetch path does not. The new focus ranker does not approve the independence search.
+4. Blocking failures: the string `false` becomes a convergence stop and drops the approved search. The other seven blockers are unchanged. See `qa/failure_report.md`.
+5. Integration readiness: not ready. A boolean `stop: true` without a reason code, and the string `false`, both leave the investigation `running`.
 6. Commit tested: `2c8133a` (`Route exploration through the updated focus ranker.`).
-7. Next validation priority: approve the pending utility-0.9 action when the current pages are only `consider`. Then cluster a shared wire after web ingest. Rerun the seven failing tests.
+7. Next validation priority: accept `stop` only as a boolean, then approve the pending Story C action when the current pages are only `consider`. Rerun the eight failing tests. Uncommitted implementation edits (`shared/contracts.py`, `knowledge_value.py`, `demo/evaluation.json`) are not part of this snapshot.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 

@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The string `false` becomes a stop and drops the approved search
+
+Requirement: a controller approval runs that query. A value that is not a boolean is not a stop. A malformed body is rejected as fallback rather than recorded as a convergence decision.
+
+Snapshot: implementation `2c8133a`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_and_versions.py::test_string_false_stop_does_not_drop_the_approved_search --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first page is `NVIDIA has invested $2 billion in CoreWeave.` The demand gap stays open. The controller then returns `stop` as the string `false`, a rationale, and an approved action whose query is `independent measurement of CoreWeave customer demand`. No live provider is called.
+
+Expected: that query is searched and `stop` is false, or the payload is rejected and `decision_source` is `fallback`.
+
+Actual: one search ran. `decision.stop` is true, `approved_action` is null, `stop_reason` is null, `decision_source` is `convergence`, and status stays `running`.
+
+Location: `exploration/backend/convergence.py` line 79 uses `bool(data.get("stop", ...))`. In Python `bool("false")` is true, so line 85 clears `approved_action`. `orchestrator.py` then applies a stop only when `stop_reason` is also set, so the investigation stays `running` and the search never happens.
+
+Deterministic: yes.
+
+Suggested correction: accept `stop` only when it is a boolean. The string `false` is not a stop. If the field is some other type, reject the payload and use the fallback.
+
 ## BLOCKER — The web loop labels a shared wire and then drops the cluster and the contradiction
 
 Requirement: pages that cite one announcement are one origin, and a derivative amount is not stored as a second supported fact. `run_story_c` does this. The search/fetch loop does not.
