@@ -2,7 +2,7 @@
 
 Milestone: live Story A plus offline Story C, after the grounded-quote fix.
 
-Implementation checkpoint: `c81ea8e` on `feat/exploration` for retrieval, grounding, and follow-up. Local Ollama chat calls are not sent unless `LLM_FORCE_LOCAL=1`. Unit tests after that change: `exploration/.venv/bin/pytest -m "not integration"` — 32 passed, 2 integration tests deselected.
+Implementation checkpoint: `c81ea8e` on `feat/exploration` for retrieval, grounding, and follow-up. Local Ollama chat calls are not sent unless `LLM_FORCE_LOCAL=1`. Unit tests after the focus handoff: `exploration/.venv/bin/pytest -m "not integration"` — 35 passed, 2 integration tests deselected. Teammate `focus/test_focus_attention.py`: 5 passed.
 
 ## Verification level
 
@@ -42,6 +42,22 @@ Native schema benchmarks used temperature 0, `num_predict` 220, and a 90 second 
 
 Selected configuration: disclosed-fact and Story C extraction, with local Ollama left uncalled. A hosted OpenAI-compatible URL still uses `/chat/completions`. Local LLM extraction remains experimental.
 
+## Hosted extraction
+
+No hosted provider is configured. `LLM_BASE_URL` is `http://localhost:11434/v1`, `OPENAI_API_KEY` is empty, and the process environment has no other hosted LLM key. The Story C hosted smoke test and the five-passage hosted benchmark were not run. Local Ollama was not benchmarked again.
+
+## Convergence handoff
+
+`focus/focus_attention.py` is the unchanged ranker from `origin/main` `abe58dc`. `exploration/backend/focus_bridge.py` maps `ConvergenceEvaluateRequest` to `Passage` and maps `FocusDecision` back onto `ConvergenceDecision`. A novel overlapping passage approves the unused search action. A spent search budget returns `budget_exhausted` and no action.
+
+The Story C fixture run `inv_1045a838ece0411f` completed that handoff with `decision_source=convergence`, `stop_reason=low_expected_value`, `network_calls=0`, and `llm_calls=0`. Focus archived all four candidates. The question "Do three articles independently substantiate a company's claim?" does not lexically overlap the press-release snippets enough to clear the ranker's 0.20 relevance floor. Sample files: `demo/integration/story_c_export.json`, `demo/integration/story_c_evaluate_request.json`, `demo/integration/story_c_focus_decision.json`.
+
+Story C supported `$400 million` rows, including Harbor, use an exact quotation that contains both `Lumenarc Dynamics` and `$400 million`. The `$480 million` row is `contradicted`. `extraction_origin` is `deterministic_fixture` and `llm_relationships` is 0. Resume reported `network_fetches` 0.
+
+Story A `inv_8e46a18764e64eb0` remains the precomputed demonstration in `demo/evaluation.json`. Its six supported rows are two claims, `invested_in` CoreWeave and `invested_amount` $2 billion, each stored on three pages. Those edges come from the disclosed sentence, not from a model.
+
+`POST http://127.0.0.1:8000/api/convergence/evaluate` still fails with `RemoteProtocolError` in about 8 ms. The tested handoff is the JSON body the focus bridge returns, which is what that route would serve.
+
 ## QA
 
 `qa/tests` from `qa/exploration-verification` was run against this tree and was not added to the branch. Result: 17 passed.
@@ -50,7 +66,7 @@ A controller action that repeats a query already in search history is not search
 
 ## Known limitations
 
-- Convergence was not running. The labeled fallback selected the follow-up.
+- Nothing is listening on port 8000, so a live POST still falls back. The Story C sample above used the in-process focus bridge instead. Story A in `demo/evaluation.json` is still the earlier fallback run.
 - Local schema extraction does not add its own grounded quotes inside the 12 second client timeout. Those calls are not sent. Supported Story A edges are the exact sentence above.
 - The same sentence is stored once per source page, so 6 supported rows are 2 facts on 3 pages.
 - No React UI. The CLI and HTTP API are the exploration surface.

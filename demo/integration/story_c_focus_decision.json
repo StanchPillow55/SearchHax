@@ -1,0 +1,14 @@
+{
+  "investigation_id": "inv_1045a838ece0411f",
+  "approved_action": null,
+  "stop": true,
+  "stop_reason": "low_expected_value",
+  "rationale": "Focus archived every candidate. Decisions: cand_8013839138c969d1=archive; cand_bd30d5d0522c2a02=archive; cand_ace3066ee576643e=archive; cand_d0920470d3bc4fd1=archive.",
+  "include_document_ids": [],
+  "archive_document_ids": [
+    "cand_8013839138c969d1",
+    "cand_bd30d5d0522c2a02",
+    "cand_ace3066ee576643e",
+    "cand_d0920470d3bc4fd1"
+  ]
+}

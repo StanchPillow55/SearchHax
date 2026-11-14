@@ -180,6 +180,8 @@ class Orchestrator:
         investigation.usage.corpus_documents = len(documents)
         investigation.usage.rejected_ungrounded_citations = merged.rejected_ungrounded
         investigation.usage.providers_used = ["fixture"]
+        investigation.metadata["extraction_origin"] = "deterministic_fixture"
+        investigation.metadata["llm_relationships"] = 0
         investigation.updated_at = _now()
         export = ExplorationExport(
             investigation=investigation,
