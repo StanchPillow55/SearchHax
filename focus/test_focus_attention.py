@@ -1,6 +1,5 @@
 import unittest
 from datetime import date
-
 from focus_attention import FocusAttentionModel, Passage, canonical_url
 
 
@@ -132,3 +131,57 @@ class FocusAttentionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResearchLoopTests(unittest.TestCase):
+    def test_follow_up_query_and_budget(self):
+        from research_loop import run_research
+        model = FocusAttentionModel('electric vehicle demand', exploration=1.0)
+        calls = []
+        def retrieve(query):
+            calls.append(query)
+            if len(calls) == 1:
+                return [Passage('a','electric vehicle demand decreases', 'https://a.example'),
+                        Passage('b','electric vehicle demand battery resale', 'https://b.example')]
+            return [Passage('c','electric vehicle demand resale evidence', 'https://c.example')]
+        result = run_research(model, retrieve, max_search_calls=2)
+        self.assertLessEqual(result.search_calls, 2)
+        self.assertEqual(result.search_calls, len(calls))
+        self.assertGreaterEqual(result.accepted, 1)
+
+    def test_normalized_provider_results(self):
+        from retrieval_adapters import normalize_results
+        data={'results':[{'title':'EV','content':'Vehicle pricing','url':'https://a.example'},
+                         {'title':'Missing','content':'none'}]}
+        results=normalize_results(data, 'tavily')
+        self.assertEqual(len(results),1)
+        self.assertEqual(results[0].providers,('tavily',))
+
+    def test_normalized_telem_response(self):
+        from retrieval_adapters import normalize_results
+        data = {'preprocessor_runs': [
+            {'preprocessor_name': 'brave', 'output_payload': {'results': [
+                {'title': 'EV prices', 'summary': 'Prices remain high', 'url': 'https://a.example'}
+            ]}},
+            {'preprocessor_name': 'exa', 'output_payload': {'results': [
+                {'title': 'Battery resale', 'url': 'https://b.example'}
+            ]}},
+        ]}
+        results = normalize_results(data, 'telem')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0].providers, ('brave', 'telem'))
+        self.assertEqual(results[1].text, 'Battery resale')
+
+    def test_normalized_telem_fetch_response(self):
+        from retrieval_adapters import _fetch_rows
+        rows = _fetch_rows({'results': [
+            {'url': 'https://example.com/a', 'content': '# Full page'},
+            {'url': 'https://example.com/b', 'status': 'failed', 'error': 'paywall'},
+        ]})
+        self.assertEqual(rows[0]['content'], '# Full page')
+        nested = _fetch_rows({'preprocessor_runs': [{
+            'output_payload': {'fetched_results': [
+                {'url': 'https://example.com/c', 'content': 'Nested page'}
+            ]}
+        }]})
+        self.assertEqual(nested[0]['content'], 'Nested page')
