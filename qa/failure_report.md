@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The focus loop searches the same follow-up twice
+
+Requirement: a follow-up query is not executed twice. The search budget is spent on a new query.
+
+Snapshot: implementation `fd2aa11`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_loop.py::test_identical_follow_up_is_issued_once --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live provider is called. The first retrieve returns three passages. Two of them are routed to `investigate` and both have the title `EV demand`. `max_search_calls` is 3.
+
+Expected: each query string is issued once.
+
+Actual: `['electric vehicle demand', 'electric vehicle demand EV demand supporting evidence conflicting evidence', 'electric vehicle demand EV demand supporting evidence conflicting evidence']`
+
+`focus/research_loop.py` lines 46–49 queue a follow-up for every `investigate` source key. `followup_query` uses the title, so the two titles produce one string and it is still appended twice. The third allowed call repeats the second.
+
+Deterministic.
+
+Suggested correction: do not append a follow-up that is already queued or already issued.
+
 ## BLOCKER — A failed Focus fetch body replaces the search snippet
 
 Requirement: a failed URL is skipped. The answer path keeps the search snippet instead of the error page.

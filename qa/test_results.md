@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 14 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 22 passed.
+Result: 15 failed, 77 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 22 passed.
 
 Failed:
 
+- `qa/tests/test_focus_loop.py::test_identical_follow_up_is_issued_once`
 - `qa/tests/test_focus_fetch.py::test_failed_fetch_body_is_not_used_as_page_text`
 - `qa/tests/test_provider_and_budget.py::test_fetch_exception_does_not_split_the_search_counter`
 - `qa/tests/test_provider_and_budget.py::test_search_exception_is_recorded_instead_of_escaping`
@@ -29,13 +30,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 40 / 55 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
-2. Passing tests / executed tests: 77 / 91 offline pytest tests. 2 live tests deselected. Focus unit tests: 22 / 22.
+1. Verified P0 requirements: 40 / 56 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph.
+2. Passing tests / executed tests: 77 / 92 offline pytest tests. 2 live tests deselected. Focus unit tests: 22 / 22.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: a failed Focus fetch body replaces the search snippet. The thirteen exploration blockers from `408edb3` still fail. See `qa/failure_report.md`.
-5. Integration readiness: not ready. A failed page can become the text a cited answer is written from.
+4. Blocking failures: the focus loop issues one follow-up query twice. A failed Focus fetch body replaces the search snippet. The thirteen exploration blockers from `408edb3` still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. A repeated follow-up consumes a search that should have been a new query.
 6. Commit tested: `fd2aa11` (`Merge main into feat/exploration and keep the focus tests.`).
-7. Next validation priority: skip a fetch row whose status is failed or whose error field is set, even when content is nonempty. Rerun `test_failed_fetch_body_is_not_used_as_page_text` and the thirteen older failures.
+7. Next validation priority: do not queue a follow-up that is already queued or already issued. Rerun `test_identical_follow_up_is_issued_once` and the fourteen older failures.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
