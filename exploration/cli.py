@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from pathlib import Path
 
 from exploration.backend.config import default_db_path
 from exploration.backend.orchestrator import Orchestrator
@@ -14,10 +16,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--db", default=str(default_db_path()))
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("story-c", help="Run the offline Story C corpus and print the graph.")
+    profile = sub.add_parser("profile", help="Run the offline profile corpus and write the evaluation JSON.")
+    profile.add_argument("--out", default="demo/profile_evaluation.json")
     show = sub.add_parser("show", help="Print a stored investigation.")
     show.add_argument("investigation_id")
 
     args = parser.parse_args(argv)
+    if args.command == "profile":
+        from tempfile import TemporaryDirectory
+
+        from exploration.backend.profile_run import evaluation_from_export
+
+        with TemporaryDirectory() as tmp:
+            orchestrator = Orchestrator(Path(tmp) / "profile.sqlite")
+            export = orchestrator.run_profile()
+            orchestrator.database.close()
+        payload = evaluation_from_export(export)
+        destination = Path(args.out)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {destination}")
+        print(payload["comparison_note"])
+        print("B0:", " > ".join(payload["b0_order"]))
+        print("B3:", " > ".join(payload["b3_order"]))
+        return 0
     orchestrator = Orchestrator(args.db)
     if args.command == "story-c":
         export = orchestrator.run_story_c()

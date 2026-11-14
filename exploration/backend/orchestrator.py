@@ -255,12 +255,22 @@ class Orchestrator:
         )
         return self.graph.load(investigation.id)
 
+    def run_profile(self, directory: Path | None = None, *, bridges=None) -> ExplorationExport:
+        """Rank a fixed local corpus with query attention and knowledge value. No network."""
+        from exploration.backend.profile_run import execute_profile
+
+        return execute_profile(self, directory=directory, bridges=bridges)
+
+    def reload_profile(self, investigation_id: str) -> ExplorationExport:
+        """Read the stored profile investigation. This does not search or fetch."""
+        return self.graph.load(investigation_id)
+
     def step(self, investigation_id: str) -> ExplorationExport:
         export = self.graph.load(investigation_id)
         investigation = export.investigation
         if investigation.status in {"stopped", "blocked"}:
             return export
-        if investigation.metadata.get("mode") == "story_c":
+        if investigation.metadata.get("mode") in {"story_c", "profile"}:
             return export
         if not export.documents and investigation.usage.search_calls == 0:
             return self._initial_web_step(export)
