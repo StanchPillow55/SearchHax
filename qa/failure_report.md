@@ -146,9 +146,9 @@ Suggested correction: when `decision.stop` is true, set status to `stopped`. If 
 
 ## BLOCKER — Focus handoff refuses the Story C independence search
 
-Requirement: an unresolved important relationship generates a follow-up, and the convergence path can approve that action. Archiving the four known articles is not a reason to cancel a search for a source outside that set.
+Requirement: an unresolved important relationship generates a follow-up, and the convergence path can approve that action. Marking the four known articles as `consider` is not a reason to cancel a search for a source outside that set.
 
-Snapshot: implementation `8e3e6e5`. QA file `qa/tests/test_focus_and_versions.py`.
+Snapshot: implementation `2c8133a`. Retested after importing that commit. On `8e3e6e5` the same test failed because every candidate was archived with `low_expected_value`. The new ranker no longer archives them. It still does not approve the search.
 
 Reproduction:
 
@@ -156,17 +156,17 @@ Reproduction:
 /Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_and_versions.py::test_focus_approves_the_story_c_independence_search --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
 ```
 
-The Story C run builds one open question, importance 0.9 and missing evidence 1.0, and one unused action whose utility is 0.9. `evaluate_with_focus` is then called with that request. The default HTTP path is not involved. No network call is made.
+The Story C run builds one open question, importance 0.9 and missing evidence 1.0, and one unused action whose utility is 0.9. The query contains `independent primary confirmation of the Lumenarc Dynamics Series D amount` and `LF-PR-2026-031`. `evaluate_with_focus` is called with that request. No network call is made.
 
 Expected: `stop` is false and `approved_action.query` contains `LF-PR-2026-031`.
 
-Actual: `stop` is true, `stop_reason` is `low_expected_value`, and `approved_action` is null. The rationale is `Focus archived every candidate` for all four Story C candidate ids. The same shape is already stored in `demo/integration/story_c_focus_decision.json`.
+Actual: `stop` is true, `stop_reason` is `unresolved_uncertainty`, and `approved_action` is null. All four candidates are `consider` with reason `eligible evidence candidate (not verified truth)`. The rationale begins `Focus marked candidates for consideration and did not request another search.`
 
-Location: `exploration/backend/focus_bridge.py` lines 54–84. `FocusAttentionModel.decide` archives a passage whose lexical overlap with the original question is under 0.20. `evaluate_with_focus` treats "every candidate archived" as a stop and never reads `proposed_actions` in that branch.
+Location: `exploration/backend/focus_bridge.py` lines 85–99. The approval branch at lines 69–84 runs only when some passage is `investigate`. The `consider` branch sees the open question and returns a stop without reading `proposed_actions`.
 
-Deterministic: yes.
+Deterministic: yes. `python -m unittest test_focus_attention.py` from `focus/` passes 12 tests. Those tests do not cover this handoff.
 
-Suggested correction: when a pending action's utility is at least `budget.min_utility`, approve that action even if the pages already in hand are archived. Those pages are the shared-origin set. The follow-up exists to look outside it.
+Suggested correction: when a pending action's utility is at least `budget.min_utility`, approve that action even if the current pages are only `consider`. Those pages are the shared-origin set. The follow-up exists to look outside it.
 
 The fallback path is separate and still runs this follow-up. `run_story_c` with a down controller records `decision_source=fallback` and keeps the independence question. This blocker is the focus handoff, not that fallback.
 
