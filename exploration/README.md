@@ -22,6 +22,14 @@ Offline provenance demo, no network:
 exploration/.venv/bin/python -m exploration.cli story-c
 ```
 
+Offline profile demo, no network. It loads the static profile in `exploration/fixtures/profiles/ai_infrastructure.json` and three local documents. The demo uses what that profile already contains: its interests, known claims, and the open advanced-packaging interest. It ranks those same passages with ordinary query attention (B0) and a separate knowledge-value score (B3). Iterative search itself is not the claim. The writeup is one fixed corpus, not a result about Tavily `/research` or a general LLM, and not a comparison against an LLM that already has the same memory.
+
+```bash
+exploration/.venv/bin/python -m exploration.cli profile
+```
+
+That writes `demo/profile_evaluation.json`. Network calls: 0.
+
 API:
 
 ```bash

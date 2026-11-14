@@ -24,3 +24,11 @@ The demand-side question stayed open: "What downstream customer demand or produc
 Decision source: `fallback`. The convergence endpoint at `http://127.0.0.1:8000/api/convergence/evaluate` raised `RemoteProtocolError`.
 
 The local LLM was called twice on pages that did not contain that investment sentence. The supported edges came from the exact sentence `NVIDIA has invested $2 billion in CoreWeave`, not from model JSON. `llm_tokens` and `cost_usd` were not reported.
+
+## Profile demo, offline
+
+The profile demo uses what the static profile already contains. Interests are AI systems, GPUs, data-center capacity, semiconductor, and the open interest advanced packaging. Known claims are profile priors: NVIDIA invested in CoreWeave, and capacity expansion is under investigation. Ceramics are not a listed interest.
+
+`exploration/.venv/bin/python -m exploration.cli profile` reads three local documents and does not search. On this fixed corpus, ordinary query ranking (B0) orders the LLM benchmark page, then the ceramic packaging page, then the smartphone page. Knowledge-value ranking (B3) orders the ceramic packaging page first. Those are different passages. The surfaced bridge quotes `Using a ceramic substrate leads to less package warpage for advanced packaging of advanced chips.` The reason names the prior interest advanced packaging. Network calls: 0.
+
+Iterative search itself is not the claim. This is one fixed corpus. It is not a claim about Tavily `/research` or a general LLM, and it is not proof that FrontierGraph outperforms an LLM with equivalent memory.

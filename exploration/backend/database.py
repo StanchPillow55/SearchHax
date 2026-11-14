@@ -25,6 +25,7 @@ from shared.contracts import (
     InvestigationAction,
     OriginCluster,
     Relationship,
+    ResearchProfile,
     SourceProvenance,
     UnresolvedQuestion,
 )
@@ -457,6 +458,9 @@ class Database:
                 ).fetchall()
             ]
             decision = _load_model(ConvergenceDecision, row["decision_json"]) if row["decision_json"] else None
+            metadata = json.loads(row["metadata_json"])
+            profile_raw = metadata.get("profile_snapshot")
+            profile = ResearchProfile.model_validate(profile_raw) if profile_raw else None
             checkpoints = [
                 Checkpoint(
                     id=item["id"],
@@ -487,7 +491,7 @@ class Database:
                     updated_at=datetime.fromisoformat(row["updated_at"]),
                     live_extraction_blocked=bool(row["live_extraction_blocked"]),
                     blocker=row["blocker"],
-                    metadata=json.loads(row["metadata_json"]),
+                    metadata=metadata,
                 ),
                 documents=documents,
                 document_versions=versions,
@@ -510,6 +514,7 @@ class Database:
                 ],
                 checkpoints=checkpoints,
                 decision=decision,
+                profile=profile,
             )
         return export
 
