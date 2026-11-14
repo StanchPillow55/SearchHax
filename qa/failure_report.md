@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A causal demand sentence closes the gap without evidence
+
+Requirement: a link from the investment to future product demand is a hypothesis until separate evidence supports it. Naming demand in a causal sentence is not that evidence, and it does not answer the open demand question.
+
+Snapshot: implementation `8e3e6e5`.
+
+Reproduction:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_provider_and_budget.py::test_causal_demand_sentence_does_not_close_the_gap --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The fetched page is: `NVIDIA has invested $2 billion in CoreWeave. That investment caused customer demand for AI factories to rise.` No live provider is called. The controller is down.
+
+Expected: the demand question stays open, or a demand relationship is stored as `hypothesis` or `insufficient`. No causation edge is `supported`.
+
+Actual: `unresolved_questions` is empty and there is no demand relationship. `invested_in` and `invested_amount` are `supported`. The next fallback step stops with `no_useful_actions` because nothing is left to ask.
+
+Location: `exploration/backend/extraction.py` line 267 treats any match of `customer demand`, `downstream demand`, or `product revenue` as demand already stated, so the gap at lines 268–276 is skipped. The causal sentence is never stored.
+
+Deterministic: yes.
+
+Suggested correction: keep the demand question open unless a grounded, non-causal measurement of demand is extracted. If the causal sentence is stored, its status is `hypothesis`, not `supported`.
+
 ## BLOCKER — A denial that contains the investment wording becomes supported
 
 Requirement: unsupported assertions do not become supported graph edges. A quotation has to keep the sentence that qualifies it. Preserving only the matching clause drops the denial.

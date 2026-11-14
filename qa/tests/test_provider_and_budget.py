@@ -227,3 +227,49 @@ def test_negated_investment_sentence_is_not_supported(tmp_path, monkeypatch):
         version = next(item for item in export.document_versions if item.id == span.version_id)
         assert version.content[span.start : span.end] == span.text
         assert "unconfirmed" in version.content[max(0, span.start - 80) : span.end + 80] or span.text == ""
+
+
+def test_causal_demand_sentence_does_not_close_the_gap(tmp_path, monkeypatch):
+    """Mentioning customer demand in a causal sentence is not evidence that demand is known."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = (
+        "NVIDIA has invested $2 billion in CoreWeave. "
+        "That investment caused customer demand for AI factories to rise."
+    )
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-cause",
+            "interaction_id": "int-cause",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/cause",
+                            "title": "Cause",
+                            "summary": text,
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    orchestrator = Orchestrator(
+        tmp_path / "cause.sqlite",
+        retrieval=_client(tmp_path, search_fn, fetch_fn),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+    export = orchestrator.step(investigation.id)
+    extra = [rel for rel in export.relationships if rel.predicate not in {"invested_in", "invested_amount"}]
+    assert all(rel.status != "supported" for rel in extra)
+    demand_open = any("demand" in question.text.lower() for question in export.unresolved_questions)
+    demand_hypothesis = any(rel.status in {"hypothesis", "insufficient"} and "demand" in f"{rel.predicate} {rel.object_name} {rel.notes}".lower() for rel in extra)
+    assert demand_open or demand_hypothesis
