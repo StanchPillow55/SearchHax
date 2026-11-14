@@ -29,6 +29,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the in-process focus controller and use the labeled fallback instead.",
     )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Attach the ai_infrastructure research profile so live candidates get a knowledge-value score.",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output path for the evaluation JSON. Defaults to demo/evaluation.json.",
+    )
     parser.add_argument("--db", type=Path, default=REPO_ROOT / "exploration" / "data" / "demo.sqlite")
     args = parser.parse_args(argv)
     args.db.parent.mkdir(parents=True, exist_ok=True)
@@ -60,7 +71,12 @@ def main(argv: list[str] | None = None) -> int:
             # behavior (no controller reachable, labeled fallback).
             convergence_post = None if args.fallback_convergence else focus_post
             orchestrator = Orchestrator(args.db, post=convergence_post)
-            investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
+            profile = None
+            if args.profile:
+                from exploration.backend.profile_run import load_profile_fixture
+
+                profile, _profile_question, _docs = load_profile_fixture()
+            investigation = orchestrator.create(STORY_A_QUESTION, mode="web", profile=profile)
             first = orchestrator.step(investigation.id)
             second = orchestrator.step(investigation.id)
             resume_stats = orchestrator.resume(investigation.id)
@@ -90,12 +106,47 @@ def main(argv: list[str] | None = None) -> int:
                 "open_questions": [question.text for question in second.unresolved_questions],
                 "usage": second.investigation.usage.model_dump(mode="json"),
             }
+            # Profile-conditioned trace: query attention and knowledge value per
+            # candidate, plus the profile context, so the output shows whether
+            # the surfaced discovery reflects the profile.
+            story_a["profile_enabled"] = bool(profile)
+            story_a["decision_source_is_fallback"] = second.investigation.decision_source == "fallback"
+            story_a["candidate_scores"] = [
+                {
+                    "url": candidate.url,
+                    "attention_score": candidate.attention.score,
+                    "attention": candidate.attention.model_dump(mode="json"),
+                    "knowledge_value": (
+                        candidate.knowledge_value.model_dump(mode="json")
+                        if candidate.knowledge_value is not None
+                        else None
+                    ),
+                }
+                for candidate in second.candidates
+            ]
+            story_a["supported_facts"] = [
+                {
+                    "subject": rel.subject_name,
+                    "predicate": rel.predicate,
+                    "object": rel.object_name,
+                    "source_document_ids": list(rel.source_document_ids),
+                }
+                for rel in second.relationships
+                if rel.status == "supported"
+            ]
+            story_a["attestations"] = (
+                [claim.model_dump(mode="json") for claim in profile.known_claims] if profile else []
+            )
+            story_a["profile_context"] = profile.model_dump(mode="json") if profile else None
             print("Story A stop:", second.investigation.stop_reason)
             print("Story A decision:", second.investigation.decision_source)
             print("Story A searches:", second.investigation.usage.search_calls)
             print("Story A fetches:", second.investigation.usage.urls_fetched)
             print("Story A llm:", second.investigation.usage.llm_calls)
             print("Story A supported:", report.supported_relationships)
+            print("Story A profile enabled:", bool(profile))
+            print("Story A candidates scored with knowledge value:",
+                  sum(1 for c in second.candidates if c.knowledge_value is not None))
             print("Story A resume network fetches:", resume_stats["network_fetches"])
             print("Initial docs:", len(first.documents), "final docs:", len(second.documents))
     else:
@@ -106,7 +157,8 @@ def main(argv: list[str] | None = None) -> int:
         "story_a": story_a,
         "reports": reports,
     }
-    out = REPO_ROOT / "demo" / "evaluation.json"
+    out = args.out or (REPO_ROOT / "demo" / "evaluation.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print("wrote", out)
     return 0
