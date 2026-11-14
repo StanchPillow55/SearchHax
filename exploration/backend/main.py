@@ -11,6 +11,8 @@ from shared.contracts import (
     BaselineReport,
     BaselineRequest,
     Checkpoint,
+    ConvergenceDecision,
+    ConvergenceEvaluateRequest,
     CreateInvestigationRequest,
     ExplorationExport,
     Investigation,
@@ -18,6 +20,7 @@ from shared.contracts import (
 
 from exploration.backend.baseline import run_baseline
 from exploration.backend.config import default_db_path
+from exploration.backend.focus_bridge import focus_http_response
 from exploration.backend.orchestrator import Orchestrator
 
 LOCAL_ORIGINS = [
@@ -82,6 +85,18 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @app.post("/api/exploration/fixtures/story-c", response_model=ExplorationExport)
     def story_c() -> ExplorationExport:
         return app.state.orchestrator.run_story_c()
+
+    @app.post("/api/convergence/evaluate", response_model=ConvergenceDecision)
+    def convergence_evaluate(body: ConvergenceEvaluateRequest) -> ConvergenceDecision:
+        """Serve the convergence decision from the focus ranker.
+
+        ``decision_source`` is set to ``convergence`` because this body came
+        from the controller endpoint. Exploration records it as such only when
+        it actually consumes this response.
+        """
+        decision = focus_http_response(body.model_dump(mode="json"))
+        decision.setdefault("decision_source", "convergence")
+        return ConvergenceDecision.model_validate(decision)
 
     return app
 

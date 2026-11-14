@@ -17,12 +17,18 @@ if str(REPO_ROOT) not in sys.path:
 
 from exploration.backend.baseline import report_from_export, run_baseline
 from exploration.backend.config import llm_api_key, telem_configured
+from exploration.backend.focus_bridge import focus_post
 from exploration.backend.orchestrator import STORY_A_QUESTION, Orchestrator
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="FrontierGraph exploration demo")
     parser.add_argument("--live", action="store_true", help="Run one Story A investigation against Telem.")
+    parser.add_argument(
+        "--fallback-convergence",
+        action="store_true",
+        help="Skip the in-process focus controller and use the labeled fallback instead.",
+    )
     parser.add_argument("--db", type=Path, default=REPO_ROOT / "exploration" / "data" / "demo.sqlite")
     args = parser.parse_args(argv)
     args.db.parent.mkdir(parents=True, exist_ok=True)
@@ -48,7 +54,12 @@ def main(argv: list[str] | None = None) -> int:
             story_a["blocker"] = "TELEM_API_KEY missing"
             print("Story A skipped: TELEM_API_KEY missing")
         else:
-            orchestrator = Orchestrator(args.db)
+            # Route the convergence decision through the focus ranker in this
+            # same process, so one live run exercises exploration, convergence,
+            # and focus together. --fallback-convergence restores the old
+            # behavior (no controller reachable, labeled fallback).
+            convergence_post = None if args.fallback_convergence else focus_post
+            orchestrator = Orchestrator(args.db, post=convergence_post)
             investigation = orchestrator.create(STORY_A_QUESTION, mode="web")
             first = orchestrator.step(investigation.id)
             second = orchestrator.step(investigation.id)
