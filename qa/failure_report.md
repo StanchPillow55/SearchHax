@@ -1,5 +1,38 @@
 # Failure report
 
+## BLOCKER — An unknown citation stays in an answer that also has a valid one
+
+Requirement: an unknown citation marker is rejected. A displayed answer does not contain a source id that was not supplied.
+
+Snapshot: implementation `fd2aa11`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_answer.py::test_unknown_marker_is_not_shown_with_a_valid_citation --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live model is called. The only considered source is `https://example.com/price`. The model text is `An invented statistic [S99]. Affordability matters [S1].` The call uses `strict_citations=False`, which is what `focus/app.py` lines 87–89 pass.
+
+Expected: the call raises `AnswerGenerationError`, or the returned markdown does not contain `[S99]`.
+
+Actual: the markdown is:
+
+```text
+An invented statistic [S99]. Affordability matters [S1].
+
+### Sources
+- [S1] [EV affordability](https://example.com/price)
+```
+
+`cited_source_ids` is `("S1",)`. `focus/app.py` lines 91–92 warn only when that tuple is empty, so this answer is shown with no warning.
+
+`focus/answer_composer.py` lines 262–268 drop `[S99]` from the source list and leave it in the prose.
+
+Deterministic.
+
+Suggested correction: reject the answer when any citation marker is not one of the supplied source ids, including when another marker is valid. Do not render `[S99]`.
+
 ## BLOCKER — The focus loop searches the same follow-up twice
 
 Requirement: a follow-up query is not executed twice. The search budget is spent on a new query.
