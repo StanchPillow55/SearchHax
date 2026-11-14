@@ -376,3 +376,71 @@ def test_failed_fetch_body_is_not_stored_as_evidence(tmp_path, monkeypatch):
     supported = [rel for rel in export.relationships if rel.status == "supported"]
     assert supported == []
     assert export.documents == []
+
+
+def test_failed_fetch_is_not_replayed_from_cache(tmp_path, monkeypatch):
+    """A later investigation must not reuse a cached error body as the page."""
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    body = "404 Not Found\nNVIDIA has invested $2 billion in CoreWeave."
+    good = "NVIDIA has invested $2 billion in CoreWeave."
+    calls = {"n": 0}
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-404",
+            "interaction_id": "int-404",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {
+                            "url": "https://news.example/missing",
+                            "title": "Missing",
+                            "summary": "NVIDIA CoreWeave",
+                            "provider": "brave",
+                        }
+                    ],
+                }
+            ],
+        }
+
+    def fetch_bad(urls, session_id):
+        del urls, session_id
+        return {
+            "results": [
+                {
+                    "url": "https://news.example/missing",
+                    "content": body,
+                    "status": "error",
+                    "error": "HTTP 404",
+                    "provider": "telem",
+                }
+            ]
+        }
+
+    def fetch_good(urls, session_id):
+        del session_id
+        calls["n"] += 1
+        return {"results": [{"url": urls[0], "content": good, "status": "ok", "provider": "telem"}]}
+
+    cache = tmp_path / "cache"
+    first = Orchestrator(
+        tmp_path / "first.sqlite",
+        retrieval=RetrievalClient(cache_dir=cache, dry_run=False, search_fn=search_fn, fetch_fn=fetch_bad, sleeper=lambda _seconds: None),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    first.step(first.create(STORY_A_QUESTION, mode="web").id)
+    second = Orchestrator(
+        tmp_path / "second.sqlite",
+        retrieval=RetrievalClient(cache_dir=cache, dry_run=False, search_fn=search_fn, fetch_fn=fetch_good, sleeper=lambda _seconds: None),
+        post=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("controller down")),
+    )
+    export = second.step(second.create(STORY_A_QUESTION, mode="web").id)
+    assert calls["n"] == 1
+    assert export.document_versions
+    assert export.document_versions[0].content == good
+    for span in export.evidence_spans:
+        version = next(item for item in export.document_versions if item.id == span.version_id)
+        assert version.content[span.start : span.end] == span.text
+        assert not span.text.startswith("404")
