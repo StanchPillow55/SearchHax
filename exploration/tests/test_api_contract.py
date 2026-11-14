@@ -71,8 +71,11 @@ def test_story_c_endpoint(tmp_path):
     assert report["contradiction_detections"] == 0
     assert report["shared_origin_detected"] is False
     assert report["network_calls"] == 0
-    blocked = client.post(f"/api/exploration/investigations/{investigation_id}/step")
-    assert blocked.status_code == 200
-    assert blocked.json()["investigation"]["status"] == "blocked"
-    assert blocked.json()["investigation"]["blocker"] == "TELEM_API_KEY missing"
-    assert blocked.json()["relationships"] == []
+    from exploration.backend.config import telem_configured
+
+    if not telem_configured():
+        blocked = client.post(f"/api/exploration/investigations/{investigation_id}/step")
+        assert blocked.status_code == 200
+        assert blocked.json()["investigation"]["status"] == "blocked"
+        assert blocked.json()["investigation"]["blocker"] == "TELEM_API_KEY missing"
+        assert blocked.json()["relationships"] == []

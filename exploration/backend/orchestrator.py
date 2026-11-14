@@ -273,6 +273,7 @@ class Orchestrator:
             self._persist(export)
             save_checkpoint(self.database, export, step=1, summary="Blocked before search: TELEM_API_KEY missing. No results were invented.")
             return self.graph.load(investigation.id)
+        started = _now_seconds()
         guard = BudgetGuard(investigation.budget)
         try:
             bundle = self.retrieval.search(
@@ -289,6 +290,7 @@ class Orchestrator:
         investigation.updated_at = _now()
         self._persist(export)
         save_checkpoint(self.database, export, step=1, summary="Initial Telem search and shortlisted fetch.")
+        investigation.usage.latency_ms = _elapsed_ms(started)
         if investigation.live_extraction_blocked and not export.relationships:
             investigation.status = "stopped"
             investigation.stop_reason = "unresolved_uncertainty"
@@ -300,6 +302,8 @@ class Orchestrator:
             investigation.updated_at = _now()
             self._persist(export)
             save_checkpoint(self.database, export, step=2, summary="Stopped without a follow-up because extraction is blocked.", stop_reason="unresolved_uncertainty")
+        else:
+            self._persist(export)
         return self.graph.load(investigation.id)
 
     def _follow_up_web_step(self, export: ExplorationExport) -> ExplorationExport:
@@ -430,6 +434,7 @@ class Orchestrator:
         chosen = chosen[: min(5, investigation.budget.remaining_fetched_urls)]
         pages = []
         if chosen:
+            fetched_before = investigation.budget.urls_fetched
             pages = self.retrieval.fetch(
                 [item[1].canonical_url for item in chosen],
                 session_id=investigation.session_id,
@@ -438,8 +443,11 @@ class Orchestrator:
             investigation.budget = guard.budget
             investigation.usage.fetch_calls += 1
             investigation.usage.urls_fetched = investigation.budget.urls_fetched
+            if investigation.budget.urls_fetched > fetched_before:
+                investigation.usage.network_calls += 1
         page_by_url = {page.canonical_url: page for page in pages}
         batches: list[ExtractionBatch] = []
+        llm_blocked = False
         for _score, merged, attention in chosen:
             page = page_by_url.get(merged.canonical_url)
             content = page.content if page else ""
@@ -486,7 +494,16 @@ class Orchestrator:
                     publish_date=merged.publish_date,
                 )
             )
-            batch = self._extract_page(investigation, guard, document, version)
+            if llm_blocked:
+                batch = ExtractionBatch(
+                    live_extraction_blocked=True,
+                    mode="blocked",
+                    blocker=investigation.blocker,
+                )
+            else:
+                batch = self._extract_page(investigation, guard, document, version)
+                if batch.live_extraction_blocked:
+                    llm_blocked = True
             batches.append(batch)
         if not batches:
             return

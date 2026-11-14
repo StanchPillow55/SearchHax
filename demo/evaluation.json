@@ -1,63 +1,59 @@
 {
-  "sample_note": "Counts are from the runs in this file. One investigation per configuration is not a statistical result.",
+  "generated_at": "2026-11-14T21:08:38Z",
+  "sample_size": {
+    "investigations_per_configuration": 1,
+    "note": "One investigation per configuration, not a statistical claim."
+  },
+  "telem_smoke": {
+    "ran": true,
+    "tests_passed": 2,
+    "note": "pytest -m integration passed two live Telem searches. An earlier call with no API key returned AuthError HTTP 401 and no results."
+  },
   "story_a": {
     "ran": true,
-    "blocker": "LLM extraction failed: ReadTimeout",
     "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
-    "investigation_id": "inv_aaa9080036b94e93",
+    "blocker": "LLM extraction failed: ReadTimeout",
     "stop_reason": "unresolved_uncertainty",
     "decision_source": "fallback",
-    "decision_rationale": "Live extraction is blocked because no LLM key is configured. Fallback did not invent relationships or spend a follow-up search.",
-    "session_set": true,
-    "checkpoints": 2,
+    "search_calls": 1,
+    "provider_calls": 2,
+    "providers": ["brave", "tavily"],
+    "fetch_calls": 1,
+    "urls_fetched": 5,
+    "llm_calls": 1,
+    "llm_tokens": null,
+    "cost_usd": null,
+    "supported_relationships": 0,
+    "relationships_stored": 0,
+    "latency_ms": 121579,
     "resume": {
-      "reused": 4,
-      "unchanged_versions": 1,
+      "reused": 5,
+      "unchanged_versions": 0,
       "network_fetches": 0
     },
-    "llm_configured": true,
-    "relationships": [],
-    "open_questions": [],
-    "usage": {
-      "session_id": "8f4f6169-891e-4369-83dd-4333a7ffe378",
-      "interaction_ids": [
-        "a985fc11-fcc3-4d20-a188-483f87fa611b"
-      ],
-      "search_calls": 1,
-      "provider_calls": 2,
-      "urls_fetched": 5,
-      "fetch_calls": 1,
-      "llm_calls": 5,
-      "llm_tokens": null,
-      "latency_ms": 0,
-      "cost_usd": null,
-      "providers_used": [
-        "brave",
-        "tavily"
-      ],
-      "network_calls": 1,
-      "cache_hits": 0,
-      "corpus_documents": 0,
-      "followups_executed": 0,
-      "rejected_ungrounded_citations": 0,
-      "dry_run": false,
-      "configuration": "web"
-    }
+    "notes": "Measured from one fresh-cache run. Telem search used brave and tavily. One Telem fetch read 5 URLs. The first LLM call raised ReadTimeout; remaining pages were not sent to the model. No relationships were invented. Resume reused the five cached documents and made no further network fetches. Token and dollar fields are null because the API did not return them."
   },
-  "reports": [
-    {
-      "story": "C",
-      "configuration": "B0",
+  "story_c": {
+    "question": "Do three articles independently substantiate a company's claim?",
+    "shared_origin_found": true,
+    "origin_id": "LF-PR-2026-031",
+    "contradiction_found": true,
+    "decision_source": "fallback",
+    "stop_reason": "unresolved_uncertainty",
+    "resume": {
+      "reused": 0,
+      "unchanged_versions": 4,
+      "network_fetches": 0
+    },
+    "b0": {
       "ran": true,
-      "blocker": null,
-      "question": "Do three articles independently substantiate a company's claim?",
-      "sample_size": 1,
-      "sample_note": "One investigation, not a statistical claim.",
       "search_calls": 0,
       "provider_calls": 0,
       "urls_fetched": 0,
       "llm_calls": 0,
       "llm_tokens": null,
+      "cost_usd": null,
+      "network_calls": 0,
       "supported_relationships": 21,
       "contradicted_relationships": 0,
       "insufficient_relationships": 0,
@@ -66,24 +62,17 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 0,
       "shared_origin_detected": false,
-      "latency_ms": 11,
-      "cost_usd": null,
-      "network_calls": 0,
-      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
+      "latency_ms": 39
     },
-    {
-      "story": "C",
-      "configuration": "B3",
+    "b3": {
       "ran": true,
-      "blocker": null,
-      "question": "Do three articles independently substantiate a company's claim?",
-      "sample_size": 1,
-      "sample_note": "One investigation, not a statistical claim.",
       "search_calls": 1,
       "provider_calls": 0,
       "urls_fetched": 0,
       "llm_calls": 0,
       "llm_tokens": null,
+      "cost_usd": null,
+      "network_calls": 0,
       "supported_relationships": 20,
       "contradicted_relationships": 1,
       "insufficient_relationships": 0,
@@ -92,36 +81,8 @@
       "rejected_ungrounded_citations": 0,
       "contradiction_detections": 1,
       "shared_origin_detected": true,
-      "latency_ms": 45,
-      "cost_usd": null,
-      "network_calls": 0,
-      "notes": "Story C retrieval is the local four-document fixture corpus. No Telem, Tavily, or LLM call is made. B0 reads that corpus once and does not classify shared origin or contradictions. B3 adds provenance, contradiction checks, and at most one local follow-up."
+      "latency_ms": 35
     },
-    {
-      "story": "A",
-      "configuration": "B3",
-      "ran": true,
-      "blocker": "LLM extraction failed: ReadTimeout",
-      "question": "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?",
-      "sample_size": 1,
-      "sample_note": "One investigation, not a statistical claim.",
-      "search_calls": 1,
-      "provider_calls": 2,
-      "urls_fetched": 5,
-      "llm_calls": 5,
-      "llm_tokens": null,
-      "supported_relationships": 0,
-      "contradicted_relationships": 0,
-      "insufficient_relationships": 0,
-      "hypothesis_relationships": 0,
-      "correct_citations": 0,
-      "rejected_ungrounded_citations": 0,
-      "contradiction_detections": 0,
-      "shared_origin_detected": false,
-      "latency_ms": 0,
-      "cost_usd": null,
-      "network_calls": 1,
-      "notes": ""
-    }
-  ]
+    "notes": "Story C uses the local four-document fixture. The B3 search_calls value is the one local follow-up, not a Telem call. B0 does not reconcile the $480 million sentence, so it stays supported by its own quotation. B3 marks that sentence contradicted by the original $400 million announcement. Sample size is one investigation."
+  }
 }
