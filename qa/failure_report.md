@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — An archived page drops the open follow-up
+
+Requirement: an unresolved question above the utility floor still produces its follow-up search when one search remains. Archiving the current page does not cancel that search.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_archive.py::test_archived_page_does_not_drop_the_open_follow_up --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The only page is `NVIDIA has invested $2 billion in CoreWeave. The buildout emphasizes advanced packaging.` The profile interest is `advanced packaging`. No live call is made. `focus_post` is the controller.
+
+Expected: `search_calls` is 2. One search remains, and the open questions are above the 0.15 floor.
+
+Actual: `('low_expected_value', 1, [(0.8, 'What grounded evidence connects the investigation to the open interest: advanced packaging?'), (0.85, 'What downstream customer demand or product revenue is tied to the NVIDIA CoreWeave capacity expansion?')])`. The rationale says Focus archived every candidate. `approved_action` is null.
+
+`exploration/backend/focus_bridge.py` lines 69–84 approve a search only when some passage is `investigate`. Lines 91–93 stop with `low_expected_value` when every passage is `archive`, before the pending actions are read.
+
+Deterministic.
+
+Suggested correction: when a pending action's utility is at least `budget.min_utility` and a search remains, approve that action. Archiving the current page does not by itself stop the investigation.
+
 ## BLOCKER — A blank question is stored as an empty investigation
 
 Requirement: the investigation question is the user's question. A body whose question is only whitespace is rejected and no investigation is stored.
