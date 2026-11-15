@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A cited answer states an amount the quote does not contain
+
+Requirement: a published answer does not state a numeric amount that is absent from the cited quote.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_answer_does_not_publish_an_amount_missing_from_the_quote --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The only stored quote is `NVIDIA has invested $2 billion in CoreWeave.` The answer model returns `NVIDIA has invested $9 billion in CoreWeave [S1].` No live call is made.
+
+Expected: `$9 billion` is not published.
+
+Actual: `(False, 'NVIDIA has invested $9 billion in CoreWeave [S1].\n\n### Sources\n- [S1] NVIDIA (https://news.example/a)')`. The answer is not blocked.
+
+`exploration/backend/answer.py` lines 152–172 keep the model text when the marker is one of the supplied markers. They do not compare amounts in the prose with the cited quote.
+
+Deterministic.
+
+Suggested correction: do not publish an answer sentence that states a numeric amount absent from the quote for the marker it cites.
+
 ## BLOCKER — A failed answer regeneration erases the stored answer
 
 Requirement: a failed answer-model call does not replace a previously stored cited answer with an empty blocked answer.

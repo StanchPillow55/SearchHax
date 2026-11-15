@@ -107,6 +107,19 @@ def test_invented_marker_and_url_are_not_published():
     assert answer.cited_markers == ["S1"], answer.cited_markers
 
 
+def test_answer_does_not_publish_an_amount_missing_from_the_quote():
+    class Client:
+        configured = True
+        model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            return ("NVIDIA has invested $9 billion in CoreWeave [S1].", {"total_tokens": 4})
+
+    answer = compose_answer(_export(), client=Client())
+    assert "$9 billion" not in answer.markdown, (answer.blocked, answer.markdown)
+
+
 def test_missing_answer_key_does_not_invent_prose(monkeypatch):
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
