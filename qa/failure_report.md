@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The API drops a research profile sent at creation
+
+Requirement: a profile included when an investigation is created is stored and returned on the export. It is the same read-only profile the orchestrator can attach.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_api_profile.py::test_api_create_keeps_the_research_profile --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The request body includes `profile.id` `profile_ai_infrastructure` and unresolved interest `advanced packaging`. No search is run.
+
+Expected: the export's `profile.id` is `profile_ai_infrastructure` and `unresolved_interests` is `["advanced packaging"]`.
+
+Actual: the create call returns 200 and the export's `profile` is null.
+
+`CreateInvestigationRequest` has `question` and `budget` only. `extra="ignore"` on the contract models drops `profile`. `exploration/backend/main.py` line 51 calls `orchestrator.create(body.question, body.budget)` and does not pass a profile. `Orchestrator.create` can store one.
+
+Deterministic. No network call.
+
+Suggested correction: accept `profile` on `CreateInvestigationRequest` and pass it to `Orchestrator.create`. Return that profile on the export.
+
 ## BLOCKER — The committed evidence schema omits the profile and knowledge value
 
 Requirement: `shared/evidence.schema.json` matches the committed exploration models, including the research profile and the knowledge-value score.
