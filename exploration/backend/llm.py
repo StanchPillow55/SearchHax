@@ -43,6 +43,41 @@ def strip_json_fence(text: str) -> str:
     return cleaned.strip()
 
 
+def extract_json_object(text: str) -> str:
+    """Return the first balanced top-level JSON object in text.
+
+    Anthropic models sometimes wrap the object in prose or a sentence. This
+    recovers the object without inventing content; if none is found, the
+    original text is returned so the caller's json.loads raises as before.
+    """
+    cleaned = strip_json_fence(text)
+    start = cleaned.find("{")
+    if start == -1:
+        return cleaned
+    depth = 0
+    in_string = False
+    escape = False
+    for index in range(start, len(cleaned)):
+        char = cleaned[index]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return cleaned[start : index + 1]
+    return cleaned[start:]
+
+
 class OpenAICompatibleClient:
     def __init__(
         self,
@@ -106,7 +141,7 @@ class OpenAICompatibleClient:
             response.raise_for_status()
             body = response.json()
         content = body["choices"][0]["message"]["content"]
-        parsed = json.loads(strip_json_fence(content))
+        parsed = json.loads(extract_json_object(content))
         usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
         usage.setdefault("model", self.model)
         usage.setdefault("backend", "openai-compatible")
