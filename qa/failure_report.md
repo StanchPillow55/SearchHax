@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A null answer body crashes the answer endpoint
+
+Requirement: a model response with no text is a blocked answer. The answer endpoint does not return 500, and it does not invent prose.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_null_answer_body_is_a_blocked_answer --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One page with the CoreWeave investment sentence is stored. The answer model returns `(None, {})`. No live call is made.
+
+Expected: HTTP 200, `answer.blocked` is true, and `answer.markdown` is empty.
+
+Actual: `(500, 'Internal Server Error')`.
+
+`exploration/backend/answer.py` lines 131–150 catch a raised model call and return a blocked answer. Line 152 then calls `payload.strip()` outside that handler. A null body raises `AttributeError`, and `exploration/backend/main.py` `answer_investigation` does not catch it.
+
+Deterministic.
+
+Suggested correction: when the model body is not a string, return a blocked answer with empty markdown. Do not let that response become an HTTP 500.
+
 ## BLOCKER — A document title can add a source the answer did not cite
 
 Requirement: the sources list contains only the markers the answer cited. A document title cannot insert another source line.

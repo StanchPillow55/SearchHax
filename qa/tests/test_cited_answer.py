@@ -136,6 +136,61 @@ def test_source_title_cannot_add_another_source():
     assert "evil.example" not in answer.markdown, answer.markdown
 
 
+def test_null_answer_body_is_a_blocked_answer(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+
+    class NullBody:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self.configured = True
+            self.model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            return (None, {})
+
+    monkeypatch.setattr("exploration.backend.answer.OpenAICompatibleClient", NullBody)
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-null",
+            "interaction_id": "int-null",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": "https://news.example/a", "title": "NVIDIA", "summary": QUOTE, "provider": "brave"}
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": QUOTE, "status": "ok", "provider": "telem"}]}
+
+    db = tmp_path / "null.sqlite"
+    orchestrator = Orchestrator(
+        db,
+        retrieval=RetrievalClient(
+            cache_dir=tmp_path / "cache",
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+        ),
+    )
+    created = orchestrator.create(STORY_A_QUESTION, mode="web")
+    orchestrator.step(created.id)
+    client = TestClient(create_app(db), raise_server_exceptions=False)
+    answered = client.post(f"/api/exploration/investigations/{created.id}/answer")
+    assert answered.status_code == 200, (answered.status_code, answered.text)
+    body = answered.json()["answer"]
+    assert body["blocked"] is True, body
+    assert body["markdown"] == ""
+
+
 def test_missing_answer_key_does_not_invent_prose(monkeypatch):
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
