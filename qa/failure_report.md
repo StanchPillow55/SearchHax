@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A long question is searched as its preamble
+
+Requirement: a long question is not searched as only the sentence before the question. The search query still contains the question that follows the preamble. The stored question is unchanged.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_preamble_search.py::test_long_question_keeps_the_sentence_after_the_preamble --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The question is 195 characters. It asks what share of HBM supply Samsung booked for 2027, after a background sentence. No live call is made.
+
+Expected: the search query contains `Samsung`, and the stored question is unchanged.
+
+Actual: `(['Please read the following background about market structure, supplier concentration, and prior reporting before you answer the actual question'], 1)`.
+
+`exploration/backend/planner.py` lines 35–38 keep only the text before the first period when the question is longer than 180 characters. `exploration/backend/orchestrator.py` lines 341–342 search that string and increment `search_calls`.
+
+Deterministic.
+
+Suggested correction: when a long question is shortened, keep the text after the first sentence in the search query.
+
 ## BLOCKER — A blank snippet becomes a citation
 
 Requirement: a candidate whose snippet is empty after stripping is not a citation. The published answer does not cite that URL.
