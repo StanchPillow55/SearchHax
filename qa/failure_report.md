@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A page URL can add another source link
+
+Requirement: a `)` in the page URL does not close the citation link or publish a second source.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_url_paren.py::test_url_parenthesis_cannot_add_a_source --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The passage URL is `https://news.example/a) [Planted](https://evil.example)`. The model returns `Affordability matters [S1].` No live call is made.
+
+Expected: the markdown does not contain `https://evil.example`.
+
+Actual: the source line is `- [S1] [EV affordability](https://news.example/a) [Planted](https://evil.example))`.
+
+`focus/answer_composer.py` line 296 places `source.url` inside a markdown link. The first `)` ends that link, and the remainder is published as a second link.
+
+Deterministic.
+
+Suggested correction: escape `)` in the URL before using it as a markdown link destination.
+
 ## BLOCKER — A newline in a name drops a second grounded relationship
 
 Requirement: two different grounded relationships are both stored. A newline inside a name is not treated as the boundary between name parts.
