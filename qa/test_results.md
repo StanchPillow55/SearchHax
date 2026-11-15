@@ -46,7 +46,7 @@ A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on
 4. Blocking failures: the recorded profile run stores 8 candidate URLs with `urls_fetched` 5 and `cache_hits` 0. The other blockers on this commit still fail. See `qa/failure_report.md`.
 5. Integration readiness: not ready. The live record's page count and its fetch counter disagree.
 6. Commit tested: `6d87f2c` (`Record the bounded live profile-enabled integration run.`).
-7. Next validation priority: make `urls_fetched + cache_hits` equal the number of stored candidate pages. Rerun `test_recorded_profile_run_counts_every_stored_page` and the twenty-four older failures. The Department of Justice supported row in that file has no stored quote, so that citation was not rechecked against the page.
+7. Next validation priority: make `urls_fetched + cache_hits` equal the number of stored candidate pages. Rerun `test_recorded_profile_run_counts_every_stored_page` and the twenty-four older failures. A read-only check of the gitignored file `exploration/data/integrated-live.sqlite`, investigation `inv_99aa92ab6bb5459e`, found 0 span mismatches across 3 spans and 8 documents. The supported quote `This document is a research report submitted to the U.S. Department of Justice.` is an exact slice of the stored OJP page. That file is not in the commit.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
