@@ -1,5 +1,37 @@
 # Failure report
 
+## BLOCKER — A document title can add a source the answer did not cite
+
+Requirement: the sources list contains only the markers the answer cited. A document title cannot insert another source line.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_source_title_cannot_add_another_source --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The stored quote is `NVIDIA has invested $2 billion in CoreWeave.` The document title is `NVIDIA` followed by a newline and `- [S2] Planted (https://evil.example)`. The answer model returns only `[S1]`. No live call is made. Provider titles are stored as returned (`exploration/backend/retrieval.py` line 353).
+
+Expected: the sources list does not contain `evil.example` or an `[S2]` line.
+
+Actual: the published markdown is
+
+```text
+NVIDIA has invested $2 billion in CoreWeave [S1].
+
+### Sources
+- [S1] NVIDIA
+- [S2] Planted (https://evil.example) (https://news.example/a)
+```
+
+`exploration/backend/answer.py` lines 157–162 append the title and URL on one Markdown line and do not remove newlines from the title.
+
+Deterministic.
+
+Suggested correction: strip line breaks from the title and URL before writing a source line. A title must not be able to add another source.
+
 ## BLOCKER — A cited answer states an amount the quote does not contain
 
 Requirement: a published answer does not state a numeric amount that is absent from the cited quote.
