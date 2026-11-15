@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A different amount is archived as a duplicate
+
+Requirement: a passage that states a different amount is not archived as a duplicate of the other amount.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_amount_duplicate.py::test_different_amount_is_not_archived_as_a_duplicate --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One page says NVIDIA invested `$2 billion` in CoreWeave. The other says `$9 billion`, with the same surrounding sentence and the same title `Report`. The URLs differ. No live call is made.
+
+Expected: the `$9 billion` page is not archived as a duplicate.
+
+Actual: `('archive', 0.867, 'duplicates an existing claim (not independent corroboration)')`.
+
+`focus/focus_attention.py` lines 242–243 archive a passage when token overlap with an already accepted passage is at least 0.85. The changed amount is not compared.
+
+Deterministic.
+
+Suggested correction: do not archive a passage as a duplicate when it states a different number than the passage it is compared with.
+
 ## BLOCKER — A later page for a seen URL is not ranked
 
 Requirement: after a URL is ranked from a short snippet, a later passage with the page text for that URL is still ranked.
