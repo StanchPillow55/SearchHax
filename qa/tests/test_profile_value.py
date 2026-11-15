@@ -179,3 +179,59 @@ def test_recorded_profile_run_counts_every_stored_page():
         usage["cache_hits"],
         stored,
     )
+
+
+def test_profile_survives_reopen(tmp_path, monkeypatch):
+    """A new process sees the same profile and the scored candidate."""
+    from shared.contracts import ResearchProfile
+
+    from exploration.backend.focus_bridge import focus_post
+    from exploration.backend.orchestrator import STORY_A_QUESTION
+
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    text = "NVIDIA has invested $2 billion in CoreWeave. The buildout emphasizes advanced packaging."
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-reopen",
+            "interaction_id": "int-reopen",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": "https://news.example/a", "title": "NVIDIA", "summary": text, "provider": "brave"}
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": text, "status": "ok", "provider": "telem"}]}
+
+    client = RetrievalClient(
+        cache_dir=tmp_path / "cache",
+        dry_run=False,
+        search_fn=search_fn,
+        fetch_fn=fetch_fn,
+        sleeper=lambda _seconds: None,
+    )
+    path = tmp_path / "reopen.sqlite"
+    created = Orchestrator(path, retrieval=client, post=focus_post).create(
+        STORY_A_QUESTION,
+        mode="web",
+        profile=ResearchProfile(
+            id="profile-qa",
+            interests=["advanced packaging"],
+            unresolved_interests=["advanced packaging"],
+        ),
+    )
+    Orchestrator(path, retrieval=client, post=focus_post).step(created.id)
+    reopened = Orchestrator(path, retrieval=client, post=focus_post).get(created.id)
+    assert reopened.profile is not None
+    assert reopened.profile.id == "profile-qa"
+    assert reopened.profile.unresolved_interests == ["advanced packaging"]
+    assert reopened.investigation.question == STORY_A_QUESTION
+    assert [candidate.knowledge_value.score for candidate in reopened.candidates] == [0.7]
+

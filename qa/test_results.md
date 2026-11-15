@@ -8,7 +8,7 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 31 failed, 80 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
+Result: 31 failed, 81 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
 
 Failed:
 
@@ -46,8 +46,8 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 43 / 72 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-10`, `API-2`, `EXT-10`, `API-1`, `CTR-1`, `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `DEMO-4` passes: the recorded Story C B0 and B3 counts match a fresh offline run.
-2. Passing tests / executed tests: 80 / 111 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
+1. Verified P0 requirements: 44 / 73 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `FOC-10`, `API-2`, `EXT-10`, `API-1`, `CTR-1`, `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `PRF-4` passes: reopening the investigation returns the same profile, question, and knowledge-value score.
+2. Passing tests / executed tests: 81 / 112 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
 4. Blocking failures: Focus archives the only page and stops with `low_expected_value` while the demand follow-up has utility 0.85 and a search remains. A blank question is still stored as empty. The other blockers on this commit still fail. See `qa/failure_report.md`.
 5. Integration readiness: not ready. An open follow-up above the utility floor is not run.
