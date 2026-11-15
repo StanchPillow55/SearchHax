@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A failed answer regeneration erases the stored answer
+
+Requirement: a failed answer-model call does not replace a previously stored cited answer with an empty blocked answer.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_failed_answer_regeneration_keeps_the_stored_answer --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One page with the CoreWeave investment sentence is stored. The first answer call returns `NVIDIA has invested $2 billion in CoreWeave [S1].` The second call raises `RuntimeError`. No live call is made.
+
+Expected: the stored answer stays unblocked and still contains that sentence.
+
+Actual: `(True, '', 'Answer generation failed: RuntimeError')`.
+
+`exploration/backend/main.py` lines 102–106 store `compose_answer`'s result on every call, including a blocked empty answer. `exploration/backend/answer.py` lines 142–150 return that empty answer when the model call raises.
+
+Deterministic.
+
+Suggested correction: when a new answer is blocked and a previous answer is already stored, keep the stored answer.
+
 ## BLOCKER — A preamble example becomes a supported relationship
 
 Requirement: when a model response contains an example object and then the extraction payload, only the extraction payload is grounded. An example is not stored as a supported relationship.

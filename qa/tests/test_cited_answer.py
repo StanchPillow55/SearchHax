@@ -172,3 +172,66 @@ def test_answer_call_stops_when_the_llm_budget_is_spent(tmp_path, monkeypatch):
     assert calls == [], (len(calls), body["answer"]["blocked"], body["investigation"]["usage"]["llm_calls"])
     assert body["answer"]["blocked"] is True
     assert body["investigation"]["usage"]["llm_calls"] == stored.investigation.budget.max_llm_calls
+
+
+def test_failed_answer_regeneration_keeps_the_stored_answer(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
+    calls = {"n": 0}
+
+    class Flip:
+        def __init__(self, *args, **kwargs):
+            del args, kwargs
+            self.configured = True
+            self.model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return ("NVIDIA has invested $2 billion in CoreWeave [S1].", {"total_tokens": 4})
+            raise RuntimeError("answer backend down")
+
+    monkeypatch.setattr("exploration.backend.answer.OpenAICompatibleClient", Flip)
+
+    def search_fn(query, session_id):
+        del query, session_id
+        return {
+            "session_id": "sess-keep",
+            "interaction_id": "int-keep",
+            "provider_runs": [
+                {
+                    "provider": "brave",
+                    "results": [
+                        {"url": "https://news.example/a", "title": "NVIDIA", "summary": QUOTE, "provider": "brave"}
+                    ],
+                }
+            ],
+        }
+
+    def fetch_fn(urls, session_id):
+        del session_id
+        return {"results": [{"url": urls[0], "content": QUOTE, "status": "ok", "provider": "telem"}]}
+
+    db = tmp_path / "keep.sqlite"
+    orchestrator = Orchestrator(
+        db,
+        retrieval=RetrievalClient(
+            cache_dir=tmp_path / "cache",
+            dry_run=False,
+            search_fn=search_fn,
+            fetch_fn=fetch_fn,
+            sleeper=lambda _seconds: None,
+        ),
+    )
+    created = orchestrator.create(STORY_A_QUESTION, mode="web")
+    orchestrator.step(created.id)
+    client = TestClient(create_app(db))
+    path = f"/api/exploration/investigations/{created.id}/answer"
+    first = client.post(path)
+    assert first.status_code == 200, first.text
+    assert "NVIDIA has invested $2 billion in CoreWeave [S1]." in first.json()["answer"]["markdown"]
+    second = client.post(path)
+    assert second.status_code == 200, second.text
+    stored = second.json()["answer"]
+    assert stored["blocked"] is False, (stored["blocked"], stored["markdown"], stored["blocker"])
+    assert "NVIDIA has invested $2 billion in CoreWeave [S1]." in stored["markdown"], stored["markdown"]
