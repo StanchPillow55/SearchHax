@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A titled page with an empty body is not ranked
+
+Requirement: a passage with an empty body and a title is still ranked. The title is the text used for that decision.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_empty_body.py::test_empty_body_with_a_title_is_ranked --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The passage body is three spaces. The title is `NVIDIA has invested $2 billion in CoreWeave`. The URL is `https://news.example/a`. No live call is made.
+
+Expected: the decision list contains that URL.
+
+Actual: `[]`.
+
+`focus/focus_attention.py` line 259 skips a passage when `text` is empty after stripping. The title is not used.
+
+Deterministic.
+
+Suggested correction: when the body is empty after stripping, rank the title. Do not drop a passage that has a title.
+
 ## BLOCKER — A page URL can add another source link
 
 Requirement: a `)` in the page URL does not close the citation link or publish a second source.
