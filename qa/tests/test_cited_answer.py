@@ -178,6 +178,33 @@ def test_blank_model_text_is_not_a_successful_answer():
     assert answer.markdown == ""
 
 
+def test_blank_snippet_is_not_a_citation():
+    export = _export()
+    export.candidates.append(
+        EvidenceCandidate(
+            id="cand-empty",
+            url="https://news.example/empty",
+            title="Empty",
+            snippet="   ",
+            attention=AttentionComponents(R=0, G=0, D=0, F=0, score=0),
+        )
+    )
+
+    class Client:
+        configured = True
+        model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            return ("See [S2].", {"total_tokens": 1})
+
+    answer = compose_answer(export, client=Client())
+    assert [citation.url for citation in answer.citations] == ["https://news.example/a"], [
+        (citation.marker, citation.quote, citation.url) for citation in answer.citations
+    ]
+    assert "news.example/empty" not in answer.markdown
+
+
 def test_null_answer_body_is_a_blocked_answer(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
 

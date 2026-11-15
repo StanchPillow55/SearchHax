@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A blank snippet becomes a citation
+
+Requirement: a candidate whose snippet is empty after stripping is not a citation. The published answer does not cite that URL.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_blank_snippet_is_not_a_citation --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The stored quote is `NVIDIA has invested $2 billion in CoreWeave.` A second candidate has the snippet `   ` and the URL `https://news.example/empty`. The answer model returns `See [S2].` No live call is made.
+
+Expected: the only citation URL is `https://news.example/a`, and the empty URL is not published.
+
+Actual: `[('S1', 'NVIDIA has invested $2 billion in CoreWeave.', 'https://news.example/a'), ('S2', '   ', 'https://news.example/empty')]`.
+
+`exploration/backend/answer.py` lines 71–82 skip a candidate only when its stripped snippet was already used. A whitespace snippet is still appended, with that whitespace as the quote.
+
+Deterministic.
+
+Suggested correction: do not create a citation when the snippet is empty after stripping.
+
 ## BLOCKER — No action and no stop leaves the investigation running
 
 Requirement: a controller response with no approved action does not leave the investigation running with no stop reason. The step records a stop.
