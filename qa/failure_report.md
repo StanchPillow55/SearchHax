@@ -1,5 +1,36 @@
 # Failure report
 
+## BLOCKER — A considered source is published without that label
+
+Requirement: a source that was only considered, and whose snippet is not an exact quote from a stored page, is labeled as considered in the published answer. It is not presented as a verified source.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_considered_source_is_labeled_in_the_answer --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The stored page is `NVIDIA has invested $2 billion in CoreWeave.` A candidate snippet, `Rumored capacity plans were not confirmed.`, is not in that page. The answer model cites `[S2]`. No live call is made.
+
+Expected: the sources list says the `https://news.example/later` source is considered.
+
+Actual: the citation status is `considered`, and the published markdown is
+
+```text
+Rumored capacity plans were not confirmed [S2].
+
+### Sources
+- [S2] Later (https://news.example/later)
+```
+
+`exploration/backend/answer.py` lines 74–82 store `status="considered"`. Lines 157–162 write the source line from the title and URL and omit the status.
+
+Deterministic.
+
+Suggested correction: write the citation status on each source line. A considered source must say considered.
+
 ## BLOCKER — A different NVIDIA question is searched as the CoreWeave query
 
 Requirement: the CoreWeave retrieval query is used for the Story A question. A different question is searched with its own wording. The stored question stays the user's question.

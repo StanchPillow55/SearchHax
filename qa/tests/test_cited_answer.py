@@ -11,8 +11,10 @@ from exploration.backend.main import create_app
 from exploration.backend.orchestrator import STORY_A_QUESTION, Orchestrator
 from exploration.backend.retrieval import RetrievalClient
 from shared.contracts import (
+    AttentionComponents,
     Document,
     DocumentVersion,
+    EvidenceCandidate,
     EvidenceLink,
     EvidenceSpan,
     ExplorationExport,
@@ -134,6 +136,32 @@ def test_source_title_cannot_add_another_source():
 
     answer = compose_answer(export, client=Client())
     assert "evil.example" not in answer.markdown, answer.markdown
+
+
+def test_considered_source_is_labeled_in_the_answer():
+    export = _export()
+    export.candidates.append(
+        EvidenceCandidate(
+            id="cand-later",
+            document_id="doc-later",
+            url="https://news.example/later",
+            title="Later",
+            snippet="Rumored capacity plans were not confirmed.",
+            attention=AttentionComponents(R=0.2, G=0.0, D=0.0, F=0.0, score=0.2),
+        )
+    )
+
+    class Client:
+        configured = True
+        model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            return ("Rumored capacity plans were not confirmed [S2].", {"total_tokens": 4})
+
+    answer = compose_answer(export, client=Client())
+    assert "https://news.example/later" in answer.markdown
+    assert "considered" in answer.markdown.lower(), answer.markdown
 
 
 def test_null_answer_body_is_a_blocked_answer(tmp_path, monkeypatch):
