@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A URL secret stays in the canonical source key
+
+Requirement: userinfo in a URL is not part of the canonical source key. The stored key is the host and path.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_userinfo.py::test_url_userinfo_is_not_part_of_the_source_key --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The input URL is `https://user:secret@news.example/a`. No live call is made.
+
+Expected: `https://news.example/a`.
+
+Actual: `https://user:secret@news.example/a`.
+
+`focus/focus_attention.py` lines 47–53 set `netloc` from `parts.netloc`, which keeps the username and secret.
+
+Deterministic.
+
+Suggested correction: build the host from `parts.hostname` and drop userinfo.
+
 ## BLOCKER — A sentence with no question words is left out of the excerpt
 
 Requirement: a sentence on the stored page is still sent to the model when it does not repeat the question's words.
