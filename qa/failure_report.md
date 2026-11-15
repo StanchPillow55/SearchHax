@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A fetch publish date is dropped
+
+Requirement: a publish date returned with the fetched page is stored on that page.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_fetch_publish_date.py::test_fetch_publish_date_is_stored --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search hit has no publish date. The fetch returns the CoreWeave sentence and `publish_date` `2026-11-01`. No live call is made.
+
+Expected: the stored document version's publish date is `2026-11-01`.
+
+Actual: `[None]`.
+
+`exploration/backend/retrieval.py` lines 421–431 build the fetched page without `publish_date`. `exploration/backend/orchestrator.py` line 539 stores the search hit's date on the version.
+
+Deterministic.
+
+Suggested correction: store the fetch result's publish date on the document version when the search hit does not have one.
+
 ## BLOCKER — A fetch with a different canonical URL is dropped
 
 Requirement: a fetch that returns the page for the requested URL is stored, including when the response names a different canonical URL.
