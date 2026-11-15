@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A newline in a name drops a second grounded relationship
+
+Requirement: two different grounded relationships are both stored. A newline inside a name is not treated as the boundary between name parts.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_relationship_id_collision.py::test_newline_in_a_name_does_not_drop_the_other_relationship --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Both quotes are exact slices of the page. The first relationship is NVIDIA / invested_in / `CoreWeave` plus a newline plus `extra`. The second is subject `NVIDIA` plus a newline plus `invested_in`, predicate `CoreWeave`, object `extra`. No live call is made.
+
+Expected: both relationships are stored.
+
+Actual: `[('NVIDIA', 'invested_in', 'CoreWeave\nextra', 'supported')]`.
+
+`exploration/backend/ids.py` lines 9–12 join the id parts with a newline. `exploration/backend/extraction.py` lines 421–423 skip a relationship whose id was already stored. The second quote is an exact slice and is dropped.
+
+Deterministic.
+
+Suggested correction: encode each id part so a newline inside a name cannot stand in for the boundary between parts.
+
 ## BLOCKER — A cited answer publishes a URL secret
 
 Requirement: the published source line does not contain a username or secret from the page URL.
