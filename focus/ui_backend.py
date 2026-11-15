@@ -152,9 +152,57 @@ if not export:
 inv = export["investigation"]
 usage = inv["usage"]
 
+
+def _run_followup() -> None:
+    q = st.session_state.get("followup_q", "").strip()
+    st.session_state["last_error"] = None
+    if not q:
+        st.session_state["last_error"] = "Enter a follow-up question first."
+        return
+    try:
+        body = {"question": q}
+        prior_profile = st.session_state["export"].get("profile")
+        if prior_profile:
+            body["profile"] = prior_profile
+        parent_id = st.session_state["export"]["investigation"]["id"]
+        new_inv = _post("/api/exploration/investigations", body)
+        inv_id = new_inv["id"]
+        _post(f"/api/exploration/investigations/{inv_id}/step")
+        new_export = _post(f"/api/exploration/investigations/{inv_id}/step")
+        st.session_state["export"] = new_export
+        st.session_state["followup_parent"] = parent_id
+    except requests.HTTPError as exc:
+        st.session_state["last_error"] = f"Follow-up error: {exc.response.status_code} {exc.response.text[:300]}"
+    except Exception as exc:
+        st.session_state["last_error"] = f"Follow-up failed: {exc}"
+
+
 actual_mode = inv.get("metadata", {}).get("mode")
+if st.session_state.get("followup_parent"):
+    st.info(
+        f"You are viewing a follow-up investigation. It was started from a previous "
+        f"question and is a new, separate investigation (the original question is immutable)."
+    )
 st.subheader("Investigation")
 st.caption(f"Showing the result of a **{actual_mode}** run. Question actually used: “{inv['question']}”")
+
+# Prominent follow-up control near the top, so it is easy to find.
+with st.container(border=True):
+    st.markdown("**Ask a follow-up question** (starts a new linked investigation, billable)")
+    open_qs_top = [q["text"] for q in export.get("unresolved_questions", [])]
+    fu_cols = st.columns([3, 1])
+    with fu_cols[0]:
+        st.text_input(
+            "Follow-up question",
+            value=(open_qs_top[0] if open_qs_top else ""),
+            key="followup_q",
+            label_visibility="collapsed",
+            placeholder="Type a follow-up question, or pick a suggested one below",
+        )
+    with fu_cols[1]:
+        st.button("Run follow-up", type="primary", on_click=_run_followup, use_container_width=True)
+    if open_qs_top:
+        st.caption("Suggestions from the investigation's open questions: " + " · ".join(open_qs_top[:3]))
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Status", inv["status"])
 c2.metric("Stop reason", inv.get("stop_reason") or "-")
@@ -291,49 +339,5 @@ with st.expander("Raw export JSON"):
     st.code(json.dumps(export, indent=2)[:20000], language="json")
 
 
-st.divider()
-st.subheader("Ask a follow-up")
-st.caption(
-    "The investigation question is immutable, so a follow-up starts a new linked "
-    "investigation. The research profile carries over when attached. Live follow-ups are billable."
-)
-
-# Offer the backend's own open questions as one-click follow-ups.
-open_qs = [q["text"] for q in export.get("unresolved_questions", [])]
-suggested = st.selectbox(
-    "Suggested follow-up (from the investigation's open questions)",
-    ["(write my own below)"] + open_qs,
-)
-followup_text = st.text_input(
-    "Follow-up question",
-    value="" if suggested == "(write my own below)" else suggested,
-    key="followup_q",
-)
-
-
-def _run_followup() -> None:
-    q = st.session_state.get("followup_q", "").strip()
-    st.session_state["last_error"] = None
-    if not q:
-        st.session_state["last_error"] = "Enter a follow-up question first."
-        return
-    try:
-        body = {"question": q}
-        prior_profile = st.session_state["export"].get("profile")
-        if prior_profile:
-            body["profile"] = prior_profile
-        inv = _post("/api/exploration/investigations", body)
-        inv_id = inv["id"]
-        _post(f"/api/exploration/investigations/{inv_id}/step")
-        new_export = _post(f"/api/exploration/investigations/{inv_id}/step")
-        st.session_state["export"] = new_export
-        st.session_state["followup_parent"] = export["investigation"]["id"]
-    except requests.HTTPError as exc:
-        st.session_state["last_error"] = f"Follow-up error: {exc.response.status_code} {exc.response.text[:300]}"
-    except Exception as exc:
-        st.session_state["last_error"] = f"Follow-up failed: {exc}"
-
-
-st.button("Run follow-up as a new investigation (billable)", on_click=_run_followup)
 if st.session_state.get("followup_parent"):
-    st.caption(f"This result is a follow-up linked from investigation {st.session_state['followup_parent']}.")
+    st.caption(f"This result is linked from investigation {st.session_state['followup_parent']}.")
