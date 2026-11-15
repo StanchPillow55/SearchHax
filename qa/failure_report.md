@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The same URL keeps the short snippet and drops the page
+
+Requirement: two passages with the same URL are one source, and the ranked text is the fuller page.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_same_url.py::test_same_url_keeps_the_fuller_page --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first passage is `Brief.` at `https://news.example/a`. The second is `NVIDIA has invested $2 billion in CoreWeave.` at the same URL. No live call is made.
+
+Expected: the ranked text is the CoreWeave sentence.
+
+Actual: `['Brief.']`.
+
+`focus/focus_attention.py` lines 261–264 merge a repeated source key by copying providers onto the first passage. The second passage's text is dropped.
+
+Deterministic.
+
+Suggested correction: when two passages share a source key, keep the longer text.
+
 ## BLOCKER — A titled page with an empty body is not ranked
 
 Requirement: a passage with an empty body and a title is still ranked. The title is the text used for that decision.
