@@ -4,37 +4,58 @@ import streamlit as st
 import pandas as pd
 from focus_attention import FocusAttentionModel, Passage
 
-st.set_page_config(page_title='Context Frontier', layout='wide')
-st.title('Context Frontier')
-st.caption('Choose how tightly to stay on the question and how many searches the controller may use. Evidence selection, not truth verification.')
-question = st.text_input('Original research question', 'Why might electric vehicle demand decline?')
-st.subheader('Attention policy')
-policy_col, budget_col = st.columns(2)
-with policy_col:
+st.set_page_config(page_title='TraceFork', page_icon='↗', layout='wide', initial_sidebar_state='expanded')
+st.markdown("""
+<style>
+    :root { --tf-ink: #edf2ff; --tf-muted: #8f9bb8; --tf-panel: #121a2b; --tf-line: #26324b; --tf-accent: #8b7cff; --tf-cyan: #48d7d2; }
+    [data-testid="stAppViewContainer"] { background: radial-gradient(circle at 85% 0%, #20264b 0%, #0b1020 42%, #080c16 100%); }
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stSidebar"] { background: #0d1424; border-right: 1px solid var(--tf-line); }
+    [data-testid="stSidebar"] > div:first-child { padding-top: 2rem; }
+    .tf-brand { display: flex; align-items: center; gap: .75rem; margin-bottom: 2rem; }
+    .tf-mark { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: .75rem; background: linear-gradient(135deg, var(--tf-accent), var(--tf-cyan)); color: #08101d; font-weight: 800; }
+    .tf-name { color: var(--tf-ink); font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; }
+    .tf-kicker { color: var(--tf-cyan); font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .tf-hero { padding: 1.25rem 1.5rem; border: 1px solid var(--tf-line); border-radius: 1rem; background: linear-gradient(135deg, rgba(25,35,62,.92), rgba(15,22,39,.82)); margin-bottom: 1.25rem; }
+    .tf-hero h1 { margin: .2rem 0 .35rem; font-size: 2.4rem; letter-spacing: -.06em; }
+    .tf-hero p { color: var(--tf-muted); margin: 0; }
+    .tf-question { padding: .9rem 1rem; border-left: 3px solid var(--tf-accent); background: rgba(139,124,255,.09); border-radius: .35rem; color: var(--tf-ink); margin: 1rem 0 1.5rem; }
+    .tf-section { color: var(--tf-muted); font-size: .74rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; margin: 1.5rem 0 .55rem; }
+    div[data-testid="stMetric"] { background: rgba(18,26,43,.74); border: 1px solid var(--tf-line); padding: .75rem 1rem; border-radius: .8rem; }
+    .stButton > button[kind="primary"] { background: linear-gradient(90deg, var(--tf-accent), #6258e8); border: 0; }
+</style>
+<div class="tf-brand"><div class="tf-mark">↗</div><div><div class="tf-name">TraceFork</div><div class="tf-kicker">Evidence routing system</div></div></div>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown('<div class="tf-kicker">Investigation controls</div>', unsafe_allow_html=True)
+    question = st.text_area('Research question', 'Why might electric vehicle demand decline?', height=90)
+    st.markdown('**Attention policy**')
     novelty = st.slider(
-        'Evidence balance — Focused (left) → Exploratory (right)',
+        'Evidence balance — Focused → Exploratory',
         min_value=0, max_value=100, value=50,
-        help='Focused keeps the context close to the question. Exploratory admits more novel, intent-relevant evidence for investigation.',
+        help='Left keeps context tight. Right admits more novel, intent-relevant evidence.',
     )
-    st.caption('← **Focused** · tighter context | more novel findings · **Exploratory** →')
-with budget_col:
+    st.caption('← Focused · tighter context | more novelty · Exploratory →')
     max_search_calls = st.slider(
-        'Search budget — One search (left) → More follow-ups (right)',
+        'Search budget — One → More follow-ups',
         min_value=1, max_value=6, value=3,
-        help='The maximum number of live retrieval calls, including the initial search.',
+        help='Maximum live query calls, including the initial search.',
     )
-    st.caption('← **One search** · lower cost | more follow-up searches · **More searches** →')
-mode = st.selectbox('Source mode', ['Demo passages', 'Tavily', 'Telem', 'Both'])
-latency_mode = st.radio(
-    'Latency mode',
-    ['Fast preview', 'Deep investigation'],
-    horizontal=True,
-    help='Fast preview makes one small retrieval call and uses snippets. Deep investigation may run follow-ups and fetch full pages before answering.',
-)
-semantic = st.checkbox('Use semantic embeddings (requires sentence-transformers)', value=False)
-show_space = st.checkbox('Show interactive 3D context space', value=True)
-generate_answer = st.checkbox('Generate cited answer (requires an answer-model API key)', value=False)
-answer_provider = st.selectbox('Answer provider', ['Auto', 'Local', 'Gemini', 'OpenAI']) if generate_answer else 'Auto'
+    st.caption('← One search · lower latency | more searches · More →')
+    mode = st.selectbox('Retrieval providers', ['Demo passages', 'Tavily', 'Telem', 'Both'])
+    latency_mode = st.radio(
+        'Run mode', ['Fast preview', 'Deep investigation'],
+        help='Fast uses one search and snippets. Deep runs the visible query plan and can fetch selected pages.',
+    )
+    semantic = st.checkbox('Use semantic embeddings', value=False, help='Downloads a sentence-transformer model on first use.')
+    show_space = st.checkbox('Show 3D context space', value=True)
+    generate_answer = st.checkbox('Generate cited answer', value=False, help='Uses the selected local or cloud answer model.')
+    answer_provider = st.selectbox('Answer provider', ['Auto', 'Local', 'Gemini', 'OpenAI']) if generate_answer else 'Auto'
+    run_clicked = st.button('Run investigation', type='primary', use_container_width=True)
+
+st.markdown('<div class="tf-hero"><div class="tf-kicker">Trace the evidence</div><h1>From question to context.</h1><p>Keep the answer anchored while preserving the findings that could change it.</p></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="tf-question"><strong>Research question</strong><br>{question}</div>', unsafe_allow_html=True)
 
 DEMO = [
     Passage('price', 'Electric vehicle demand can decline because purchase prices remain high.', 'https://demo.example/price', title='EV pricing'),
@@ -44,7 +65,7 @@ DEMO = [
     Passage('space', 'Astronomers discover distant galaxy using a new telescope.', 'https://demo.example/space', title='Space news'),
 ]
 
-if st.button('Run research selection', type='primary'):
+if run_clicked:
     try:
         embedder = None
         if semantic:
