@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A different NVIDIA question is searched as the CoreWeave query
+
+Requirement: the CoreWeave retrieval query is used for the Story A question. A different question is searched with its own wording. The stored question stays the user's question.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_search_rewrite.py::test_unrelated_nvidia_question_is_not_rewritten_to_coreweave --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The question is `What risks follow an NVIDIA investment if inference capacity is already sufficient for current demand and no new data-center buildout is planned?` It does not mention CoreWeave. No live call is made.
+
+Expected: the search query is that question.
+
+Actual: `(['NVIDIA CoreWeave investment AI factories capacity 2026'], 'What risks follow an NVIDIA investment if inference capacity is already sufficient for current demand and no new data-center buildout is planned?')`. The stored question is unchanged.
+
+`exploration/backend/planner.py` lines 33–34 rewrite every question that contains `nvidia`, `investment`, and `capacity`.
+
+Deterministic.
+
+Suggested correction: use the CoreWeave query only for the Story A question. Leave a different question in its own wording.
+
 ## BLOCKER — A long question is searched as an empty query
 
 Requirement: the retrieval query is not empty. A question that is non-empty after stripping is not sent to search as `""`, and that empty query does not spend a search.
