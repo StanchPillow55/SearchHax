@@ -98,7 +98,7 @@ Deterministic.
 
 Suggested correction: when a stored page comes from the fetch cache, increment `usage.cache_hits`. Do not report zero cache hits for that page.
 
-The same gap is in the recorded run `demo/integrated_profile_evaluation.json` on `6d87f2c`. That file lists 8 candidate URLs. `urls_fetched` is 5 and `cache_hits` is 0. A stored page is either a network fetch or a cache hit, so those two counters have to add up to 8.
+The same gap is in the recorded run `demo/integrated_profile_evaluation.json` on `6d87f2c`. That file lists 8 candidate URLs. `urls_fetched` is 5 and `cache_hits` is 0. The local search history for `inv_99aa92ab6bb5459e` shows why the second search still ran. The first search returned 6 URLs and 5 were stored. The second search returned 6 URLs and 3 of those were stored (`sbsheriff.org`, `ojp.gov`, and `regulation.govt.nz`). The fetch budget counts only URLs that were not already cached, so three uncounted cache hits left room for three more network fetches. `cache_hits` stayed 0, which makes 5 fetches look like they produced 8 stored pages.
 
 ```text
 /Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_profile_value.py::test_recorded_profile_run_counts_every_stored_page --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
