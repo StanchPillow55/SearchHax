@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A blank question is stored as an empty investigation
+
+Requirement: the investigation question is the user's question. A body whose question is only whitespace is rejected and no investigation is stored.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_blank_question.py::test_blank_question_is_rejected --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The request body is `{"question": " "}`. No search is run.
+
+Expected: HTTP 422, and no investigation is stored.
+
+Actual: HTTP 200. The stored question is `""`.
+
+`CreateInvestigationRequest.question` has `min_length=1`, so one space passes. `Orchestrator.create` in `exploration/backend/orchestrator.py` line 75 stores `question.strip()`, which is empty.
+
+Deterministic. No network call.
+
+Suggested correction: reject a question that is empty after stripping whitespace. Do not create the investigation.
+
 ## BLOCKER — A hypothesis quote is stored as a supported relationship
 
 Requirement: a relationship the model marks as a hypothesis does not become a supported edge. `hypothesis` is its own status.
