@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The controller ranks the search snippet, not the fetched page
+
+Requirement: after a page is stored, the controller ranks that page. The candidate text includes the fetched sentence.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_fetched_page_rank.py::test_fetched_page_is_what_the_controller_ranks --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search snippet is `Brief.` The fetched page is `NVIDIA has invested $2 billion in CoreWeave. The buildout emphasizes advanced packaging.` The stored document version is that page. No live call is made.
+
+Expected: the candidate text sent to the controller contains `CoreWeave`.
+
+Actual: `['Brief.']`.
+
+`exploration/backend/orchestrator.py` line 501 scores `document.snippet`, and line 567 stores that snippet on the candidate. The fetched page is stored as the document version and is not copied onto the candidate.
+
+Deterministic.
+
+Suggested correction: after the page is stored, rank and send the fetched page text. The search snippet is not a substitute for the stored page.
+
 ## BLOCKER — A fetch interaction is dropped from the session lineage
 
 Requirement: the interaction id from a fetch stays on the investigation, with the search interaction id.
