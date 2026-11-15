@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — The checkpoint records the step latency as zero
+
+Requirement: the checkpoint's usage latency matches the latency stored on the investigation.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_checkpoint_latency.py::test_checkpoint_records_the_step_latency --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One page is fetched. The step latency is fixed at 123 ms. No live call is made.
+
+Expected: the checkpoint usage latency is 123.
+
+Actual: `([0], 123)`. The checkpoint says 0 and the investigation says 123.
+
+`exploration/backend/orchestrator.py` line 355 saves the checkpoint, and line 356 sets `latency_ms` after that save.
+
+Deterministic.
+
+Suggested correction: set the step latency before saving the checkpoint.
+
 ## BLOCKER — An empty fetched body spends a URL slot
 
 Requirement: a fetch that returns an empty body does not consume a fetched-URL slot. No document is stored.
