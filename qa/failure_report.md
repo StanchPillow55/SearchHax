@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A long question is searched as an empty query
+
+Requirement: the retrieval query is not empty. A question that is non-empty after stripping is not sent to search as `""`, and that empty query does not spend a search.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_empty_search_query.py::test_long_question_does_not_search_an_empty_query --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The question is a period followed by `capacity planning ` repeated 12 times (217 characters). No live call is made.
+
+Expected: search is not called, and `search_calls` stays 0. The stored question stays the original text.
+
+Actual: `([''], 1)`.
+
+`exploration/backend/planner.py` lines 35–38 split a question longer than 180 characters on the first `.`, `?`, or newline. The first piece is empty, so the query is `""`. `exploration/backend/orchestrator.py` lines 341–342 pass that string to `retrieval.search`.
+
+Deterministic.
+
+Suggested correction: if the formulated query is empty after stripping, do not search it and do not increment `search_calls`. Search a non-empty slice of the original question instead.
+
 ## BLOCKER — A null answer body crashes the answer endpoint
 
 Requirement: a model response with no text is a blocked answer. The answer endpoint does not return 500, and it does not invent prose.
