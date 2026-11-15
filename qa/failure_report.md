@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — Blank model text is stored as a successful answer
+
+Requirement: a model response that is empty after stripping is a blocked answer. It is not stored as a successful answer with empty markdown.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_blank_model_text_is_not_a_successful_answer --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The stored quote is `NVIDIA has invested $2 billion in CoreWeave.` The answer model returns three spaces and a newline. No live call is made.
+
+Expected: `blocked` is true and the markdown is empty.
+
+Actual: `(False, '')`. `cited_markers` is empty and `llm_tokens` is 1.
+
+`exploration/backend/answer.py` line 152 strips the body. Lines 164–172 then store that empty string with `blocked=False` when no marker remains. `exploration/backend/main.py` lines 102–106 persist that result.
+
+Deterministic.
+
+Suggested correction: when the stripped model text is empty, return a blocked answer. Do not store it as a successful answer.
+
 ## BLOCKER — A considered source is published without that label
 
 Requirement: a source that was only considered, and whose snippet is not an exact quote from a stored page, is labeled as considered in the published answer. It is not presented as a verified source.

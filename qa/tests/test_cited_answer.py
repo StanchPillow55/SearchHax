@@ -164,6 +164,20 @@ def test_considered_source_is_labeled_in_the_answer():
     assert "considered" in answer.markdown.lower(), answer.markdown
 
 
+def test_blank_model_text_is_not_a_successful_answer():
+    class Client:
+        configured = True
+        model = "qa-answer"
+
+        def complete_text(self, system, user):
+            del system, user
+            return ("   \n", {"total_tokens": 1})
+
+    answer = compose_answer(_export(), client=Client())
+    assert answer.blocked is True, (answer.blocked, answer.markdown)
+    assert answer.markdown == ""
+
+
 def test_null_answer_body_is_a_blocked_answer(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEM_API_KEY", "qa-dummy")
 
