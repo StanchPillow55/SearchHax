@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A fetch with a different canonical URL is dropped
+
+Requirement: a fetch that returns the page for the requested URL is stored, including when the response names a different canonical URL.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_fetch_canonical_url.py::test_fetch_canonical_url_still_stores_the_page --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search hit is `https://news.example/a`. The fetch returns that URL, canonical URL `https://news.example/final`, and the page `NVIDIA has invested $2 billion in CoreWeave.` No live call is made.
+
+Expected: the stored document version is that sentence.
+
+Actual: `([], 1)`. The search ran and the page was not stored.
+
+`exploration/backend/orchestrator.py` lines 519–524 look up the fetch result only by `page.canonical_url`. The search hit's URL is not that key, so the content is skipped.
+
+Deterministic.
+
+Suggested correction: find the fetched page by the requested URL as well as the canonical URL, and store it.
+
 ## BLOCKER — A different amount is archived as a duplicate
 
 Requirement: a passage that states a different amount is not archived as a duplicate of the other amount.
