@@ -111,3 +111,43 @@ class OpenAICompatibleClient:
         usage.setdefault("model", self.model)
         usage.setdefault("backend", "openai-compatible")
         return parsed, usage
+
+    def complete_text(self, system: str, user: str) -> tuple[str, dict[str, Any]]:
+        """Return free-form text (not JSON) from the chat endpoint.
+
+        Shares the Anthropic-compatibility handling with complete_json but does
+        not request or parse JSON. Used for prose answer synthesis.
+        """
+        if not self.api_key:
+            raise LLMNotConfigured("LLM_API_KEY and OPENAI_API_KEY are missing")
+        if local_ollama_endpoint(self.base_url) and os.environ.get("LLM_FORCE_LOCAL") != "1":
+            raise LocalExtractionUnavailable(
+                "Local LLM is experimental for "
+                f"{self.model} at {self.base_url}. The request was not sent."
+            )
+        url = f"{self.base_url}/chat/completions"
+        is_anthropic = anthropic_endpoint(self.base_url)
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": 1200,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        if not is_anthropic:
+            payload["temperature"] = 0.2
+        timeout = httpx.Timeout(self.timeout, connect=10.0)
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(
+                url,
+                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            response.raise_for_status()
+            body = response.json()
+        content = body["choices"][0]["message"]["content"]
+        usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        usage.setdefault("model", self.model)
+        usage.setdefault("backend", "openai-compatible")
+        return content, usage

@@ -20,7 +20,7 @@ from shared.contracts import (
 
 from exploration.backend.baseline import run_baseline
 from exploration.backend.config import default_db_path
-from exploration.backend.focus_bridge import focus_http_response
+from exploration.backend.focus_bridge import focus_http_response, focus_post
 from exploration.backend.orchestrator import Orchestrator
 
 LOCAL_ORIGINS = [
@@ -44,11 +44,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
-    app.state.orchestrator = Orchestrator(db_path or default_db_path())
+    # Resolve the convergence decision through the focus ranker in this same
+    # process. The /api/convergence/evaluate HTTP route still exists for
+    # external callers, but stepping an investigation on this server must not
+    # make a blocking HTTP call back into the same worker.
+    app.state.orchestrator = Orchestrator(db_path or default_db_path(), post=focus_post)
 
     @app.post("/api/exploration/investigations", response_model=Investigation)
     def create_investigation(body: CreateInvestigationRequest) -> Investigation:
-        return app.state.orchestrator.create(body.question, body.budget)
+        return app.state.orchestrator.create(body.question, body.budget, profile=body.profile)
 
     @app.get("/api/exploration/investigations/{investigation_id}", response_model=ExplorationExport)
     def get_investigation(investigation_id: str) -> ExplorationExport:
@@ -85,6 +89,22 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @app.post("/api/exploration/fixtures/story-c", response_model=ExplorationExport)
     def story_c() -> ExplorationExport:
         return app.state.orchestrator.run_story_c()
+
+    @app.post("/api/exploration/investigations/{investigation_id}/answer", response_model=ExplorationExport)
+    def answer_investigation(investigation_id: str) -> ExplorationExport:
+        """Synthesize a cited answer from the investigation's grounded evidence.
+
+        This explains evidence already verified. It adds no facts and does not
+        re-verify. Makes one answer-model call.
+        """
+        from exploration.backend.answer import compose_answer
+
+        export = _load(app, investigation_id)
+        answer = compose_answer(export)
+        export.answer = answer
+        export.investigation.metadata["answer"] = answer.model_dump(mode="json")
+        app.state.orchestrator.database.update_investigation(export.investigation, export.decision)
+        return _load(app, investigation_id)
 
     @app.post("/api/convergence/evaluate", response_model=ConvergenceDecision)
     def convergence_evaluate(body: ConvergenceEvaluateRequest) -> ConvergenceDecision:
