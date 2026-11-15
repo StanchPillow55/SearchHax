@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A blank approved query consumes a search
+
+Requirement: an approved follow-up whose query is only whitespace is not searched and does not spend a search.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_blank_follow_up.py::test_blank_approved_query_is_not_searched --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first search returns one page with the CoreWeave investment sentence. The controller then approves query `"   "`. No live call is made.
+
+Expected: the only search is `NVIDIA CoreWeave investment AI factories capacity 2026`, and `search_calls` stays 1.
+
+Actual: the second search is `'   '`. `search_calls` is 2 and the stop reason is `budget_exhausted`.
+
+`exploration/backend/orchestrator.py` lines 400–402 pass `action.query` to `retrieval.search` after checking duplicates with `strip()`, but they do not reject a query that is empty after stripping.
+
+Deterministic.
+
+Suggested correction: do not search a query that is empty after stripping whitespace. Leave that search unspent.
+
 ## BLOCKER — An archived page drops the open follow-up
 
 Requirement: an unresolved question above the utility floor still produces its follow-up search when one search remains. Archiving the current page does not cancel that search.
