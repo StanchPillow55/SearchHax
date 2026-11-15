@@ -1,5 +1,33 @@
 # Failure report
 
+## BLOCKER — A truncated-excerpt note becomes the next search
+
+Requirement: a model note that the excerpt was cut off is not an unresolved research question and is not a follow-up query. The stored investigation question stays the user's question.
+
+Snapshot: implementation `6d87f2c`.
+
+`demo/integrated_profile_evaluation.json` stores this open question: `The excerpt is truncated mid-sentence at the funding statement ('supported by Cont'), so the funding source and study details are unavailable.`
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_extraction_gaps.py::test_truncated_excerpt_note_is_not_a_follow_up_query --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+No live model is called. The payload has no relationships and one gap whose text is that note.
+
+Expected: the note is not stored as a gap, and no search action uses it as the query.
+
+Actual: `relationships_from_llm_payload` stores it as a gap with `missing_evidence` 1.0. `generate_actions` uses the note as the query. Utility is 0.5, above the 0.15 floor.
+
+`exploration/backend/extraction.py` lines 167–189 append every gap string. `exploration/backend/planner.py` lines 133–137 use that text as the query when the kind is `gap`.
+
+The same file also stores `The excerpt contains only a disclaimer and does not discuss NVIDIA, its investments, GPU customers, or AI capacity expansion, so the research question cannot be addressed from this text.` That sentence takes the same path.
+
+Deterministic.
+
+Suggested correction: do not store a gap that describes the excerpt, a truncation, or a disclaimer. Leave the user's question unchanged and do not search that note.
+
 ## BLOCKER — A quarter number is rewritten into a source citation
 
 Requirement: a bare parenthetical number is not a citation. The answer does not attach a source to "quarter (1)".
