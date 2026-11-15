@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A fetch interaction is dropped from the session lineage
+
+Requirement: the interaction id from a fetch stays on the investigation, with the search interaction id.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_fetch_lineage.py::test_fetch_interaction_is_recorded --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search returns session `sess-search`, interaction `int-search`, and one page URL. The fetch client returns the same session and interaction `int-fetch`, with the CoreWeave sentence as the page. No live call is made.
+
+Expected: `interaction_ids` is `['int-search', 'int-fetch']`.
+
+Actual: `(['int-search'], 'sess-search')`.
+
+`exploration/backend/retrieval.py` lines 504–506 read the fetch response and discard `interaction_id`. The orchestrator records interaction ids only from the search bundle.
+
+Deterministic.
+
+Suggested correction: append the fetch response's `interaction_id` to `usage.interaction_ids`.
+
 ## BLOCKER — A long question is searched as its preamble
 
 Requirement: a long question is not searched as only the sentence before the question. The search query still contains the question that follows the preamble. The stored question is unchanged.
