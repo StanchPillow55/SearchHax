@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — No action and no stop leaves the investigation running
+
+Requirement: a controller response with no approved action does not leave the investigation running with no stop reason. The step records a stop.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_idle_controller.py::test_no_action_and_no_stop_does_not_stay_running --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first step stores one page with the CoreWeave investment sentence. The second step's controller returns `approved_action` null, `stop` false, and `stop_reason` null. No live call is made.
+
+Expected: status is `stopped` and a stop reason is set. `search_calls` stays 1.
+
+Actual: `('running', None, 1)`.
+
+`exploration/backend/orchestrator.py` lines 415–427 stop only when the decision says stop, the source is fallback, or no searches remain. This response matches none of those, so the status stays `running`.
+
+Deterministic.
+
+Suggested correction: when the decision has no approved action, stop the investigation. Use `no_useful_actions` when the controller did not provide a stop reason.
+
 ## BLOCKER — Blank model text is stored as a successful answer
 
 Requirement: a model response that is empty after stripping is a blocked answer. It is not stored as a successful answer with empty markdown.
