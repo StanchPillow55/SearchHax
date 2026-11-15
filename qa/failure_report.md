@@ -1,5 +1,27 @@
 # Failure report
 
+## BLOCKER — The committed evidence schema omits the profile and knowledge value
+
+Requirement: `shared/evidence.schema.json` matches the committed exploration models, including the research profile and the knowledge-value score.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_contract_schema.py::test_committed_schema_includes_profile_and_knowledge_value --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Expected: the schema defines `KnowledgeValue`, `KnownClaim`, and `ResearchProfile`. `ExplorationExport` has `profile`. `EvidenceCandidate` has `knowledge_value`.
+
+Actual: those three definitions are absent. The export schema has no `profile` property. `EvidenceCandidate` has no `knowledge_value` property.
+
+`shared/contracts.py` `ExplorationExport.model_json_schema()` includes them. `write_contract_files` is the writer for `shared/evidence.schema.json`, and the committed file was not regenerated after the profile fields were added.
+
+Deterministic. No network call.
+
+Suggested correction: regenerate `shared/evidence.schema.json` from the committed models. Do not drop `profile` or `knowledge_value` from the models.
+
 ## BLOCKER — A truncated-excerpt note becomes the next search
 
 Requirement: a model note that the excerpt was cut off is not an unresolved research question and is not a follow-up query. The stored investigation question stays the user's question.

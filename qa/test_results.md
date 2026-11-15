@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 26 failed, 80 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
+Result: 27 failed, 80 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed.
 
 Failed:
 
+- `qa/tests/test_contract_schema.py::test_committed_schema_includes_profile_and_knowledge_value`
 - `qa/tests/test_extraction_gaps.py::test_truncated_excerpt_note_is_not_a_follow_up_query`
 - `qa/tests/test_profile_value.py::test_recorded_profile_run_counts_every_stored_page`
 - `exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_runs_a_follow_up_through_convergence`
@@ -41,13 +42,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 43 / 67 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `DEMO-4` passes: the recorded Story C B0 and B3 counts match a fresh offline run.
-2. Passing tests / executed tests: 80 / 106 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
+1. Verified P0 requirements: 43 / 68 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `CTR-1`, `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `DEMO-4` passes: the recorded Story C B0 and B3 counts match a fresh offline run.
+2. Passing tests / executed tests: 80 / 107 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline.
-4. Blocking failures: the recorded profile run stores a truncated-excerpt note as an open question, and that note becomes a follow-up query. The same run stores 8 candidate URLs with `urls_fetched` 5 and `cache_hits` 0. The other blockers on this commit still fail. See `qa/failure_report.md`.
-5. Integration readiness: not ready. A model note about the excerpt can become the next search, and the page count still disagrees with the fetch counter.
+4. Blocking failures: the committed evidence schema omits the research profile and the knowledge-value score. A truncated-excerpt note is still stored as the next search. The recorded profile run still stores 8 candidate URLs with `urls_fetched` 5 and `cache_hits` 0. The other blockers on this commit still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. The published schema does not describe the profile export.
 6. Commit tested: `6d87f2c` (`Record the bounded live profile-enabled integration run.`).
-7. Next validation priority: stop storing an excerpt-truncation note as a gap. Rerun `test_truncated_excerpt_note_is_not_a_follow_up_query`. Then make `urls_fetched + cache_hits` equal the number of stored candidate pages. A read-only check of the gitignored file `exploration/data/integrated-live.sqlite`, investigation `inv_99aa92ab6bb5459e`, found 0 span mismatches across 3 spans and 8 documents. The supported quote `This document is a research report submitted to the U.S. Department of Justice.` is an exact slice of the stored OJP page. That file is not in the commit.
+7. Next validation priority: regenerate `shared/evidence.schema.json` from the committed models and rerun `test_committed_schema_includes_profile_and_knowledge_value`. Then stop storing an excerpt-truncation note as a gap.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 
