@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A later page for a seen URL is not ranked
+
+Requirement: after a URL is ranked from a short snippet, a later passage with the page text for that URL is still ranked.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_seen_url.py::test_later_page_for_a_seen_url_is_ranked --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The first ranking uses `Brief.` at `https://news.example/a`. The second ranking uses `NVIDIA has invested $2 billion in CoreWeave.` at the same URL. No live call is made.
+
+Expected: the second decision list contains the CoreWeave sentence.
+
+Actual: `[]`.
+
+`focus/focus_attention.py` line 259 skips a passage whose source key is already in `seen_keys`. The first ranking records the URL, so the page is dropped.
+
+Deterministic.
+
+Suggested correction: when a later passage for a seen URL has longer text, rank that text.
+
 ## BLOCKER — The same URL keeps the short snippet and drops the page
 
 Requirement: two passages with the same URL are one source, and the ranked text is the fuller page.
