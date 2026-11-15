@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A contradicted amount is labeled supported
+
+Requirement: a quote that states a contradicted amount is not given citation status `supported`.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_contradicted_answer.py::test_contradicted_amount_is_not_labeled_supported --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+Story C is run from the local fixtures. The `$480 million` relationship is contradicted. The same sentence is also used by a supported relationship. No live call is made.
+
+Expected: the citation whose quote contains `$480 million` has status `contradicted`.
+
+Actual: `[('S3', 'supported')]`.
+
+`exploration/backend/answer.py` lines 43–45 skip every relationship whose status is not `supported`, so the contradicted amount never sets the citation status. The sentence is added from the supported relationship on that quote.
+
+Deterministic.
+
+Suggested correction: when a quote is the evidence for a contradicted relationship, label that citation `contradicted`.
+
 ## BLOCKER — A fetch publish date is dropped
 
 Requirement: a publish date returned with the fetched page is stored on that page.
