@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A regex hit hides a later sentence on the same page
+
+Requirement: a disclosed-fact match does not drop the rest of the page. A later sentence is still sent to the configured model and grounded.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_regex_short_circuit.py::test_later_sentence_is_not_hidden_by_the_investment_regex --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The page is `NVIDIA has invested $2 billion in CoreWeave. NVIDIA later said that investment was cancelled and the stake is zero.` The model client is configured and would quote the cancellation sentence. No live call is made.
+
+Expected: the model is called once, and a stored relationship has object `cancelled`.
+
+Actual: `(0, [('invested_in', 'CoreWeave', 'supported'), ('invested_amount', '$2 billion', 'supported')])`.
+
+`exploration/backend/extraction.py` lines 106–107 return the regex batch before the model call. `exploration/backend/orchestrator.py` lines 602–603 return that same batch before the web step uses a configured model.
+
+Deterministic.
+
+Suggested correction: when a model is configured, ground the rest of the page as well. Do not return the regex batch before that call.
+
 ## BLOCKER — The controller ranks the search snippet, not the fetched page
 
 Requirement: after a page is stored, the controller ranks that page. The candidate text includes the fetched sentence.
