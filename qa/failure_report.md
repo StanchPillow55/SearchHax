@@ -1,5 +1,53 @@
 # Failure report
 
+## BLOCKER — An invented citation is published in the answer
+
+Requirement: a synthesized answer cites only supplied markers and URLs. An unknown marker and an unknown URL are not shown.
+
+Snapshot: implementation `ece7a3c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_invented_marker_and_url_are_not_published --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The only stored quote is `NVIDIA has invested $2 billion in CoreWeave.` The answer model returns `NVIDIA invested $2 billion [S99]. See https://evil.example/fake [S1].` No live call is made.
+
+Expected: the published markdown contains neither `[S99]` nor `evil.example`. `cited_markers` is `["S1"]`.
+
+Actual: the markdown is that sentence plus a Sources list for `[S1]`. `[S99]` and `https://evil.example/fake` remain in the prose. `cited_markers` is `["S1"]`.
+
+`exploration/backend/answer.py` lines 152–162 keep the model text. They drop unknown markers only from `cited_markers`.
+
+Deterministic.
+
+Suggested correction: remove any `[S#]` marker that is not in the supplied citation list, and remove any URL that is not a supplied citation URL, before the markdown is stored.
+
+## BLOCKER — The answer call ignores the LLM budget
+
+Requirement: an answer-model call is refused when the investigation has no remaining LLM calls, and a call that does run is counted.
+
+Snapshot: implementation `ece7a3c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_cited_answer.py::test_answer_call_stops_when_the_llm_budget_is_spent --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+One page with the CoreWeave investment sentence is stored. `llm_calls_used` and `usage.llm_calls` are then set to `max_llm_calls` (10). `POST /api/exploration/investigations/{id}/answer` is called. The model client is injected. No live call is made.
+
+Expected: the model is not called. The answer is blocked. `usage.llm_calls` stays 10.
+
+Actual: `(1, False, 10)`. The model is called once, `answer.blocked` is false, and `usage.llm_calls` stays 10.
+
+`exploration/backend/main.py` lines 102–106 call `compose_answer` and store the result. They do not read `remaining_llm_calls` and they do not increment `usage.llm_calls`.
+
+Deterministic.
+
+Suggested correction: do not call the answer model when `remaining_llm_calls` is 0. When a call runs, increment `llm_calls_used` and `usage.llm_calls`.
+
 ## BLOCKER — A blank approved query consumes a search
 
 Requirement: an approved follow-up whose query is only whitespace is not searched and does not spend a search.
@@ -96,35 +144,11 @@ Deterministic.
 
 Suggested correction: when `kind` is `hypothesis`, store status `hypothesis`. Do not mark it `supported`.
 
-## BLOCKER — The API drops a research profile sent at creation
+## BLOCKER — The committed evidence schema omits the profile, the answer, and knowledge value
 
-Requirement: a profile included when an investigation is created is stored and returned on the export. It is the same read-only profile the orchestrator can attach.
+Requirement: `shared/evidence.schema.json` matches the committed exploration models, including the research profile, the cited answer, and the knowledge-value score.
 
-Snapshot: implementation `6d87f2c`.
-
-Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
-
-```text
-/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_api_profile.py::test_api_create_keeps_the_research_profile --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
-```
-
-The request body includes `profile.id` `profile_ai_infrastructure` and unresolved interest `advanced packaging`. No search is run.
-
-Expected: the export's `profile.id` is `profile_ai_infrastructure` and `unresolved_interests` is `["advanced packaging"]`.
-
-Actual: the create call returns 200 and the export's `profile` is null.
-
-`CreateInvestigationRequest` has `question` and `budget` only. `extra="ignore"` on the contract models drops `profile`. `exploration/backend/main.py` line 51 calls `orchestrator.create(body.question, body.budget)` and does not pass a profile. `Orchestrator.create` can store one.
-
-Deterministic. No network call.
-
-Suggested correction: accept `profile` on `CreateInvestigationRequest` and pass it to `Orchestrator.create`. Return that profile on the export.
-
-## BLOCKER — The committed evidence schema omits the profile and knowledge value
-
-Requirement: `shared/evidence.schema.json` matches the committed exploration models, including the research profile and the knowledge-value score.
-
-Snapshot: implementation `6d87f2c`.
+Snapshot: implementation `ece7a3c`.
 
 Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 
@@ -132,9 +156,9 @@ Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
 /Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_contract_schema.py::test_committed_schema_includes_profile_and_knowledge_value --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
 ```
 
-Expected: the schema defines `KnowledgeValue`, `KnownClaim`, and `ResearchProfile`. `ExplorationExport` has `profile`. `EvidenceCandidate` has `knowledge_value`.
+Expected: the schema defines `AnswerCitation`, `GroundedAnswer`, `KnowledgeValue`, `KnownClaim`, and `ResearchProfile`. `ExplorationExport` has `answer` and `profile`. `EvidenceCandidate` has `knowledge_value`.
 
-Actual: those three definitions are absent. The export schema has no `profile` property. `EvidenceCandidate` has no `knowledge_value` property.
+Actual: `(['AnswerCitation', 'GroundedAnswer', 'KnowledgeValue', 'KnownClaim', 'ResearchProfile'], ['answer', 'profile'], ['knowledge_value'])`.
 
 `shared/contracts.py` `ExplorationExport.model_json_schema()` includes them. `write_contract_files` is the writer for `shared/evidence.schema.json`, and the committed file was not regenerated after the profile fields were added.
 
