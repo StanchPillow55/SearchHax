@@ -7,6 +7,7 @@ Statuses below are from `qa/tests/` run against that commit. Developer tests wer
 | ID | Description | Priority | Expected behavior | Code | Test | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RET-1 | Canonical URL normalization | P0 | Fragment, host case, and trailing slash collapse to one URL | `exploration/backend/retrieval.py` `normalize_url` | `test_url_normalization_collapses_fragment_host_and_trailing_slash` | VERIFIED | Passed |
+| RET-14 | Empty URL is not a document | P0 | A search hit with no URL is not fetched and is not stored | `retrieval.py` `_hit_from_mapping` lines 345–347 | `test_empty_result_url_is_not_stored` | VERIFIED | On `6d87f2c`. The fetch list is only `https://news.example/a`. The blank URL is not a document |
 | RET-2 | Provider metadata retained | P0 | Each provider hit stays on the merged document | `retrieval.py` `merge_provider_hits` | `test_duplicate_provider_hits_keep_metadata_and_count_as_one_source` | VERIFIED | Passed |
 | RET-3 | Same URL is one source | P0 | Brave and Tavily hits for one URL count as one source | `retrieval.py` `independent_source_count` | same test | VERIFIED | Passed |
 | RET-4 | Network and rate-limit errors | P0 | 400 is not retried; 429 stops after two retries | `retrieval.py` `call_with_retries` | `test_non_transient_errors_are_not_retried_and_rate_limits_stop` | VERIFIED | Passed. 429 ran 3 times, 400 ran once |
