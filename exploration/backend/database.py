@@ -21,6 +21,7 @@ from shared.contracts import (
     EvidenceLink,
     EvidenceSpan,
     ExplorationExport,
+    GroundedAnswer,
     Investigation,
     InvestigationAction,
     OriginCluster,
@@ -514,6 +515,7 @@ class Database:
                 ],
                 checkpoints=checkpoints,
                 decision=decision,
+                answer=(GroundedAnswer.model_validate(metadata["answer"]) if metadata.get("answer") else None),
                 profile=profile,
             )
         return export

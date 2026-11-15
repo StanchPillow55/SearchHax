@@ -356,6 +356,10 @@ class ConvergenceEvaluateRequest(_Model):
 class CreateInvestigationRequest(_Model):
     question: str = Field(min_length=1)
     budget: InvestigationBudget | None = None
+    profile: ResearchProfile | None = Field(
+        default=None,
+        description="Optional read-only research profile. When present, live candidates are also scored with knowledge value.",
+    )
 
 
 class BaselineRequest(_Model):
@@ -391,6 +395,36 @@ class BaselineReport(_Model):
     notes: str = ""
 
 
+class AnswerCitation(_Model):
+    """One source the generated answer is allowed to cite."""
+
+    marker: str  # e.g. S1
+    document_id: str | None = None
+    title: str = ""
+    url: str = ""
+    quote: str = ""
+    status: str = ""  # supported or considered
+
+
+class GroundedAnswer(_Model):
+    """A cited prose answer synthesized from an investigation's evidence.
+
+    The answer explains evidence the investigation already grounded. It does
+    not add facts. Every inline marker maps to one AnswerCitation. This is a
+    synthesis for the reader, not a new verification step.
+    """
+
+    investigation_id: str
+    question: str
+    markdown: str
+    citations: list[AnswerCitation] = Field(default_factory=list)
+    cited_markers: list[str] = Field(default_factory=list)
+    model: str = ""
+    llm_tokens: int | None = None
+    blocked: bool = False
+    blocker: str | None = None
+
+
 class ExplorationExport(_Model):
     """Full investigation snapshot another app can read from JSON Schema alone."""
 
@@ -411,6 +445,10 @@ class ExplorationExport(_Model):
     origin_clusters: list[OriginCluster] = Field(default_factory=list)
     checkpoints: list[Checkpoint] = Field(default_factory=list)
     decision: ConvergenceDecision | None = None
+    answer: GroundedAnswer | None = Field(
+        default=None,
+        description="Optional synthesized cited answer. Present only after the answer endpoint runs.",
+    )
     profile: ResearchProfile | None = Field(
         default=None,
         description="Optional read-only profile snapshot. Absent on investigations that have no profile.",
