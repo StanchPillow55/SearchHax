@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A cited answer publishes a URL secret
+
+Requirement: the published source line does not contain a username or secret from the page URL.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_focus_citation_userinfo.py::test_cited_answer_does_not_publish_url_userinfo --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The passage URL is `https://user:secret@news.example/price`. The model returns `Affordability matters [S1].` No live call is made.
+
+Expected: the markdown contains `https://news.example/price` and does not contain `secret`.
+
+Actual: the source line is `- [S1] [EV affordability](https://user:secret@news.example/price)`.
+
+`focus/answer_composer.py` line 296 interpolates `source.url` into the markdown link. That value is the raw passage URL.
+
+Deterministic.
+
+Suggested correction: cite the URL with userinfo removed.
+
 ## BLOCKER — A URL secret stays in the canonical source key
 
 Requirement: userinfo in a URL is not part of the canonical source key. The stored key is the host and path.
