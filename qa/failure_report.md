@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A hypothesis quote is stored as a supported relationship
+
+Requirement: a relationship the model marks as a hypothesis does not become a supported edge. `hypothesis` is its own status.
+
+Snapshot: implementation `6d87f2c`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_hypothesis_status.py::test_hypothesis_quote_is_not_a_supported_relationship --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The page is `NVIDIA may expand capacity next year.` The payload has one relationship, kind `hypothesis`, quote `NVIDIA may expand capacity`. No model is called.
+
+Expected: no relationship has status `supported`.
+
+Actual: `[('hypothesis', 'supported', 'may expand', 'capacity')]`.
+
+`relationships_from_llm_payload` passes the row to `_add_grounded`. `decide_status` in `exploration/backend/verification.py` lines 47–54 returns `supported` when the quote is an exact substring and contains the subject and object. It does not read `kind`. The baseline counter `hypothesis_relationships` only counts status `hypothesis`, so this edge is counted as supported.
+
+Deterministic.
+
+Suggested correction: when `kind` is `hypothesis`, store status `hypothesis`. Do not mark it `supported`.
+
 ## BLOCKER — The API drops a research profile sent at creation
 
 Requirement: a profile included when an investigation is created is stored and returned on the export. It is the same read-only profile the orchestrator can attach.
