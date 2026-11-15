@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — An empty fetched body spends a URL slot
+
+Requirement: a fetch that returns an empty body does not consume a fetched-URL slot. No document is stored.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_empty_ok_fetch.py::test_empty_ok_fetch_does_not_spend_a_url_slot --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The search returns one URL. The fetch returns `status` `ok` and `content` `""`. No live call is made.
+
+Expected: `urls_fetched` is 0 and no document version is stored.
+
+Actual: `(1, 1)`. `urls_fetched` is 1 and `fetch_calls` is 1. The document list is empty.
+
+`exploration/backend/retrieval.py` line 197 counts the URL before the body is known. `exploration/backend/orchestrator.py` lines 523–525 skip the empty body and do not return the slot.
+
+Deterministic.
+
+Suggested correction: do not count a URL whose fetched body is empty. Leave that slot unspent.
+
 ## BLOCKER — A contradicted amount is labeled supported
 
 Requirement: a quote that states a contradicted amount is not given citation status `supported`.
