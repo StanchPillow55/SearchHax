@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A sentence with no question words is left out of the excerpt
+
+Requirement: a sentence on the stored page is still sent to the model when it does not repeat the question's words.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_excerpt_overlap.py::test_nonoverlapping_sentence_is_sent_to_the_model --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The page has two paragraphs. The first is `NVIDIA discussed CoreWeave capacity plans for next year.` The second is `The stake was cancelled.` The question is `What did NVIDIA announce about CoreWeave capacity?` The model is configured. No live call is made.
+
+Expected: the model prompt contains `The stake was cancelled.`
+
+Actual: the excerpt is only `NVIDIA discussed CoreWeave capacity plans for next year.`
+
+`exploration/backend/extraction.py` lines 296–297 skip a paragraph with no question-token overlap once another paragraph has been chosen. The call at line 204 uses that excerpt.
+
+Deterministic.
+
+Suggested correction: keep the rest of the stored page in the excerpt, including sentences that do not share question tokens.
+
 ## BLOCKER — A regex hit hides a later sentence on the same page
 
 Requirement: a disclosed-fact match does not drop the rest of the page. A later sentence is still sent to the configured model and grounded.
