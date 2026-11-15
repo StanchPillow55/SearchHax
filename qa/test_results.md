@@ -1,6 +1,6 @@
 # Test results
 
-Latest check: implementation commit `ece7a3c` (`Merge remote-tracking branch 'origin/main'`), which includes `bb41494` (cited answer) and `83eec46` (backend-backed Streamlit UI).
+Latest check: implementation commit `e8a1f68` (`Make the follow-up control prominent and harden LLM JSON parsing`).
 
 Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharaguchi/SearchHax/exploration/.venv`:
 
@@ -8,10 +8,11 @@ Command, from `/Users/bradleyharaguchi/SearchHax-QA`, using `/Users/bradleyharag
 python -m pytest exploration/tests qa/tests -m "not integration" -q --tb=short -p no:cacheprovider --override-ini=testpaths=
 ```
 
-Result: 33 failed, 84 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed. `test_api_create_keeps_the_research_profile` now passes.
+Result: 34 failed, 88 passed, 2 deselected, exit status 1. No Telem, Tavily, or LLM call was made. From `focus/`, `python -m unittest test_focus_attention.py test_answer_composer.py`: 24 passed. `test_api_create_keeps_the_research_profile` passes. The four new `extract_json_object` unit tests pass.
 
 Failed:
 
+- `qa/tests/test_llm_preamble.py::test_preamble_example_is_not_stored_as_supported`
 - `qa/tests/test_cited_answer.py::test_invented_marker_and_url_are_not_published`
 - `qa/tests/test_cited_answer.py::test_answer_call_stops_when_the_llm_budget_is_spent`
 - `qa/tests/test_blank_follow_up.py::test_blank_approved_query_is_not_searched`
@@ -48,13 +49,13 @@ Failed:
 
 A read-only check of the gitignored file `exploration/data/cold/story.sqlite` on the implementation machine, investigation `inv_8e46a18764e64eb0`, found 0 span offset mismatches across 3 spans and 6 links. The 6 supported rows are 2 facts on 3 pages. `llm_tokens` and `cost_usd` are null. That file is not in the commit.
 
-1. Verified P0 requirements: 47 / 78 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `ANS-1`, `ANS-2`, `LOOP-10`, `FOC-10`, `API-2`, `EXT-10`, `CTR-1`, `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `API-1` passes: create stores the profile. `ANS-3` passes: a missing answer key stores an empty blocked answer.
-2. Passing tests / executed tests: 84 / 117 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
+1. Verified P0 requirements: 47 / 79 rows marked P0 in `qa/acceptance_matrix.md` are VERIFIED. `EXT-11`, `ANS-1`, `ANS-2`, `LOOP-10`, `FOC-10`, `API-2`, `EXT-10`, `CTR-1`, `EXT-9`, `FOC-9`, `FOC-8`, `FOC-7`, `USG-1`, `EXT-8`, `FOC-6`, `FOC-5`, `FOC-4`, `FOC-3`, `CHK-4`, `RET-12`, `RET-11`, `RET-10`, `LOOP-9`, `GRF-9`, `EXT-7`, `EXT-6`, `GRF-8`, `RET-9`, `LOOP-7`, and `FOC-1` failed. `DEMO-3` was not rerun live. `UI-1` has no React graph. `API-1` passes: create stores the profile. `ANS-3` passes: a missing answer key stores an empty blocked answer.
+2. Passing tests / executed tests: 88 / 122 offline pytest tests. 2 live tests deselected. Focus unit tests: 24 / 24.
 3. Unimplemented: clickable React graph, Story B as a live web investigation, Story D, domain routing, continuous monitoring. The profile fixture covers the ceramic bridge offline. A Streamlit backend UI exists at `focus/ui_backend.py`.
-4. Blocking failures: the cited answer keeps an invented marker and URL. The answer model is called after the LLM budget is spent, and that call is not counted. The other blockers on this commit still fail. See `qa/failure_report.md`.
-5. Integration readiness: not ready. A published answer can cite a source that was not retrieved.
-6. Commit tested: `ece7a3c` (`Merge remote-tracking branch 'origin/main'`).
-7. Next validation priority: strip unknown markers and unknown URLs from the answer, and refuse the answer call when `remaining_llm_calls` is 0. Rerun `test_invented_marker_and_url_are_not_published` and `test_answer_call_stops_when_the_llm_budget_is_spent`.
+4. Blocking failures: a preamble example is stored as a supported relationship and the later extraction payload is ignored. The cited answer still keeps an invented marker and URL. The answer model is still called after the LLM budget is spent. The other blockers on this commit still fail. See `qa/failure_report.md`.
+5. Integration readiness: not ready. An example object in a model response can become a supported fact.
+6. Commit tested: `e8a1f68` (`Make the follow-up control prominent and harden LLM JSON parsing`).
+7. Next validation priority: ground the extraction payload when a model response contains more than one JSON object, and rerun `test_preamble_example_is_not_stored_as_supported`.
 
 Previous release check: implementation commit `c81ea8e`, QA commit that imports it is recorded in `qa/release_report.md`.
 

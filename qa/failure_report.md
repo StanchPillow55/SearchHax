@@ -1,5 +1,29 @@
 # Failure report
 
+## BLOCKER — A preamble example becomes a supported relationship
+
+Requirement: when a model response contains an example object and then the extraction payload, only the extraction payload is grounded. An example is not stored as a supported relationship.
+
+Snapshot: implementation `e8a1f68`.
+
+Reproduction, from `/Users/bradleyharaguchi/SearchHax-QA`:
+
+```text
+/Users/bradleyharaguchi/SearchHax/exploration/.venv/bin/python -m pytest qa/tests/test_llm_preamble.py::test_preamble_example_is_not_stored_as_supported --tb=short -p no:cacheprovider --override-ini=testpaths=qa/tests
+```
+
+The page is `NVIDIA has invested $2 billion in CoreWeave.` The model text starts with an example relationship and then returns `{"relationships": [], "gaps": []}`. No live call is made.
+
+Expected: no supported relationship.
+
+Actual: the example is stored as `('invested_in', 'CoreWeave', 'supported')`. The later payload is ignored.
+
+`exploration/backend/llm.py` lines 54–77 return the first balanced `{...}`. `complete_json` parses that object, and `relationships_from_llm_payload` grounds it.
+
+Deterministic.
+
+Suggested correction: when more than one top-level object is present, ground the object that is the extraction payload. Do not ground an example object that precedes it.
+
 ## BLOCKER — An invented citation is published in the answer
 
 Requirement: a synthesized answer cites only supplied markers and URLs. An unknown marker and an unknown URL are not shown.
