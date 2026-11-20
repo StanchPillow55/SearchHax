@@ -148,10 +148,10 @@ function SideCard({ title, s, onOpen }: { title: string; s: Side; onOpen?: () =>
           <b>{s.sources}</b> sources
         </li>
         <li>
-          <b>{s.claims}</b> claims
+          <b>{s.claims}</b> claims{s.claimRecords !== s.claims ? ` (${s.claimRecords} records)` : ""}
         </li>
         <li>
-          <b>{s.openQuestions}</b> open questions
+          <b>{s.openQuestions}</b> open questions{s.questionRecords !== s.openQuestions ? ` (${s.questionRecords} records)` : ""}
         </li>
       </ul>
     </div>

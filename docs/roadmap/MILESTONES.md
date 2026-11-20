@@ -43,9 +43,19 @@ Status legend:
 - [ ] Pass the offline, integration, browser, security and budget tests: offline, browser and budget pass; there is no account/authorization model to test
 - [ ] Use the deployed app without local developer tools: container verified locally only ⛔ host not chosen
 
+## Defect status (2026-11-20, after the workspace audit)
+
+- **QA failure report** (`qa/failure_report.md` on the QA branch: 61 BLOCKER + 1 HIGH, 64 named tests): every test exists in `qa/tests` on PR #5. **62 pass**; 2 are skipped pending product decisions (Q13, Q17). The full offline run is 254 cases with 0 failures.
+- **Open:**
+  - P1: live `LLM extraction failed: JSONDecodeError`, seen in two live runs (2026-11-14 in the stash's Story A record and 2026-11-20). The cause is unconfirmed; the blocker now records the finish reason.
+  - P2: knowledge corrections are not ranking inputs.
+  - P3: no parent+child 3D overlay.
+- **Fixed in this pass:** parent/child compare counted claims and open questions per stored record ("3 open questions" for one question) while Findings grouped them. Compare now counts distinct texts and shows record counts alongside.
+- **Workspace:** one repository, a main checkout plus three worktrees. Only the QA branch has unpushed work (61 commits; a bundle backup exists). The consolidation plan is kept outside the repository because it contains local paths.
+
 ## Handoff: next actionable tasks
 
-1. Review and merge PR #4, then PR #5 (yours).
+1. Review and merge PR #4 (merge commit), retarget PR #5 to `main`, then merge PR #5 (yours; commands in the session report).
 2. Diagnose the live `JSONDecodeError`: run one more capped live step, which now records the finish reason. If it is `length`, raise or adapt `max_tokens` for Anthropic in `exploration/backend/llm.py`.
 3. Make knowledge corrections ranking inputs (M8 P2): feed confirmed `known` assertions into `knowledge_value` as known claims.
 4. Decide Q13 and Q17 (`qa/tests/README.md`).
