@@ -87,3 +87,13 @@ describe("findings are built only from persisted records", () => {
     expect(bad.answerInvalid).toBe(true);
   });
 });
+
+describe("open questions (live run, 2026-11-20)", () => {
+  it("groups identical question text and keeps every record id", async () => {
+    const { groupOpenQuestions } = await import("./findingsModel");
+    const q = (id: string, text: string) => ({ id, text, kind: "gap" }) as Parameters<typeof groupOpenQuestions>[0][number];
+    const groups = groupOpenQuestions([q("q1", "What demand is tied to it?"), q("q2", "What  demand is tied to it? "), q("q3", "Who supplies HBM?")]);
+    expect(groups.map((g) => g.recordIds)).toEqual([["q1", "q2"], ["q3"]]);
+    expect(groups[0].text).toBe("What demand is tied to it?");
+  });
+});
