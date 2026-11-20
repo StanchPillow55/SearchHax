@@ -30,6 +30,11 @@ _FIXTURE_DIRECTIVE = re.compile(
     r"object=\"(?P<object>[^\"]+)\"\s+quote=\"(?P<quote>[^\"]+)\"\]\]"
 )
 
+_EXCERPT_NOTE = re.compile(
+    r"\b(?:the|this) (?:excerpt|snippet|provided text|supplied text)\b|\btruncated\b|\bmid-sentence\b|\bcut off\b",
+    re.I,
+)
+
 _SYSTEM_PROMPT = """You extract entities, atomic claims, and subject-predicate-object relationships from one source document.
 Return JSON with keys entities, relationships, gaps, hypotheses.
 Each relationship needs subject, predicate, object, quote, kind.
@@ -103,11 +108,11 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
-    if disclosed.relationships:
-        return disclosed
     client = llm if llm is not None else OpenAICompatibleClient(timeout=12)
+    if disclosed.relationships and not client.configured:
+        return disclosed
     if client.configured:
-        return _extract_with_llm(
+        extracted = _extract_with_llm(
             client,
             content,
             document_id=document_id,
@@ -117,6 +122,17 @@ def extract_document(
             publish_date=publish_date,
             gaps=gaps,
         )
+        if not disclosed.relationships:
+            return extracted
+        # The disclosed-fact pattern does not hide the rest of the page: the
+        # model's grounded relationships are kept alongside it.
+        merged = merge_batches([disclosed, extracted])
+        merged.mode = "disclosed_facts+llm"
+        # Grounded disclosed facts exist, so extraction is not blocked; a model
+        # failure is still reported through ``blocker``.
+        merged.live_extraction_blocked = False
+        merged.blocker = extracted.blocker if extracted.live_extraction_blocked else None
+        return merged
     return ExtractionBatch(
         live_extraction_blocked=True,
         mode="blocked",
@@ -175,7 +191,9 @@ def relationships_from_llm_payload(
                 importance = 0.5
         else:
             continue
-        if not text:
+        if not text or _EXCERPT_NOTE.search(text):
+            # A note about the excerpt itself (truncation, missing text) is not
+            # an open research question and must not become a search.
             continue
         importance = max(0.0, min(1.0, importance))
         batch.questions.append(
@@ -233,7 +251,35 @@ def _extract_with_llm(
     return batch
 
 
-_INVESTMENT = re.compile(r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)")
+# "CoreWeave's rival" is not CoreWeave: the company name must end the noun phrase.
+_INVESTMENT = re.compile(
+    r"NVIDIA has invested (?P<amount>\$[\d.]+ billion) in (?P<company>CoreWeave)(?![\w'\u2019-])"
+)
+# Wording in the same sentence that denies, hedges, or reports a rumor: the
+# sentence does not assert the investment.
+_NOT_ASSERTED = re.compile(
+    r"\b(?:rumou?r(?:ed|s)?|unconfirmed|unverified|denie[sd]|deny|denial|false|alleged(?:ly)?|"
+    r"not|never|no evidence|speculat\w*|hoax)\b",
+    re.I,
+)
+# A demand gap is closed only by a sentence that states a figure for demand or
+# revenue; a sentence asserting that demand rose because of something is not that.
+_DEMAND = re.compile(r"customer demand|downstream demand|product revenue", re.I)
+
+
+def _sentence_around(content: str, start: int, end: int) -> str:
+    left = max(content.rfind(mark, 0, start) for mark in (".", "!", "?", "\n"))
+    right_candidates = [i for i in (content.find(mark, end) for mark in (".", "!", "?", "\n")) if i >= 0]
+    right = min(right_candidates) if right_candidates else len(content)
+    return content[left + 1 : right + 1]
+
+
+def _demand_stated(content: str) -> bool:
+    for match in _DEMAND.finditer(content):
+        sentence = _sentence_around(content, match.start(), match.end())
+        if re.search(r"\d", sentence):
+            return True
+    return False
 
 
 def _extract_disclosed_facts(
@@ -250,6 +296,9 @@ def _extract_disclosed_facts(
     batch = ExtractionBatch(mode="disclosed_facts")
     found_investment = False
     for match in _INVESTMENT.finditer(content):
+        sentence = _sentence_around(content, match.start(), match.end())
+        if _NOT_ASSERTED.search(sentence):
+            continue
         quote = match.group(0)
         _add_grounded(
             batch, content=content, document_id=document_id, version_id=version_id, version_hash=version_hash,
@@ -264,7 +313,7 @@ def _extract_disclosed_facts(
             publish_date=publish_date, gaps=gaps, kind="factual",
         )
         found_investment = True
-    demand_stated = re.search(r"customer demand|downstream demand|product revenue", content, re.I) is not None
+    demand_stated = _demand_stated(content)
     if found_investment and not demand_stated:
         batch.questions.append(
             UnresolvedQuestion(
@@ -292,9 +341,8 @@ def _llm_excerpt(content: str, question: str, limit: int = 5000) -> str:
     chosen: list[str] = []
     size = 0
     for paragraph in ranked:
-        overlap = len(set(re.findall(r"[a-z0-9]+", paragraph.lower())) & question_tokens)
-        if overlap == 0 and chosen:
-            continue
+        # Paragraphs that do not repeat the question still go in (ranked
+        # last): a short later sentence can change what the page says.
         room = limit - size
         if room <= 0:
             break
@@ -424,6 +472,12 @@ def _add_grounded(
     status, assessment = decide_status(content, quote, subject, obj)
     subject_entity = _entity(batch, subject, subject_type)
     object_entity = _entity(batch, obj, object_type)
+    if assessment.valid and status == "supported" and kind.strip().lower() not in {"factual", "fact", ""}:
+        # A grounded hypothesis (or other non-factual kind) is recorded as a
+        # hypothesis, never as supported evidence.
+        _add_hypothesis(batch, document_id=document_id, subject=subject, predicate=predicate, obj=obj,
+                        quote=quote, kind=kind, subject_entity=subject_entity, object_entity=object_entity)
+        return
     if not assessment.valid or status != "supported":
         batch.rejected_ungrounded += 1
         claim_id = stable_id("clm", document_id, predicate, obj, "ungrounded", quote)
@@ -511,6 +565,32 @@ def _add_grounded(
             stance="supports",
             quote_valid=True,
             semantic_status="supported",
+        )
+    )
+
+
+def _add_hypothesis(batch, *, document_id, subject, predicate, obj, quote, kind, subject_entity, object_entity) -> None:
+    claim_id = stable_id("clm", document_id, predicate, obj, "hypothesis", quote)
+    rel_id = stable_id("rel", document_id, subject, predicate, obj, "hypothesis", quote)
+    if any(rel.id == rel_id for rel in batch.relationships):
+        return
+    batch.claims.append(
+        Claim(id=claim_id, text=quote, status="hypothesis", document_id=document_id, span_id=None)
+    )
+    batch.relationships.append(
+        Relationship(
+            id=rel_id,
+            subject_id=subject_entity.id,
+            predicate=predicate,
+            object_id=object_entity.id,
+            claim_id=claim_id,
+            kind=kind,
+            status="hypothesis",
+            document_id=document_id,
+            subject_name=subject,
+            object_name=obj,
+            source_document_ids=[document_id],
+            notes=f"Stated as {kind}, not as a fact. The quotation is exact, but it is not support.",
         )
     )
 

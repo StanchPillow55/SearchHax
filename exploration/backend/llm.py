@@ -51,6 +51,16 @@ def extract_json_object(text: str) -> str:
     original text is returned so the caller's json.loads raises as before.
     """
     cleaned = strip_json_fence(text)
+    objects = _balanced_objects(cleaned)
+    if len(objects) > 1:
+        # Prose such as "Example only: {...}. {...}" puts an illustrative
+        # object before the answer; the final complete object is the payload.
+        for candidate in reversed(objects):
+            try:
+                json.loads(candidate)
+            except ValueError:
+                continue
+            return candidate
     start = cleaned.find("{")
     if start == -1:
         return cleaned
@@ -76,6 +86,35 @@ def extract_json_object(text: str) -> str:
             if depth == 0:
                 return cleaned[start : index + 1]
     return cleaned[start:]
+
+
+def _balanced_objects(text: str) -> list[str]:
+    """Every balanced top-level {...} span in text, in order."""
+    found: list[str] = []
+    depth = 0
+    in_string = False
+    escape = False
+    start = -1
+    for index, char in enumerate(text):
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"' and depth > 0:
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}" and depth > 0:
+            depth -= 1
+            if depth == 0:
+                found.append(text[start : index + 1])
+    return found
 
 
 class OpenAICompatibleClient:

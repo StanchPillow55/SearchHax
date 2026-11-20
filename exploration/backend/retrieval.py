@@ -92,6 +92,7 @@ class FetchedPage(BaseModel):
     from_cache: bool = False
     error: str | None = None
     publish_date: str | None = None
+    interaction_id: str | None = None
 
 
 @dataclass
@@ -173,7 +174,7 @@ class RetrievalClient:
         for url in urls:
             canonical = normalize_url(url)
             cached = self._read_json(self._fetch_path(canonical))
-            if cached is not None and cached.get("content"):
+            if cached is not None and cached.get("content") and not page_failed(FetchedPage.model_validate(cached)):
                 page = FetchedPage.model_validate(cached)
                 page.from_cache = True
                 ordered.append(page)
@@ -196,7 +197,13 @@ class RetrievalClient:
         if guard is not None:
             guard.authorize_fetch(len(missing))
         active_session = session_id if session_id is not None else self.session_id
-        fetched = self._fetch_missing(missing, active_session)
+        try:
+            fetched = self._fetch_missing(missing, active_session)
+        except Exception:
+            # Nothing was fetched; the URL slots are returned before re-raising.
+            if guard is not None:
+                guard.release_fetch(len(missing))
+            raise
         by_url = {normalize_url(page.url): page for page in fetched}
         by_url.update({page.canonical_url: page for page in fetched})
         empty = 0
@@ -204,13 +211,19 @@ class RetrievalClient:
             page = by_url.get(normalize_url(url))
             if page is None:
                 page = FetchedPage(url=url, canonical_url=normalize_url(url), status="missing", error="missing")
+            if page_failed(page) and page.content:
+                # A failed fetch may carry an error page; that body is not the
+                # page and is neither returned as content nor cached.
+                page.content = ""
+                page.content_hash = ""
             if not page.content.strip() and self.tavily_extract_fn is not None:
                 extracted = self.tavily_extract_fn(page.canonical_url)
                 if extracted:
                     page.content = extracted
                     page.content_hash = content_hash(extracted)
                     page.provider = "tavily_extract"
-                    page.status = page.status or "extracted"
+                    page.status = "extracted"
+                    page.error = None
             if page.content and not page.content_hash:
                 page.content_hash = content_hash(page.content)
             self._write_json(self._fetch_path(page.canonical_url), page.model_dump(mode="json"))
@@ -262,6 +275,14 @@ class RetrievalClient:
     def _write_json(self, path, payload: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+_OK_FETCH_STATUS = {"", "ok", "success", "succeeded", "completed", "complete", "extracted", "cached", "partial", "200"}
+
+
+def page_failed(page: "FetchedPage") -> bool:
+    """A fetch that reported an error or a non-success status is not a page."""
+    return bool(page.error) or str(page.status or "").strip().lower() not in _OK_FETCH_STATUS
 
 
 def normalize_url(url: str) -> str:
@@ -419,10 +440,12 @@ def _bundle_from_mapping(query: str, payload: Any) -> SearchBundle:
 
 
 def _pages_from_mapping(payload: Any) -> list[FetchedPage]:
+    interaction_id = None
     if isinstance(payload, list):
         rows = payload
     else:
         rows = (payload or {}).get("results") or []
+        interaction_id = (payload or {}).get("interaction_id") or None
     pages: list[FetchedPage] = []
     for row in rows:
         if not isinstance(row, dict):
@@ -440,6 +463,7 @@ def _pages_from_mapping(payload: Any) -> list[FetchedPage]:
                 provider=str(row.get("provider") or "telem"),
                 error=str(row.get("error")) if row.get("error") else None,
                 publish_date=str(row.get("publish_date")) if row.get("publish_date") else None,
+                interaction_id=str(interaction_id) if interaction_id else None,
             )
         )
     return pages
@@ -530,6 +554,7 @@ def _sdk_fetch(urls: list[str], *, session_id: str | None, timeout: float) -> li
                 provider=result.provider or "telem",
                 error=json.dumps(result.error) if result.error else None,
                 publish_date=_sdk_publish_date(result),
+                interaction_id=response.interaction_id or None,
             )
         )
     return pages

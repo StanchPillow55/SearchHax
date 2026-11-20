@@ -111,6 +111,9 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     ) -> Investigation:
         """Store a new question. Local only: no search, fetch or LLM call until /step."""
+        if not body.question.strip():
+            # min_length=1 accepts whitespace; a blank question is not stored.
+            raise HTTPException(status_code=422, detail="question must not be blank")
         return idempotent(
             idempotency_key,
             "create_investigation",
@@ -181,10 +184,25 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         """
         from exploration.backend.answer import compose_answer
 
+        from exploration.backend.budget import BudgetGuard
+
         export = _load(app, investigation_id)
-        answer = compose_answer(export)
-        export.answer = answer
-        export.investigation.metadata["answer"] = answer.model_dump(mode="json")
+        guard = BudgetGuard(export.investigation.budget)
+        calls_before = guard.budget.llm_calls_used
+        answer = compose_answer(export, guard=guard)
+        if guard.budget.llm_calls_used > calls_before:
+            # The answer-model call counts against the investigation's LLM budget.
+            export.investigation.budget = guard.budget
+            export.investigation.usage.llm_calls += guard.budget.llm_calls_used - calls_before
+        stored = export.investigation.metadata.get("answer")
+        if answer.blocked and isinstance(stored, dict) and not stored.get("blocked") and stored.get("markdown"):
+            # A failed regeneration does not erase the answer already stored;
+            # the failure is recorded separately.
+            export.investigation.metadata["answer_regeneration_error"] = answer.blocker
+        else:
+            export.answer = answer
+            export.investigation.metadata["answer"] = answer.model_dump(mode="json")
+            export.investigation.metadata.pop("answer_regeneration_error", None)
         app.state.orchestrator.database.update_investigation(export.investigation, export.decision)
         return _load(app, investigation_id)
 

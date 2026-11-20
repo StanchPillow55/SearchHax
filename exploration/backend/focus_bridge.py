@@ -65,17 +65,26 @@ def evaluate_with_focus(request: ConvergenceEvaluateRequest) -> dict:
     archive_ids = [item.passage.id for item in decisions if item.action == "archive"]
     include_ids = [item.passage.id for item in investigate]
     pending = [action for action in request.proposed_actions if not action.already_executed]
+    useful = [action for action in pending if action.utility >= request.budget.min_utility]
     # One search approval. Focus's own batch cap cannot raise the exploration budget.
-    if investigate and pending and request.budget.remaining_searches > 0:
-        action = max(pending, key=lambda item: (item.utility, item.id))
+    # Archiving the current pages is a decision about those pages; when nothing
+    # was kept, it does not cancel an open follow-up whose utility is above the floor.
+    considered = any(item.action == "consider" for item in decisions)
+    if (investigate and pending or (useful and not considered)) and request.budget.remaining_searches > 0:
+        action = max(useful or pending, key=lambda item: (item.utility, item.id))
         names = ", ".join(item.passage.id for item in investigate)
+        routed = (
+            f"Focus routed {names} to investigate. "
+            if investigate
+            else "Focus kept no current passage, and an open follow-up is above the utility floor. "
+        )
         return {
             "investigation_id": request.investigation_id,
             "approved_action": action.model_dump(mode="json"),
             "stop": False,
             "stop_reason": None,
             "rationale": (
-                f"Focus routed {names} to investigate. "
+                f"{routed}"
                 f"Approved the unused search action {action.id}. "
                 "Investigation is not factual verification."
             ),

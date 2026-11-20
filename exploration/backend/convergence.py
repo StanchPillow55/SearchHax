@@ -76,7 +76,7 @@ def decision_from_controller(payload: dict[str, Any], investigation_id: str) -> 
     stop_reason = data.get("stop_reason")
     if stop_reason not in _STOPS:
         stop_reason = None
-    stop = bool(data.get("stop", action is None))
+    stop = _as_bool(data.get("stop", action is None))
     rationale = str(data.get("rationale") or "").strip()
     if not rationale:
         raise ValueError("convergence response missing rationale")
@@ -90,6 +90,23 @@ def decision_from_controller(payload: dict[str, Any], investigation_id: str) -> 
         include_document_ids=list(data.get("include_document_ids") or []),
         archive_document_ids=list(data.get("archive_document_ids") or []),
     )
+
+
+def _as_bool(value: Any) -> bool:
+    """Parse a JSON stop flag. The string "false" is not a stop."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"true", "1", "yes"}:
+            return True
+        if text in {"false", "0", "no", ""}:
+            return False
+    raise ValueError(f"convergence stop flag is not a boolean: {value!r}")
 
 
 def build_request(

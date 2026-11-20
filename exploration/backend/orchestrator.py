@@ -36,7 +36,7 @@ from exploration.backend.graph import EvidenceGraph
 from exploration.backend.ids import content_hash, new_id, stable_id
 from exploration.backend.knowledge_value import score_knowledge_value
 from exploration.backend.planner import branch_query, generate_actions, initial_search_query
-from exploration.backend.retrieval import RetrievalClient, normalize_url
+from exploration.backend.retrieval import RetrievalClient, normalize_url, page_failed
 from exploration.backend.story_c import STORY_C_QUESTION, load_story_c
 from exploration.backend.trace import extraction_payload, ingest_payload, lifecycle_of, ranking_rows, record_event
 from exploration.backend.verification import classify_provenance, origin_clusters, reconcile_amount_conflicts
@@ -66,6 +66,8 @@ class Orchestrator:
         mode: str = "web",
         profile: ResearchProfile | None = None,
     ) -> Investigation:
+        if not question.strip():
+            raise ValueError("question must not be blank")
         now = _now()
         metadata: dict = {"mode": mode}
         if profile is not None:
@@ -373,14 +375,28 @@ class Orchestrator:
             return self.graph.load(investigation.id)
         started = _now_seconds()
         guard = BudgetGuard(investigation.budget)
+        query = initial_search_query(investigation.question)
+        if not query.strip():
+            # Never send an empty search; nothing is invented either.
+            investigation.status = "stopped"
+            investigation.stop_reason = "no_useful_actions"
+            investigation.decision_source = "fallback"
+            investigation.decision_rationale = "The question yields no searchable text. No search was run."
+            investigation.updated_at = _now()
+            self._persist(export)
+            return self.graph.load(investigation.id)
         try:
             bundle = self.retrieval.search(
-                initial_search_query(investigation.question),
+                query,
                 session_id=investigation.session_id,
                 guard=guard,
             )
         except BudgetExceededError:
             return self._stop_budget(export, guard)
+        except Exception as error:  # provider failure after bounded retries
+            return self._stop_retrieval_failure(
+                export, guard, query, [f"search failed: {type(error).__name__}: {error}"[:300]], record_search=True
+            )
         investigation.budget = guard.budget
         self._record_search(
             investigation,
@@ -388,7 +404,11 @@ class Orchestrator:
             network=not bundle.dry_run,
             planned_from={"source": "research_question", "target_question_id": None, "action_id": None},
         )
-        self._ingest_bundle(export, bundle, guard)
+        failures = self._ingest_bundle(export, bundle, guard)
+        if not export.documents and (bundle.provider_errors or failures):
+            return self._stop_retrieval_failure(
+                export, guard, bundle.query, [*bundle.provider_errors, *failures], record_search=False
+            )
         self._add_profile_questions(export)
         investigation.status = "running"
         investigation.updated_at = _now()
@@ -454,7 +474,13 @@ class Orchestrator:
         if duplicate_query and action is not None:
             action.already_executed = True
             action.result_summary = "Skipped a query that was already searched."
+        if action is not None and not action.query.strip():
+            # A blank approved query is not a search; it does not spend budget.
+            action.result_summary = "Skipped a blank approved query."
+            duplicate_query = True
+        searched = False
         if action and not decision.stop and not duplicate_query:
+            searched = True
             try:
                 bundle = self.retrieval.search(
                     action.query,
@@ -479,8 +505,12 @@ class Orchestrator:
             investigation.usage.followups_executed += 1
             decision.approved_action.already_executed = True
             decision.approved_action.result_summary = f"Follow-up returned {len(bundle.documents)} deduplicated URLs."
-        if decision.stop and decision.stop_reason:
-            investigation.stop_reason = decision.stop_reason
+        if decision.stop:
+            # A controller stop ends the investigation even without a reason
+            # code; the recorded reason is derived, not invented evidence.
+            investigation.stop_reason = decision.stop_reason or (
+                "unresolved_uncertainty" if export.unresolved_questions else "no_useful_actions"
+            )
             investigation.status = "stopped"
         elif decision.decision_source == "fallback":
             investigation.stop_reason = (
@@ -489,6 +519,11 @@ class Orchestrator:
             investigation.status = "stopped"
         elif investigation.budget.remaining_searches <= 0:
             investigation.stop_reason = "budget_exhausted"
+            investigation.status = "stopped"
+        elif not searched:
+            # The controller approved nothing runnable and did not stop. Staying
+            # "running" would repeat the same idle decision forever.
+            investigation.stop_reason = "no_useful_actions"
             investigation.status = "stopped"
         else:
             investigation.status = "running"
@@ -606,8 +641,10 @@ class Orchestrator:
             f"Searched: {bundle.query}",
         )
 
-    def _ingest_bundle(self, export: ExplorationExport, bundle, guard: BudgetGuard) -> None:
+    def _ingest_bundle(self, export: ExplorationExport, bundle, guard: BudgetGuard) -> list[str]:
+        """Store fetched pages. Returns the fetch failures (empty when none)."""
         investigation = export.investigation
+        failures: list[str] = []
         profile = self._profile(export)
         candidate_start = len(export.candidates)
         claim_start = len(export.claims)
@@ -626,12 +663,24 @@ class Orchestrator:
         pages = []
         if chosen:
             fetched_before = investigation.budget.urls_fetched
-            pages = self.retrieval.fetch(
-                [item[1].canonical_url for item in chosen],
-                session_id=investigation.session_id,
-                guard=guard,
-            )
+            try:
+                pages = self.retrieval.fetch(
+                    [item[1].canonical_url for item in chosen],
+                    session_id=investigation.session_id,
+                    guard=guard,
+                )
+            except BudgetExceededError:
+                raise
+            except Exception as error:  # the search is already recorded; record the fetch failure too
+                pages = []
+                failures.append(f"fetch failed: {type(error).__name__}: {error}"[:300])
             investigation.budget = guard.budget
+            for page in pages:
+                # The fetch is an interaction on the same session lineage.
+                if page.interaction_id and not page.from_cache and page.interaction_id not in investigation.usage.interaction_ids:
+                    investigation.usage.interaction_ids.append(page.interaction_id)
+                if page_failed(page) and not page.content.strip():
+                    failures.append(f"fetch failed for {page.canonical_url}: {page.error or page.status}"[:300])
             investigation.usage.fetch_calls += 1
             investigation.usage.urls_fetched = investigation.budget.urls_fetched
             investigation.usage.cache_hits += sum(1 for page in pages if page.from_cache and page.content.strip())
@@ -734,7 +783,7 @@ class Orchestrator:
                 f"Ranked {len(new_candidates)} candidate(s) from this search. Scores are not verification.",
             )
         if not batches:
-            return
+            return failures
         merged_batch = merge_batches(batches)
         export.entities.extend(merged_batch.entities)
         export.claims.extend(merged_batch.claims)
@@ -743,6 +792,16 @@ class Orchestrator:
         export.evidence_links.extend(merged_batch.links)
         export.unresolved_questions.extend(merged_batch.questions)
         investigation.usage.rejected_ungrounded_citations += merged_batch.rejected_ungrounded
+        # Cross-document checks run on the web path too: documents citing one
+        # wire are one origin, and disagreeing amounts are recorded as conflicts.
+        export.origin_clusters = origin_clusters(export.provenance)
+        known = {item.id for item in export.contradictions}
+        for item in reconcile_amount_conflicts(
+            export.relationships, export.claims, export.evidence_links, export.provenance
+        ):
+            if item.id not in known:
+                export.contradictions.append(item)
+                known.add(item.id)
         if merged_batch.live_extraction_blocked and not merged_batch.relationships:
             investigation.live_extraction_blocked = True
             investigation.blocker = merged_batch.blocker
@@ -760,6 +819,7 @@ class Orchestrator:
         if payload["passages"] or payload["blocker"]:
             summary = "Extracted grounded passages." if payload["passages"] else "Extraction recorded no grounded passages."
             self._event(investigation.id, "extraction", payload, summary)
+        return failures
 
     def _extract_page(self, investigation: Investigation, guard: BudgetGuard, document: Document, version: DocumentVersion) -> ExtractionBatch:
         disclosed = extract_document(
@@ -772,7 +832,7 @@ class Orchestrator:
             publish_date=version.publish_date,
             llm=OpenAICompatibleClient(api_key=""),
         )
-        if disclosed.relationships or not llm_api_key():
+        if not llm_api_key():
             return disclosed
         try:
             guard.authorize_llm()
@@ -789,6 +849,63 @@ class Orchestrator:
             question=investigation.question,
             publish_date=version.publish_date,
         )
+
+    def _stop_retrieval_failure(
+        self,
+        export: ExplorationExport,
+        guard: BudgetGuard,
+        query: str,
+        errors: list[str],
+        *,
+        record_search: bool,
+    ) -> ExplorationExport:
+        """Stop with the provider/fetch failure recorded. Nothing is invented."""
+        investigation = export.investigation
+        investigation.budget = guard.budget
+        if record_search:
+            # The search was authorized and attempted; history and usage agree.
+            investigation.usage.search_calls += 1
+            investigation.usage.network_calls += 1
+            self.database.insert_search(
+                search_id=new_id("search"),
+                investigation_id=investigation.id,
+                query=query,
+                session_id=investigation.session_id,
+                interaction_id=None,
+                providers=[],
+                raw={"error": errors},
+                created_at=_now(),
+                network=True,
+            )
+        detail = "; ".join(errors) or "retrieval returned no usable page"
+        investigation.status = "stopped"
+        investigation.stop_reason = "unresolved_uncertainty"
+        investigation.decision_source = "fallback"
+        investigation.decision_rationale = f"Retrieval failed ({detail}). No results were invented."
+        investigation.updated_at = _now()
+        self._persist(export)
+        self._event(
+            investigation.id,
+            "convergence",
+            {
+                "stop": True,
+                "stop_reason": "unresolved_uncertainty",
+                "decision_source": "fallback",
+                "rationale": investigation.decision_rationale,
+                "alternatives": [],
+                "unresolved": True,
+                "verified_success": False,
+            },
+            "Stopped because retrieval failed. This is not a verified answer.",
+        )
+        save_checkpoint(
+            self.database,
+            export,
+            step=max(1, investigation.usage.search_calls),
+            summary="Stopped after a retrieval failure. No results were invented.",
+            stop_reason="unresolved_uncertainty",
+        )
+        return self.graph.load(investigation.id)
 
     def _stop_budget(self, export: ExplorationExport, guard: BudgetGuard) -> ExplorationExport:
         export.investigation.budget = guard.budget
