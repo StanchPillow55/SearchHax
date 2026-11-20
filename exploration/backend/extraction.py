@@ -21,7 +21,7 @@ from shared.contracts import Claim, Entity, EvidenceLink, EvidenceSpan, Relation
 
 from exploration.backend.attention import score_passage
 from exploration.backend.ids import content_hash, stable_id
-from exploration.backend.llm import LLMNotConfigured, OpenAICompatibleClient
+from exploration.backend.llm import LLMNotConfigured, LLMResponseNotJSON, OpenAICompatibleClient
 from exploration.backend.verification import assess_quotation, decide_status
 
 _STORY_C_MARKERS = ("Lumenarc Dynamics", "LF-PR-2026-031")
@@ -234,7 +234,8 @@ def _extract_with_llm(
         return ExtractionBatch(
             live_extraction_blocked=True,
             mode="blocked",
-            blocker=f"LLM extraction failed: {type(exc).__name__}",
+            blocker=f"LLM extraction failed: {type(exc).__name__}"
+            + (f" ({exc})" if isinstance(exc, LLMResponseNotJSON) else ""),
         )
     batch = relationships_from_llm_payload(
         payload,

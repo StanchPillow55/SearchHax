@@ -20,6 +20,13 @@ class LLMNotConfigured(RuntimeError):
     pass
 
 
+class LLMResponseNotJSON(ValueError):
+    """The model answered, but no complete JSON object could be parsed.
+
+    The message records why (finish reason, length) without the response text.
+    """
+
+
 class LocalExtractionUnavailable(LLMNotConfigured):
     """Local generation does not finish inside the extraction deadline."""
 
@@ -179,8 +186,16 @@ class OpenAICompatibleClient:
             )
             response.raise_for_status()
             body = response.json()
-        content = body["choices"][0]["message"]["content"]
-        parsed = json.loads(extract_json_object(content))
+        choice = body["choices"][0]
+        content = choice["message"]["content"] or ""
+        try:
+            parsed = json.loads(extract_json_object(content))
+        except ValueError as exc:
+            finish = choice.get("finish_reason") or "unknown"
+            hint = f"; output hit max_tokens={max_tokens}" if finish == "length" else ""
+            raise LLMResponseNotJSON(
+                f"response was not a complete JSON object (finish_reason={finish}, {len(content)} chars{hint})"
+            ) from exc
         usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
         usage.setdefault("model", self.model)
         usage.setdefault("backend", "openai-compatible")
