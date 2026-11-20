@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body { margin: 0; background: #12151c; color: #e7ecf5; font-family: "IBM Plex Sans", "Segoe UI", sans-serif; }
+    #chart { height: 560px; }
+    .banner { margin: 8px 12px; color: #f0d7a6; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="chart"></div>
+  <script src="plotly.min.js"></script>
+  <script>
+    function send(type, data) {
+      window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+    }
+
+    function same(left, right) {
+      return JSON.stringify(left || null) === JSON.stringify(right || null);
+    }
+
+    function tracesOf(spec) {
+      return (spec.traces || []).map(function (trace) {
+        return {
+          type: "scatter3d",
+          mode: "markers",
+          name: trace.name,
+          x: trace.x,
+          y: trace.y,
+          z: trace.z,
+          text: trace.text,
+          customdata: trace.evidence_id,
+          marker: { size: trace.size || 8, color: trace.color, opacity: 0.9 },
+          hovertemplate: "%{text}<br>" + spec.axis_x + " %{x:.3f}<br>" + spec.axis_y + " %{y:.3f}<br>" + spec.axis_z + " %{z:.3f}<br>%{customdata}<extra>%{fullData.name}</extra>"
+        };
+      });
+    }
+
+    function layoutOf(spec) {
+      var axis = { range: [0, 1], autorange: false, backgroundcolor: "#12151c", gridcolor: "#2c3548", color: "#c9d3e5" };
+      var scene = {
+        xaxis: Object.assign({ title: spec.axis_x }, axis),
+        yaxis: Object.assign({ title: spec.axis_y }, axis),
+        zaxis: Object.assign({ title: spec.axis_z }, axis),
+        aspectmode: "cube",
+        bgcolor: "#12151c"
+      };
+      if (spec.camera) scene.camera = spec.camera;
+      return {
+        title: { text: spec.title || "Evidence context space", font: { size: 14, color: "#e7ecf5" } },
+        paper_bgcolor: "#12151c",
+        margin: { l: 0, r: 0, t: 42, b: 0 },
+        legend: { font: { color: "#c9d3e5" } },
+        scene: scene
+      };
+    }
+
+    var chart = document.getElementById("chart");
+    var current = {};
+    var bound = false;
+
+    function publish(evidenceId, camera) {
+      send("streamlit:setComponentValue", {
+        value: { evidence_id: evidenceId || null, camera: camera || current.camera || null },
+        dataType: "json"
+      });
+    }
+
+    function bind() {
+      if (bound) return;
+      bound = true;
+      chart.on("plotly_click", function (event) {
+        var point = event && event.points && event.points[0];
+        if (!point || !point.customdata) return;
+        var camera = (chart.layout && chart.layout.scene && chart.layout.scene.camera) || current.camera || null;
+        current.camera = camera;
+        publish(point.customdata, camera);
+      });
+      chart.on("plotly_relayout", function (eventData) {
+        var camera = eventData && (eventData["scene.camera"] || (eventData.scene && eventData.scene.camera));
+        if (!camera || same(camera, current.camera)) return;
+        current.camera = camera;
+      });
+    }
+
+    function draw(spec) {
+      current = spec || {};
+      if (!window.Plotly) {
+        chart.innerHTML = "<p class='banner'>Plotly.js did not load. Choose evidence from the list beside this chart.</p>";
+        send("streamlit:setFrameHeight", { height: 80 });
+        return;
+      }
+      var traces = tracesOf(current);
+      var layout = layoutOf(current);
+      var config = { responsive: true, scrollZoom: true, displaylogo: false };
+      var drawn = bound ? Plotly.react(chart, traces, layout, config) : Plotly.newPlot(chart, traces, layout, config);
+      Promise.resolve(drawn).then(bind);
+      send("streamlit:setFrameHeight", { height: 580 });
+    }
+
+    window.addEventListener("message", function (event) {
+      var data = event.data;
+      if (!data || data.type !== "streamlit:render") return;
+      draw((data.args && data.args.spec) || {});
+    });
+    send("streamlit:componentReady", { apiVersion: 1 });
+    send("streamlit:setFrameHeight", { height: 580 });
+  </script>
+</body>
+</html>

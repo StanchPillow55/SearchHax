@@ -38,6 +38,7 @@ from exploration.backend.knowledge_value import score_knowledge_value
 from exploration.backend.planner import generate_actions, initial_search_query
 from exploration.backend.retrieval import RetrievalClient, normalize_url
 from exploration.backend.story_c import STORY_C_QUESTION, load_story_c
+from exploration.backend.trace import extraction_payload, ingest_payload, ranking_rows, record_event
 from exploration.backend.verification import classify_provenance, origin_clusters, reconcile_amount_conflicts
 
 STORY_A_QUESTION = (
@@ -249,6 +250,7 @@ class Orchestrator:
             origin_clusters=clusters,
         )
         self._persist(export)
+        self._record_fixture_stages(export, summary_prefix="Story C fixture corpus")
         save_checkpoint(self.database, export, step=1, summary="Ingested the Story C fixture corpus with no network calls.")
         if not follow_up:
             investigation.status = "stopped"
@@ -295,6 +297,7 @@ class Orchestrator:
         investigation.usage.latency_ms = _elapsed_ms(started)
         investigation.updated_at = _now()
         self._persist(export)
+        self._record_convergence(export, decision)
         save_checkpoint(
             self.database,
             export,
@@ -321,6 +324,11 @@ class Orchestrator:
             return export
         if investigation.metadata.get("mode") in {"story_c", "profile"}:
             return export
+        if (
+            investigation.metadata.get("intervention_type") == "challenge_evidence"
+            and investigation.usage.search_calls == 0
+        ):
+            return self._challenge_step(export)
         if not export.documents and investigation.usage.search_calls == 0:
             return self._initial_web_step(export)
         return self._follow_up_web_step(export)
@@ -333,6 +341,12 @@ class Orchestrator:
             investigation.live_extraction_blocked = llm_api_key() is None
             investigation.updated_at = _now()
             self._persist(export)
+            self._event(
+                investigation.id,
+                "blocked",
+                {"blocker": investigation.blocker, "search_calls": 0, "verified_success": False},
+                "Blocked before search. No results were invented.",
+            )
             save_checkpoint(self.database, export, step=1, summary="Blocked before search: TELEM_API_KEY missing. No results were invented.")
             return self.graph.load(investigation.id)
         started = _now_seconds()
@@ -364,6 +378,21 @@ class Orchestrator:
             )
             investigation.updated_at = _now()
             self._persist(export)
+            self._event(
+                investigation.id,
+                "convergence",
+                {
+                    "stop": True,
+                    "stop_reason": "unresolved_uncertainty",
+                    "decision_source": "fallback",
+                    "rationale": investigation.decision_rationale,
+                    "alternatives": [],
+                    "unresolved_questions": [question.text for question in export.unresolved_questions],
+                    "unresolved": True,
+                    "verified_success": False,
+                },
+                "Stopped unresolved because extraction is blocked. This is not a verified answer.",
+            )
             save_checkpoint(self.database, export, step=2, summary="Stopped without a follow-up because extraction is blocked.", stop_reason="unresolved_uncertainty")
         else:
             self._persist(export)
@@ -427,6 +456,7 @@ class Orchestrator:
             investigation.status = "running"
         investigation.updated_at = _now()
         self._persist(export)
+        self._record_convergence(export, decision)
         save_checkpoint(self.database, export, step=2, summary="Follow-up decision applied within the backend budget.", stop_reason=investigation.stop_reason)
         return self.graph.load(investigation.id)
 
@@ -466,6 +496,22 @@ class Orchestrator:
             created_at=_now(),
             network=False,
         )
+        self._event(
+            investigation.id,
+            "search",
+            {
+                "query": action.query,
+                "providers": ["local_corpus"],
+                "network": False,
+                "result_urls": [],
+                "results": [],
+                "result_count": 0,
+                "independent_document_ids": independent,
+                "kind": "local_corpus_scan",
+                "verified": False,
+            },
+            f"Local corpus scan: {action.query}",
+        )
 
     def _record_search(self, investigation: Investigation, bundle, *, network: bool) -> None:
         investigation.usage.search_calls += 1
@@ -480,21 +526,54 @@ class Orchestrator:
         for provider in [hit.provider for document in bundle.documents for hit in document.hits]:
             if provider not in investigation.usage.providers_used:
                 investigation.usage.providers_used.append(provider)
+        providers = sorted({hit.provider for hit in bundle.provider_hits})
         self.database.insert_search(
             search_id=new_id("search"),
             investigation_id=investigation.id,
             query=bundle.query,
             session_id=bundle.session_id,
             interaction_id=bundle.interaction_id,
-            providers=sorted({hit.provider for hit in bundle.provider_hits}),
+            providers=providers,
             raw=bundle.raw,
             created_at=_now(),
             network=network,
+        )
+        self._event(
+            investigation.id,
+            "search",
+            {
+                "query": bundle.query,
+                "providers": providers,
+                "network": network,
+                "dry_run": bundle.dry_run,
+                "from_cache": bundle.from_cache,
+                "session_id": bundle.session_id,
+                "interaction_id": bundle.interaction_id,
+                "result_count": len(bundle.documents),
+                "result_urls": [document.canonical_url for document in bundle.documents],
+                "results": [
+                    {
+                        "url": document.canonical_url,
+                        "title": document.title,
+                        "snippet": document.snippet,
+                        "providers": list(document.providers),
+                    }
+                    for document in bundle.documents
+                ],
+                "verified": False,
+            },
+            f"Searched: {bundle.query}",
         )
 
     def _ingest_bundle(self, export: ExplorationExport, bundle, guard: BudgetGuard) -> None:
         investigation = export.investigation
         profile = self._profile(export)
+        candidate_start = len(export.candidates)
+        claim_start = len(export.claims)
+        span_start = len(export.evidence_spans)
+        link_start = len(export.evidence_links)
+        relationship_start = len(export.relationships)
+        provenance_start = len(export.provenance)
         ranked = []
         for document in bundle.documents:
             gaps = [question.text for question in export.unresolved_questions]
@@ -516,8 +595,29 @@ class Orchestrator:
             investigation.usage.urls_fetched = investigation.budget.urls_fetched
             if investigation.budget.urls_fetched > fetched_before:
                 investigation.usage.network_calls += 1
+            self._event(
+                investigation.id,
+                "retrieval",
+                {
+                    "pages": [
+                        {
+                            "url": page.canonical_url,
+                            "title": page.title,
+                            "provider": page.provider,
+                            "from_cache": page.from_cache,
+                            "status": page.status,
+                            "content_present": bool(page.content.strip()),
+                        }
+                        for page in pages
+                    ],
+                    "fetch_call": True,
+                    "verified": False,
+                },
+                f"Retrieved {len(pages)} page(s) for this search.",
+            )
         page_by_url = {page.canonical_url: page for page in pages}
         batches: list[ExtractionBatch] = []
+        llm_calls_here = 0
         for _score, merged, attention in chosen:
             page = page_by_url.get(merged.canonical_url)
             content = page.content if page else ""
@@ -571,7 +671,21 @@ class Orchestrator:
                     publish_date=merged.publish_date,
                 )
             )
+            llm_before = investigation.usage.llm_calls
             batches.append(self._extract_page(investigation, guard, document, version))
+            llm_calls_here += investigation.usage.llm_calls - llm_before
+        new_candidates = export.candidates[candidate_start:]
+        if new_candidates:
+            self._event(
+                investigation.id,
+                "ranking",
+                {
+                    "source": "search",
+                    "candidates": ranking_rows(export, "current_run", new_candidates),
+                    "verified": False,
+                },
+                f"Ranked {len(new_candidates)} candidate(s) from this search. Scores are not verification.",
+            )
         if not batches:
             return
         merged_batch = merge_batches(batches)
@@ -587,6 +701,18 @@ class Orchestrator:
             investigation.blocker = merged_batch.blocker
         if merged_batch.llm_tokens is not None:
             investigation.usage.llm_tokens = (investigation.usage.llm_tokens or 0) + merged_batch.llm_tokens
+        payload = extraction_payload(
+            claims=export.claims[claim_start:],
+            spans=export.evidence_spans[span_start:],
+            links=export.evidence_links[link_start:],
+            relationships=export.relationships[relationship_start:],
+            provenance=export.provenance[provenance_start:],
+            llm_call=llm_calls_here > 0,
+            blocker=merged_batch.blocker,
+        )
+        if payload["passages"] or payload["blocker"]:
+            summary = "Extracted grounded passages." if payload["passages"] else "Extraction recorded no grounded passages."
+            self._event(investigation.id, "extraction", payload, summary)
 
     def _extract_page(self, investigation: Investigation, guard: BudgetGuard, document: Document, version: DocumentVersion) -> ExtractionBatch:
         disclosed = extract_document(
@@ -624,8 +750,156 @@ class Orchestrator:
         export.investigation.decision_rationale = "Backend refused another search because the hard cap is 2 searches."
         export.investigation.updated_at = _now()
         self._persist(export)
+        self._event(
+            export.investigation.id,
+            "convergence",
+            {
+                "stop": True,
+                "stop_reason": "budget_exhausted",
+                "decision_source": export.investigation.decision_source or "fallback",
+                "rationale": export.investigation.decision_rationale,
+                "alternatives": [],
+                "unresolved": False,
+                "verified_success": False,
+            },
+            "Stopped because the search budget was exhausted. This is not a verified answer.",
+        )
         save_checkpoint(self.database, export, step=export.investigation.usage.search_calls + 1, summary="Refused a search past the hard cap.", stop_reason="budget_exhausted")
         return self.graph.load(export.investigation.id)
+
+    def _challenge_step(self, export: ExplorationExport) -> ExplorationExport:
+        investigation = export.investigation
+        objective = (investigation.metadata.get("objective") or investigation.question).strip()
+        if not telem_configured() and not self.retrieval.dry_run:
+            investigation.status = "blocked"
+            investigation.blocker = "TELEM_API_KEY missing"
+            investigation.updated_at = _now()
+            self._persist(export)
+            self._event(
+                investigation.id,
+                "blocked",
+                {"blocker": investigation.blocker, "objective": objective, "search_calls": 0, "verified_success": False},
+                "Challenge search was not run. No counterevidence was invented.",
+            )
+            save_checkpoint(
+                self.database,
+                export,
+                step=2,
+                summary="Challenge stopped before search because retrieval is not configured.",
+            )
+            return self.graph.load(investigation.id)
+        guard = BudgetGuard(investigation.budget)
+        try:
+            bundle = self.retrieval.search(objective, session_id=investigation.session_id, guard=guard)
+        except BudgetExceededError:
+            return self._stop_budget(export, guard)
+        investigation.budget = guard.budget
+        self._record_search(investigation, bundle, network=not bundle.dry_run)
+        self._ingest_bundle(export, bundle, guard)
+        investigation.usage.followups_executed += 1
+        actions = generate_actions(export.unresolved_questions, self.database.search_queries(investigation.id))
+        export.actions = actions
+        decision = evaluate_controller(
+            build_request(
+                investigation_id=investigation.id,
+                question=investigation.question,
+                questions=export.unresolved_questions,
+                candidates=export.candidates,
+                actions=actions,
+                budget=investigation.budget,
+                usage=investigation.usage,
+            ),
+            followups_executed=investigation.usage.followups_executed,
+            url=self.convergence_url,
+            post=self.post,
+        )
+        export.decision = decision
+        investigation.decision_source = decision.decision_source
+        investigation.decision_rationale = decision.rationale
+        if decision.stop and decision.stop_reason:
+            investigation.stop_reason = decision.stop_reason
+        elif decision.decision_source == "fallback":
+            investigation.stop_reason = "unresolved_uncertainty" if export.unresolved_questions else "no_useful_actions"
+        investigation.status = "stopped" if investigation.stop_reason else "running"
+        investigation.updated_at = _now()
+        self._persist(export)
+        self._record_convergence(export, decision)
+        save_checkpoint(
+            self.database,
+            export,
+            step=2,
+            summary="Counterevidence search recorded on this branch. The parent assertion was not changed.",
+            stop_reason=investigation.stop_reason,
+        )
+        return self.graph.load(investigation.id)
+
+    def _record_fixture_stages(self, export: ExplorationExport, *, summary_prefix: str) -> None:
+        self._event(
+            export.investigation.id,
+            "ingest",
+            ingest_payload(export, "fixture_corpus"),
+            f"Ingested {summary_prefix}. No web search was performed.",
+        )
+        if export.candidates:
+            self._event(
+                export.investigation.id,
+                "ranking",
+                {
+                    "source": "fixture_corpus",
+                    "candidates": ranking_rows(export, "fixture_corpus"),
+                    "verified": False,
+                },
+                "Ranked the fixed corpus. Attention and knowledge value are not verification.",
+            )
+        payload = extraction_payload(
+            claims=export.claims,
+            spans=export.evidence_spans,
+            links=export.evidence_links,
+            relationships=export.relationships,
+            provenance=export.provenance,
+            llm_call=export.investigation.usage.llm_calls > 0,
+            blocker=export.investigation.blocker,
+        )
+        if payload["passages"] or payload["blocker"]:
+            self._event(
+                export.investigation.id,
+                "extraction",
+                payload,
+                "Extracted passages from the fixed corpus." if payload["passages"] else "No grounded passages were extracted.",
+            )
+
+    def _record_convergence(self, export: ExplorationExport, decision) -> None:
+        unresolved = export.investigation.stop_reason == "unresolved_uncertainty"
+        self._event(
+            export.investigation.id,
+            "convergence",
+            {
+                "stop": bool(decision.stop or export.investigation.status == "stopped"),
+                "stop_reason": export.investigation.stop_reason,
+                "decision_source": decision.decision_source,
+                "rationale": decision.rationale,
+                "alternatives": [
+                    {
+                        "id": action.id,
+                        "query": action.query,
+                        "reason": action.reason,
+                        "utility": action.utility,
+                        "already_executed": action.already_executed,
+                    }
+                    for action in export.actions
+                ],
+                "approved_query": decision.approved_action.query if decision.approved_action is not None else None,
+                "unresolved_questions": [question.text for question in export.unresolved_questions],
+                "unresolved": unresolved,
+                "verified_success": False,
+            },
+            "Unresolved stop. This is not a verified answer."
+            if unresolved
+            else f"Recorded a {decision.decision_source} decision ({export.investigation.stop_reason or 'continue'}). Not a verified answer.",
+        )
+
+    def _event(self, investigation_id: str, stage: str, payload: dict, summary: str) -> None:
+        record_event(self.database, investigation_id, stage, payload, summary=summary)
 
     def _persist(self, export: ExplorationExport) -> None:
         self.graph.save(export)

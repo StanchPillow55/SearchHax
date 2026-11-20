@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from shared.contracts import (
+    BranchConstraints,
+    BranchRecord,
     Checkpoint,
     Claim,
     Contradiction,
@@ -24,10 +26,12 @@ from shared.contracts import (
     GroundedAnswer,
     Investigation,
     InvestigationAction,
+    KnowledgeAssertionIn,
     OriginCluster,
     Relationship,
     ResearchProfile,
     SourceProvenance,
+    TraceEvent,
     UnresolvedQuestion,
 )
 
@@ -153,6 +157,38 @@ CREATE TABLE IF NOT EXISTS search_history (
     raw_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     network INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS investigation_events (
+    id TEXT PRIMARY KEY,
+    investigation_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    stage TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    checkpoint_id TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS branches (
+    id TEXT PRIMARY KEY,
+    parent_investigation_id TEXT NOT NULL,
+    child_investigation_id TEXT NOT NULL,
+    from_checkpoint_id TEXT NOT NULL,
+    intervention_type TEXT NOT NULL,
+    objective TEXT NOT NULL,
+    constraints_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS knowledge_assertions (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    investigation_id TEXT,
+    subject TEXT NOT NULL,
+    predicate TEXT NOT NULL,
+    object TEXT NOT NULL,
+    text TEXT NOT NULL,
+    epistemic_state TEXT NOT NULL,
+    basis TEXT NOT NULL,
+    created_at TEXT NOT NULL
 );
 """
 
@@ -430,6 +466,154 @@ class Database:
             ).fetchall()
         return [row["query"] for row in rows]
 
+    def insert_event(
+        self,
+        *,
+        event_id: str,
+        investigation_id: str,
+        stage: str,
+        summary: str,
+        payload: dict[str, Any],
+        created_at: datetime,
+        checkpoint_id: str | None = None,
+    ) -> int:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS seq FROM investigation_events WHERE investigation_id = ?",
+                (investigation_id,),
+            ).fetchone()
+            sequence = int(row["seq"])
+            self._conn.execute(
+                """
+                INSERT INTO investigation_events (
+                    id, investigation_id, sequence, stage, summary, payload_json, checkpoint_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    investigation_id,
+                    sequence,
+                    stage,
+                    summary,
+                    json.dumps(payload),
+                    checkpoint_id,
+                    created_at.isoformat(),
+                ),
+            )
+            self._conn.commit()
+            return sequence
+
+    def list_events(self, investigation_id: str) -> list[TraceEvent]:
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM investigation_events
+                WHERE investigation_id = ?
+                ORDER BY sequence ASC, created_at ASC
+                """,
+                (investigation_id,),
+            ).fetchall()
+        return [
+            TraceEvent(
+                id=row["id"],
+                investigation_id=row["investigation_id"],
+                sequence=row["sequence"],
+                stage=row["stage"],
+                summary=row["summary"],
+                payload=json.loads(row["payload_json"]),
+                checkpoint_id=row["checkpoint_id"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+            )
+            for row in rows
+        ]
+
+    def insert_branch(self, branch: BranchRecord) -> None:
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO branches (
+                    id, parent_investigation_id, child_investigation_id, from_checkpoint_id,
+                    intervention_type, objective, constraints_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    branch.id,
+                    branch.parent_investigation_id,
+                    branch.child_investigation_id,
+                    branch.from_checkpoint_id,
+                    branch.intervention_type,
+                    branch.objective,
+                    _dump(branch.constraints),
+                    branch.created_at.isoformat(),
+                ),
+            )
+            self._conn.commit()
+
+    def get_branch(self, branch_id: str) -> BranchRecord | None:
+        with self._lock:
+            row = self._conn.execute("SELECT * FROM branches WHERE id = ?", (branch_id,)).fetchone()
+        if row is None:
+            return None
+        return _branch_from_row(row)
+
+    def list_branches(self, investigation_id: str) -> list[BranchRecord]:
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM branches
+                WHERE parent_investigation_id = ? OR child_investigation_id = ?
+                ORDER BY created_at ASC
+                """,
+                (investigation_id, investigation_id),
+            ).fetchall()
+        return [_branch_from_row(row) for row in rows]
+
+    def insert_assertion(self, assertion_id: str, body: KnowledgeAssertionIn, created_at: datetime) -> None:
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO knowledge_assertions (
+                    id, profile_id, investigation_id, subject, predicate, object, text,
+                    epistemic_state, basis, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    assertion_id,
+                    body.profile_id,
+                    body.investigation_id,
+                    body.subject,
+                    body.predicate,
+                    body.object,
+                    body.text,
+                    body.epistemic_state,
+                    body.basis,
+                    created_at.isoformat(),
+                ),
+            )
+            self._conn.commit()
+
+    def list_assertions(self, profile_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM knowledge_assertions WHERE profile_id = ? ORDER BY created_at ASC",
+                (profile_id,),
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "profile_id": row["profile_id"],
+                "investigation_id": row["investigation_id"],
+                "subject": row["subject"],
+                "predicate": row["predicate"],
+                "object": row["object"],
+                "text": row["text"],
+                "epistemic_state": row["epistemic_state"],
+                "basis": row["basis"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
     def load_export(self, investigation_id: str) -> ExplorationExport:
         with self._lock:
             row = self._conn.execute(
@@ -526,6 +710,20 @@ class Database:
             (investigation_id,),
         ).fetchall()
         return [_load_model(cls, row["payload_json"]) for row in rows]
+
+
+def _branch_from_row(row: sqlite3.Row) -> BranchRecord:
+    raw = json.loads(row["constraints_json"]) if row["constraints_json"] else {}
+    return BranchRecord(
+        id=row["id"],
+        parent_investigation_id=row["parent_investigation_id"],
+        child_investigation_id=row["child_investigation_id"],
+        from_checkpoint_id=row["from_checkpoint_id"],
+        intervention_type=row["intervention_type"],
+        objective=row["objective"],
+        created_at=datetime.fromisoformat(row["created_at"]),
+        constraints=BranchConstraints.model_validate(raw),
+    )
 
 
 def _version_from_row(row: sqlite3.Row) -> DocumentVersion:

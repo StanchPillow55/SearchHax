@@ -45,7 +45,7 @@ Novelty is not correctness. Source quality is only an uncalibrated prior supplie
 
 - `python benchmark.py` shows a deterministic offline example with a **word-count proxy**, not actual model tokens.
 - `research_loop.py` includes a max-call bounded discovery loop (`run_research(model, retrieve)`) that generates targeted search queries from unusual evidence. It does not independently verify the claims returned.
-- The interactive 3D context space in `app.py` works in default lexical mode and with semantic embeddings. Semantic mode uses PCA coordinates for display only; the default view uses intent alignment, novelty, and unresolved-question alignment.
+- The interactive 3D context space uses intent alignment, novelty, and unresolved-question alignment in every mode, including semantic embeddings. Embeddings can change those scores. They do not replace the axes with PCA. The chart is drawn by `context_space.py` for both the standalone app and the FrontierGraph evidence space.
 - Optional cited-answer generation uses `answer_composer.py`; set `OPENAI_API_KEY` and enable the answer checkbox in the app. Archived sources are excluded and unknown citation markers are rejected.
 - Gemini is also supported: set `GEMINI_API_KEY`, choose `Gemini` (or `Auto`) in the app, and optionally override `GEMINI_MODEL`.
 - Local OpenAI-compatible servers are supported: set `LOCAL_BASE_URL` and `LOCAL_MODEL`, then choose `Local`. Ollama defaults to `http://localhost:11434/v1`.

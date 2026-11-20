@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="reactflow.css" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #12151c; color: #e7ecf5; font-family: "IBM Plex Sans", "Segoe UI", sans-serif; }
+    #root { display: flex; flex-direction: column; height: 100%; }
+    header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 8px 12px 4px; }
+    header h1 { font-size: 15px; font-weight: 650; margin: 0; line-height: 1.3; }
+    header p { margin: 3px 0 0; color: #9aa6ba; font-size: 12px; }
+    .toolbar { display: flex; gap: 6px; align-items: center; }
+    button.tool { background: #1b212d; color: #e7ecf5; border: 1px solid #2c3548; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+    .kind { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #d7c4a1; border: 1px solid #6d5a3a; border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+    #map { flex: 1; min-height: 0; background: #12151c; }
+    .banner { margin: 0 12px 6px; padding: 8px 10px; border: 1px dashed #a67c2d; color: #f0d7a6; font-size: 12px; border-radius: 6px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 12px 8px; color: #9aa6ba; font-size: 11px; }
+    .legend b { color: #e7ecf5; font-weight: 600; }
+    .ln { width: 232px; border: 1px solid #2c3548; background: #1b212d; border-radius: 8px; padding: 10px 12px; box-shadow: none; }
+    .kicker { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #8ea0bb; }
+    .label { font-size: 14px; line-height: 1.35; margin: 4px 0; }
+    .chip { display: inline-block; font-size: 11px; border-radius: 999px; padding: 1px 7px; background: #2a3142; color: #c9d3e5; }
+    .ep-supported { color: #b7e0c7; }
+    .ep-contradicted { color: #f0b4b4; }
+    .ep-unknown { color: #d5d8e0; }
+    .ep-unresolved { color: #f0d7a6; }
+    .ln-search { border-color: #3d7ea6; }
+    .ln-retrieval { border-color: #2f8f9a; }
+    .ln-ranking, .ln-extraction { border-color: #6d7890; }
+    .ln-evidence.ep-supported, .ln-evidence_group.ep-supported { border-color: #3e8f62; }
+    .ln-evidence.ep-contradicted, .ln-evidence_group.ep-contradicted { border-color: #a85a5a; }
+    .ln-evidence.ep-unknown, .ln-evidence.ep-unresolved, .ln-evidence_group.ep-unknown, .ln-evidence_group.ep-unresolved { border-color: #a67c2d; }
+    .ln-convergence.ep-unresolved { border-style: dashed; border-color: #d7a441; }
+    .ln-checkpoint { border-color: #c6a15a; }
+    .ln-ingest, .ln-blocked { border-color: #4d5d78; }
+    .ln-interested { border-color: #3d7ea6; }
+    .ln-known { border-color: #3e8f62; }
+    .ln-encountered { border-color: #6d7890; }
+    .ln-uncertain { border-color: #a67c2d; }
+    .ln-frontier { border-style: dashed; border-color: #d7a441; }
+    .is-selected { box-shadow: 0 0 0 2px #48d7d2; }
+    .react-flow__attribution { display: none; }
+    .react-flow__minimap { background: #1b212d !important; width: 116px !important; height: 76px !important; }
+    .react-flow__controls-button { background: #1b212d; fill: #e7ecf5; border-bottom-color: #2c3548; }
+    #root:fullscreen, #root:-webkit-full-screen { height: 100vh; background: #12151c; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="react.min.js"></script>
+  <script src="react-dom.min.js"></script>
+  <script src="reactflow.min.js"></script>
+  <script>
+    const RF = window.ReactFlow;
+    const e = React.createElement;
+    const memory = { key: null, viewport: null, flow: null, showMap: false };
+
+    function send(type, data) {
+      window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+    }
+
+    function frameHeight() {
+      var viewport = 900;
+      try { viewport = window.parent.innerHeight || viewport; } catch (err) { viewport = window.innerHeight || viewport; }
+      return Math.max(480, Math.round(viewport * 0.70));
+    }
+
+    function LanternNode(props) {
+      const data = props.data || {};
+      return e("div", { className: "ln ln-" + data.nodeType + " ep-" + data.epistemic + (data.selected ? " is-selected" : "") },
+        e(RF.Handle, { type: "target", position: RF.Position.Left }),
+        e("div", { className: "kicker" }, data.kicker || ""),
+        e("div", { className: "label" }, data.label || ""),
+        e("div", { className: "chip ep-" + data.epistemic }, data.epistemic || "unknown"),
+        e(RF.Handle, { type: "source", position: RF.Position.Right })
+      );
+    }
+
+    const nodeTypes = { lantern: LanternNode };
+
+    function ranksOf(spec) {
+      if (spec.layout === "categories") {
+        const columns = { interested: 0, known: 1, encountered: 2, uncertain: 3, frontier: 4 };
+        const rows = {};
+        const pos = {};
+        (spec.nodes || []).forEach(function (node) {
+          const col = Object.prototype.hasOwnProperty.call(columns, node.type) ? columns[node.type] : 0;
+          const row = rows[col] || 0;
+          rows[col] = row + 1;
+          pos[node.id] = { x: col * 280, y: row * 156 };
+        });
+        return pos;
+      }
+      const nodes = spec.nodes || [];
+      const edges = spec.edges || [];
+      const incoming = {};
+      const outgoing = {};
+      nodes.forEach(function (node) { incoming[node.id] = []; outgoing[node.id] = []; });
+      edges.forEach(function (edge) {
+        if (!outgoing[edge.source] || !incoming[edge.target]) return;
+        outgoing[edge.source].push(edge.target);
+        incoming[edge.target].push(edge.source);
+      });
+      const rank = {};
+      const queue = nodes.map(function (node) { return node.id; }).filter(function (id) { return incoming[id].length === 0; }).sort();
+      queue.forEach(function (id) { rank[id] = 0; });
+      const pending = queue.slice();
+      var guard = 0;
+      while (pending.length && guard < 20000) {
+        const id = pending.shift();
+        outgoing[id].forEach(function (next) {
+          const nextRank = rank[id] + 1;
+          if (rank[next] == null || rank[next] < nextRank) {
+            rank[next] = nextRank;
+            pending.push(next);
+          }
+        });
+        guard += 1;
+      }
+      nodes.forEach(function (node) { if (rank[node.id] == null) rank[node.id] = 0; });
+      const columns = {};
+      nodes.map(function (node) { return node.id; }).sort().forEach(function (id) {
+        const col = rank[id];
+        columns[col] = columns[col] || [];
+        columns[col].push(id);
+      });
+      const pos = {};
+      Object.keys(columns).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (col) {
+        columns[col].sort();
+        columns[col].forEach(function (id, row) { pos[id] = { x: Number(col) * 280, y: row * 156 }; });
+      });
+      return pos;
+    }
+
+    function flowNodes(spec) {
+      const pos = ranksOf(spec);
+      return (spec.nodes || []).map(function (node) {
+        return {
+          id: node.id,
+          type: "lantern",
+          position: pos[node.id] || { x: 0, y: 0 },
+          data: {
+            label: node.label,
+            kicker: node.kicker || node.type,
+            epistemic: node.epistemic_status || "unknown",
+            nodeType: node.type,
+            selected: spec.selected_id && node.id === spec.selected_id
+          },
+          draggable: false
+        };
+      });
+    }
+
+    function flowEdges(spec) {
+      return (spec.edges || []).map(function (edge) {
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          type: "smoothstep",
+          animated: false,
+          style: { stroke: edge.kind === "produced" ? "#c6a15a" : "#4d5d78" }
+        };
+      });
+    }
+
+    function selectNode(id) {
+      send("streamlit:setComponentValue", { value: { node_id: id, action: "select" }, dataType: "json" });
+    }
+
+    function focusNode(id) {
+      if (memory.flow && id) {
+        memory.flow.fitView({ nodes: [{ id: id }], maxZoom: 1.15, padding: 0.4, duration: 200 });
+      }
+    }
+
+    function LanternMap(props) {
+      const spec = props.spec || {};
+      const nodes = flowNodes(spec);
+      const edges = flowEdges(spec);
+      const banner = spec.incomplete
+        ? (spec.incomplete_reason || "This trace is incomplete. No story is drawn from missing events.")
+        : "";
+      const ordered = (spec.nodes || []).map(function (node) { return node.id; });
+      React.useEffect(function () {
+        function onKey(event) {
+          const tag = event.target && event.target.tagName;
+          if (tag === "INPUT" || tag === "TEXTAREA" || !ordered.length) return;
+          const index = Math.max(0, ordered.indexOf(spec.selected_id));
+          if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+            selectNode(ordered[Math.min(ordered.length - 1, index + 1)]);
+          } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+            selectNode(ordered[Math.max(0, index - 1)]);
+          } else if (event.key === "+" || event.key === "=") {
+            if (memory.flow) memory.flow.zoomIn();
+          } else if (event.key === "-" || event.key === "_") {
+            if (memory.flow) memory.flow.zoomOut();
+          } else if (event.key === "f" || event.key === "F") {
+            focusNode(spec.selected_id || ordered[0]);
+          }
+        }
+        window.addEventListener("keydown", onKey);
+        return function () { window.removeEventListener("keydown", onKey); };
+      }, [spec.selected_id, ordered.join("|")]);
+      React.useEffect(function () {
+        if (!memory.flow || !spec.graph_key || memory.key === spec.graph_key) return;
+        memory.key = spec.graph_key;
+        const saved = spec.viewport;
+        if (saved && typeof saved.zoom === "number") {
+          memory.flow.setViewport(saved, { duration: 0 });
+          return;
+        }
+        memory.flow.fitView({ padding: 0.16, maxZoom: 1, minZoom: 0.75, duration: 0 });
+      }, [spec.graph_key]);
+      return e("div", { style: { display: "flex", flexDirection: "column", height: "100%" } },
+        e("header", null,
+          e("div", null,
+            e("h1", null, spec.title || "Investigation"),
+            e("p", null, spec.subtitle || "Nodes are recorded events. Ranking scores are not verification.")
+          ),
+          e("div", { className: "toolbar" },
+            e("button", { className: "tool", onClick: function () { focusNode(spec.selected_id || ordered[0]); } }, "Focus"),
+            e("button", { className: "tool", onClick: function () { memory.showMap = !memory.showMap; draw(spec); } }, memory.showMap ? "Hide map" : "Minimap"),
+            e("button", { className: "tool", onClick: function () {
+              const root = document.getElementById("root");
+              if (document.fullscreenElement) document.exitFullscreen();
+              else if (root.requestFullscreen) root.requestFullscreen();
+            } }, "Full screen"),
+            e("div", { className: "kind" }, spec.kind || "investigation")
+          )
+        ),
+        banner ? e("div", { className: "banner" }, banner) : null,
+        nodes.length
+          ? e("div", { id: "map" },
+              e(RF.ReactFlow, {
+                nodes: nodes,
+                edges: edges,
+                nodeTypes: nodeTypes,
+                fitView: false,
+                minZoom: 0.55,
+                maxZoom: 1.6,
+                proOptions: { hideAttribution: true },
+                onInit: function (instance) {
+                  memory.flow = instance;
+                  if (spec.viewport && typeof spec.viewport.zoom === "number") instance.setViewport(spec.viewport);
+                  else instance.fitView({ padding: 0.16, maxZoom: 1, minZoom: 0.75, duration: 0 });
+                  memory.key = spec.graph_key || memory.key;
+                },
+                onMoveEnd: function (_event, viewport) { memory.viewport = viewport; },
+                onNodeClick: function (_event, node) { selectNode(node.id); }
+              },
+                e(RF.Background, { gap: 18, color: "#2a3142" }),
+                e(RF.Controls, { showInteractive: false }),
+                memory.showMap ? e(RF.MiniMap, { pannable: true, zoomable: false, maskColor: "rgba(18,21,28,0.7)" }) : null
+              )
+            )
+          : e("div", { className: "banner" }, "No recorded nodes to draw."),
+        e("div", { className: "legend" },
+          e("span", null, e("b", null, "Investigation"), " is what the agent did."),
+          e("span", null, e("b", null, "Lanterns"), " are branches. They do not rewrite the parent."),
+          e("span", null, e("b", null, "Knowledge"), " is the profile, not the sources retrieved."),
+          e("span", null, e("b", null, "Unresolved"), " is not a verified answer.")
+        )
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    function draw(spec) {
+      root.render(e(LanternMap, { spec: spec || {} }));
+      send("streamlit:setFrameHeight", { height: frameHeight() });
+    }
+
+    window.addEventListener("message", function (event) {
+      const data = event.data;
+      if (!data || data.type !== "streamlit:render") return;
+      draw((data.args && data.args.spec) || {});
+    });
+    send("streamlit:componentReady", { apiVersion: 1 });
+    send("streamlit:setFrameHeight", { height: frameHeight() });
+  </script>
+</body>
+</html>

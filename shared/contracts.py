@@ -455,6 +455,163 @@ class ExplorationExport(_Model):
     )
 
 
+TraceStage = Literal[
+    "search",
+    "retrieval",
+    "ranking",
+    "extraction",
+    "convergence",
+    "checkpoint",
+    "ingest",
+    "blocked",
+]
+EpistemicStatus = Literal["supported", "contradicted", "unknown", "unresolved"]
+ArtifactActivity = Literal["current_run", "reused_or_historical", "fixture_corpus", "unknown"]
+InterventionType = Literal["fork", "challenge_evidence", "continue"]
+KnowledgeState = Literal["interested", "known", "encountered", "uncertain", "frontier"]
+
+
+class TraceEvent(_Model):
+    """One recorded investigation stage. Absent events are not reconstructed."""
+
+    id: str
+    investigation_id: str
+    sequence: int
+    stage: TraceStage
+    created_at: datetime
+    summary: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    checkpoint_id: str | None = None
+
+
+class TraceNode(_Model):
+    id: str
+    type: str
+    label: str
+    stage: str
+    event_id: str
+    epistemic_status: EpistemicStatus = "unknown"
+    verification_basis: Literal["relationship_status", "claim_status", "none"] = "none"
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class TraceEdge(_Model):
+    id: str
+    source: str
+    target: str
+    kind: Literal["sequence", "produced", "inherited"] = "sequence"
+
+
+class ArtifactNote(_Model):
+    """How a stored candidate relates to this run's recorded activity.
+
+    Attention and knowledge value are copied through as ranking signals.
+    They do not set epistemic status and they do not verify the source.
+    """
+
+    kind: str
+    id: str
+    title: str = ""
+    url: str = ""
+    activity: ArtifactActivity
+    origin_kind: str = "unknown"
+    bridge_status: str = "unknown"
+    bridge_trigger: str | None = None
+    attention_score: float | None = None
+    knowledge_value_score: float | None = None
+    epistemic_status: EpistemicStatus = "unknown"
+    verified: bool = False
+    note: str = ""
+
+
+class InvestigationTrace(_Model):
+    investigation_id: str
+    question: str
+    incomplete: bool
+    incomplete_reason: str | None = None
+    events: list[TraceEvent] = Field(default_factory=list)
+    nodes: list[TraceNode] = Field(default_factory=list)
+    edges: list[TraceEdge] = Field(default_factory=list)
+    artifact_notes: list[ArtifactNote] = Field(default_factory=list)
+    search_event_count: int = 0
+    fetch_event_count: int = 0
+    llm_event_count: int = 0
+    usage_search_calls: int = 0
+    usage_fetch_calls: int = 0
+    usage_llm_calls: int = 0
+    parent_investigation_id: str | None = None
+    branch_id: str | None = None
+    intervention_type: str | None = None
+    from_checkpoint_id: str | None = None
+
+
+class BranchConstraints(_Model):
+    max_searches: int | None = None
+    max_fetched_urls: int | None = None
+    max_llm_calls: int | None = None
+    intent_weight: float | None = None
+    novelty_weight: float | None = None
+    unresolved_weight: float | None = None
+    knowledge_value_weight: float | None = None
+
+
+class CreateBranchRequest(_Model):
+    from_checkpoint_id: str = Field(min_length=1)
+    objective: str = ""
+    intervention_type: InterventionType
+    constraints: BranchConstraints | None = None
+
+
+class BranchRecord(_Model):
+    id: str
+    parent_investigation_id: str
+    child_investigation_id: str
+    from_checkpoint_id: str
+    intervention_type: InterventionType
+    objective: str = ""
+    created_at: datetime
+    constraints: BranchConstraints = Field(default_factory=BranchConstraints)
+
+
+class KnowledgeAssertionIn(_Model):
+    profile_id: str = Field(min_length=1)
+    investigation_id: str | None = None
+    subject: str = Field(min_length=1)
+    predicate: str = "related_to"
+    object: str = ""
+    text: str = ""
+    epistemic_state: KnowledgeState
+    basis: Literal["user_confirmation", "profile_declared", "profile_prior", "retrieved", "inferred"] = "user_confirmation"
+
+
+class KnowledgeNode(_Model):
+    id: str
+    label: str
+    epistemic_state: KnowledgeState
+    basis: str
+    confirmed: bool = False
+    inferred: bool = False
+    note: str = ""
+    investigation_id: str | None = None
+
+
+class KnowledgeEdge(_Model):
+    id: str
+    source: str
+    target: str
+    label: str
+    basis: str
+
+
+class KnowledgeGraph(_Model):
+    profile_id: str | None = None
+    investigation_id: str | None = None
+    question: str | None = None
+    nodes: list[KnowledgeNode] = Field(default_factory=list)
+    edges: list[KnowledgeEdge] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 def evidence_json_schema() -> dict[str, Any]:
     return ExplorationExport.model_json_schema(mode="serialization")
 

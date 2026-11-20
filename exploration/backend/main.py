@@ -4,19 +4,26 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.contracts import (
     BaselineReport,
     BaselineRequest,
+    BranchRecord,
     Checkpoint,
     ConvergenceDecision,
     ConvergenceEvaluateRequest,
+    CreateBranchRequest,
     CreateInvestigationRequest,
     ExplorationExport,
     Investigation,
+    InvestigationTrace,
+    KnowledgeAssertionIn,
+    KnowledgeGraph,
 )
+
+from exploration.backend.trace import add_assertion, build_trace, create_branch, knowledge_graph, resume_branch
 
 from exploration.backend.baseline import run_baseline
 from exploration.backend.config import default_db_path
@@ -105,6 +112,57 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         export.investigation.metadata["answer"] = answer.model_dump(mode="json")
         app.state.orchestrator.database.update_investigation(export.investigation, export.decision)
         return _load(app, investigation_id)
+
+    @app.get("/api/exploration/investigations/{investigation_id}/trace", response_model=InvestigationTrace)
+    def get_trace(investigation_id: str) -> InvestigationTrace:
+        _load(app, investigation_id)
+        return build_trace(app.state.orchestrator.database, investigation_id)
+
+    @app.get("/api/exploration/investigations/{investigation_id}/branches", response_model=list[BranchRecord])
+    def get_branches(investigation_id: str) -> list[BranchRecord]:
+        _load(app, investigation_id)
+        return app.state.orchestrator.database.list_branches(investigation_id)
+
+    @app.post("/api/exploration/investigations/{investigation_id}/branches", response_model=BranchRecord)
+    def post_branch(investigation_id: str, body: CreateBranchRequest) -> BranchRecord:
+        _load(app, investigation_id)
+        try:
+            return create_branch(app.state.orchestrator, investigation_id, body)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="checkpoint not found") from exc
+
+    @app.post("/api/exploration/branches/{branch_id}/resume", response_model=ExplorationExport)
+    def post_resume(branch_id: str) -> ExplorationExport:
+        try:
+            return resume_branch(app.state.orchestrator, branch_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="branch not found") from exc
+
+    @app.post("/api/exploration/fixtures/profile", response_model=ExplorationExport)
+    def profile_fixture() -> ExplorationExport:
+        return app.state.orchestrator.run_profile()
+
+    @app.get("/api/exploration/profile/knowledge-graph", response_model=KnowledgeGraph)
+    def get_knowledge_graph(
+        investigation_id: str | None = Query(default=None),
+        profile_id: str | None = Query(default=None),
+    ) -> KnowledgeGraph:
+        if not investigation_id and not profile_id:
+            raise HTTPException(status_code=400, detail="investigation_id or profile_id is required")
+        try:
+            return knowledge_graph(
+                app.state.orchestrator.database,
+                investigation_id=investigation_id,
+                profile_id=profile_id,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="investigation not found") from exc
+
+    @app.post("/api/exploration/profile/knowledge-assertions", response_model=KnowledgeGraph)
+    def post_knowledge_assertion(body: KnowledgeAssertionIn) -> KnowledgeGraph:
+        if body.investigation_id:
+            _load(app, body.investigation_id)
+        return add_assertion(app.state.orchestrator.database, body)
 
     @app.post("/api/convergence/evaluate", response_model=ConvergenceDecision)
     def convergence_evaluate(body: ConvergenceEvaluateRequest) -> ConvergenceDecision:

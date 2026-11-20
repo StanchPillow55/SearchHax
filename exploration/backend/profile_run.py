@@ -243,6 +243,7 @@ def execute_profile(orchestrator, directory: Path | None = None, *, bridges=None
         profile=profile,
     )
     orchestrator._persist(export)
+    orchestrator._record_fixture_stages(export, summary_prefix="offline profile corpus")
     save_checkpoint(
         orchestrator.database,
         export,
