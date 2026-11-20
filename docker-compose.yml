@@ -1,0 +1,34 @@
+# Local/private deployment. Ports are bound to 127.0.0.1 only. Exposing SearchHax beyond this
+# machine requires SEARCHHAX_BASIC_AUTH and an htpasswd file (see docs/deploy/DEPLOY.md).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SEARCHHAX_DB_PATH: /data/exploration.sqlite
+    volumes:
+      - searchhax-data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_ALLOW_BILLABLE_RESEARCH: ${VITE_ALLOW_BILLABLE_RESEARCH:-false}
+    environment:
+      SEARCHHAX_BASIC_AUTH: ${SEARCHHAX_BASIC_AUTH:-off}
+    volumes:
+      - ${SEARCHHAX_HTPASSWD:-./deploy/htpasswd.empty}:/etc/nginx/auth/htpasswd:ro
+    ports:
+      - "127.0.0.1:${SEARCHHAX_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  searchhax-data:

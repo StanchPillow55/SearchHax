@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+frontend/dist
+frontend/test-results
+frontend/e2e/artifacts
+exploration/data
+exploration/cache
+*.sqlite
+docs/audit/screenshots
+design

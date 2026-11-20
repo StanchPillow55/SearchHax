@@ -29,6 +29,10 @@ DEFAULT_LLM_MODEL = "gpt-4o-mini"
 
 
 def default_db_path() -> Path:
+    """SQLite file for investigations. SEARCHHAX_DB_PATH overrides it (e.g. a mounted volume)."""
+    override = os.environ.get("SEARCHHAX_DB_PATH", "").strip()
+    if override:
+        return Path(override)
     return EXPLORATION_ROOT / "data" / "exploration.sqlite"
 
 

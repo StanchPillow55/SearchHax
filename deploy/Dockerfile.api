@@ -1,0 +1,23 @@
+# SearchHax exploration API (FastAPI). Provider keys come from the runtime environment only;
+# none are baked into the image.
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    SEARCHHAX_DB_PATH=/data/exploration.sqlite
+WORKDIR /app
+# Only the API's pinned requirements. focus/requirements.txt lists Streamlit-console extras
+# (streamlit, sentence-transformers, pandas) that the API never imports.
+COPY exploration/requirements.txt /tmp/api-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/api-requirements.txt
+COPY shared ./shared
+COPY exploration ./exploration
+COPY focus ./focus
+COPY searchhax ./searchhax
+RUN useradd --create-home --uid 10001 searchhax && mkdir -p /data /app/exploration/cache \
+    && chown -R searchhax /data /app/exploration/cache
+USER searchhax
+VOLUME ["/data"]
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health',timeout=4).status==200 else 1)"
+ENV PYTHONPATH=/app:/app/focus
+CMD ["python", "-m", "uvicorn", "exploration.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import hashlib
 import json
+import os
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -49,11 +50,17 @@ LOCAL_ORIGINS = [
 ]
 
 
+def allowed_origins() -> list[str]:
+    """Local origins plus any listed in SEARCHHAX_ALLOWED_ORIGINS (comma-separated). Never "*"."""
+    extra = [item.strip() for item in os.environ.get("SEARCHHAX_ALLOWED_ORIGINS", "").split(",")]
+    return LOCAL_ORIGINS + [item for item in extra if item and item != "*"]
+
+
 def create_app(db_path: str | Path | None = None) -> FastAPI:
     app = FastAPI(title="FrontierGraph Exploration", version="1.0.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=LOCAL_ORIGINS,
+        allow_origins=allowed_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
@@ -135,6 +142,25 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 body.question, body.budget, profile=profile, profile_source_investigation_id=source_id
             ),
         )
+
+    @app.get("/api/health")
+    def health() -> dict:
+        """Liveness plus a read of the database. Reports configuration presence, never values."""
+        from exploration.backend.config import llm_api_key, telem_configured
+        from shared.contracts import CONTRACT_VERSION
+
+        try:
+            app.state.orchestrator.database.list_investigations(limit=1, offset=0)
+            database = "ok"
+        except Exception as exc:  # reported, not raised: the probe must answer
+            database = f"error: {type(exc).__name__}"
+        return {
+            "status": "ok" if database == "ok" else "degraded",
+            "database": database,
+            "contract_version": CONTRACT_VERSION,
+            "search_configured": telem_configured(),
+            "llm_configured": llm_api_key() is not None,
+        }
 
     @app.get("/api/exploration/investigations", response_model=InvestigationList)
     def list_investigations(
