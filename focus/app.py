@@ -175,41 +175,13 @@ if run_clicked:
             st.dataframe(df, use_container_width=True)
         if show_space and len(decisions) >= 2:
             try:
-                import plotly.express as px
-                rows = [{
-                    'Source': d.passage.title or d.passage.text[:80],
-                    'Action': d.action,
-                    'URL': d.passage.url,
-                    'Relevance': round(d.score.relevance, 3),
-                    'Novelty': round(d.score.novelty, 3),
-                    'Graph gap': round(d.score.graph_gap, 3),
-                    'Attention': round(d.score.attention, 3),
-                } for d in decisions]
-
-                # Keep these axes tied to named policy scores in every mode.
-                # Embeddings may improve the scores, but PCA axes would not be
-                # interpretable as relevance or novelty.
-                x_label, y_label, z_label = 'Intent alignment', 'Novelty', 'Unresolved-question alignment'
-                for row in rows:
-                    row[x_label] = row['Relevance']
-                    row[y_label] = row['Novelty']
-                    row[z_label] = row['Graph gap']
-                caption = 'Axes are policy scores: intent alignment, evidence novelty, and unresolved-question alignment.'
-
-                plot_df = pd.DataFrame(rows)
-                figure = px.scatter_3d(
-                    plot_df, x=x_label, y=y_label, z=z_label, color='Action',
-                    hover_name='Source', hover_data=['URL', 'Attention', 'Relevance', 'Novelty', 'Graph gap'],
-                    color_discrete_map={'consider': '#2ca02c', 'investigate': '#ff7f0e', 'archive': '#7f7f7f'},
-                    title='Evidence context space',
-                )
-                figure.update_traces(marker={'size': 8, 'opacity': 0.86})
-                figure.update_layout(margin={'l': 0, 'r': 0, 't': 45, 'b': 0}, legend_title_text='Policy action')
+                from context_space import figure_from_focus_decisions
+                figure = figure_from_focus_decisions(decisions)
                 st.plotly_chart(
                     figure, use_container_width=True,
                     config={'scrollZoom': True, 'displaylogo': False},
                 )
-                st.caption(caption + ' Drag to rotate, scroll to zoom, and hover a dot for source details.')
+                st.caption('Axes are policy scores: intent alignment, evidence novelty, and unresolved-question alignment. Drag to rotate, scroll to zoom, and hover a dot for source details.')
             except ImportError as exc:
                 st.warning(f'Install visualization dependencies to view the 3D space: {exc}')
         st.subheader('Compact evidence candidates')

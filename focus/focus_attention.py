@@ -34,15 +34,36 @@ def _jaccard(a: str, b: str) -> float:
     return len(x & y) / len(x | y) if x and y else 0.0
 
 
+_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numbers(text: str) -> frozenset[str]:
+    return frozenset(m.replace(",", "") for m in _NUMBER_RE.findall(text))
+
+
+def _numbers_conflict(a: str, b: str) -> bool:
+    """Two passages that state different figures are not duplicates of each other."""
+    x, y = _numbers(a), _numbers(b)
+    return bool(x) and bool(y) and x != y
+
+
 def _query_coverage(query: str, document: str) -> float:
     """Measure intent-token coverage without penalizing long result snippets."""
     query_tokens, document_tokens = _tokens(query), _tokens(document)
     return len(query_tokens & document_tokens) / len(query_tokens) if query_tokens else 0.0
 
 
-def canonical_url(url: str) -> str:
-    """Normalize known trackers, host case, default port and URL fragments."""
+def strip_userinfo(url: str) -> str:
+    """Remove ``user:password@`` from a URL. Credentials must never become a source key or a citation."""
     parts = urlsplit(url.strip())
+    if "@" not in parts.netloc:
+        return url.strip()
+    return urlunsplit((parts.scheme, parts.netloc.rsplit("@", 1)[1], parts.path, parts.query, parts.fragment))
+
+
+def canonical_url(url: str) -> str:
+    """Normalize known trackers, host case, default port, URL fragments and drop userinfo."""
+    parts = urlsplit(strip_userinfo(url))
     scheme = parts.scheme.lower()
     netloc = parts.netloc.lower()
     if (scheme == "https" and netloc.endswith(":443")) or (scheme == "http" and netloc.endswith(":80")):
@@ -118,6 +139,9 @@ class FocusState:
     investigate: list[FocusDecision] = field(default_factory=list)
     archived: list[FocusDecision] = field(default_factory=list)
     seen_keys: set[str] = field(default_factory=set)
+    # Length of the text ranked for each seen source key, so a later, fuller
+    # page for an already-seen URL (e.g. a fetch after a snippet) is ranked.
+    seen_text_len: dict[str, int] = field(default_factory=dict)
     stagnant_batches: int = 0
     search_calls: int = 0
 
@@ -225,7 +249,8 @@ class FocusAttentionModel:
         # prevent repeatedly investigating near-identical findings.
         accepted = [d.passage for d in self.state.accepted]
         known = accepted + [d.passage for d in self.state.investigate]
-        redundancy = max((self._passage_similarity(item, passage) for item in known), default=0.0)
+        redundancy = max((self._passage_similarity(item, passage) for item in known
+                          if not _numbers_conflict(item.searchable, passage.searchable)), default=0.0)
         novelty = 1.0 - redundancy
         source_value = passage.source_quality  # provider count != corroboration
         attention = (0.45 * relevance + 0.25 * gap + 0.10 * domain_fit
@@ -256,15 +281,28 @@ class FocusAttentionModel:
         """Select sequentially; score against updated state after each item."""
         unique: dict[str, Passage] = {}
         for p in passages:
-            if not p.text.strip() or p.source_key in self.state.seen_keys:
+            if not p.text.strip():
+                if not p.title.strip():
+                    continue
+                # A titled page with an empty body is ranked on its title.
+                p = replace(p, text=p.title.strip())
+            key = p.source_key
+            if key in self.state.seen_keys and len(p.text.strip()) <= self.state.seen_text_len.get(key, 0):
                 continue
-            if p.source_key in unique:
-                prior = unique[p.source_key]
+            if key in unique:
+                prior = unique[key]
                 merged_providers = tuple(sorted(set(prior.providers) | set(p.providers)))
-                unique[p.source_key] = replace(prior, providers=merged_providers)
+                # One source per URL; the fuller text is the one ranked.
+                base = p if len(p.text.strip()) > len(prior.text.strip()) else prior
+                unique[key] = replace(base, providers=merged_providers)
             else:
-                unique[p.source_key] = p
+                unique[key] = p
         candidates = list(unique.values())
+        # A fuller page for a seen URL supersedes the earlier (shorter) decision.
+        superseded = {p.source_key for p in candidates if p.source_key in self.state.seen_keys}
+        if superseded:
+            for bucket in (self.state.accepted, self.state.investigate, self.state.archived):
+                bucket[:] = [d for d in bucket if d.passage.source_key not in superseded]
         self._prepare(candidates)
         candidates.sort(key=lambda p: self.score(p).attention, reverse=True)
         decisions: list[FocusDecision] = []
@@ -278,6 +316,7 @@ class FocusAttentionModel:
                       "archive": self.state.archived}[decision.action]
             bucket.append(decision)
             self.state.seen_keys.add(passage.source_key)
+            self.state.seen_text_len[passage.source_key] = len(passage.text.strip())
             decisions.append(decision)
         new_information = any(d.action in {"consider", "investigate"} for d in decisions)
         self.state.stagnant_batches = 0 if new_information else self.state.stagnant_batches + 1

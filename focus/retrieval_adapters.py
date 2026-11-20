@@ -142,6 +142,13 @@ def telem_fetch(urls: list[str], *, inline_max_chars: int = 12000,
             json=payload, timeout=90)
         response.raise_for_status()
         for row in _fetch_rows(response.json()):
+            # A failed fetch may still carry a body (an error page); it is not
+            # page text and must not replace the search snippet.
+            status = row.get('status')
+            if row.get('error') or (
+                    isinstance(status, str) and status.strip().lower()
+                    not in {'ok', 'success', 'succeeded', 'completed', 'complete', 'cached'}):
+                continue
             content = row.get('content') or row.get('text') or row.get('markdown')
             url = row.get('url') or row.get('canonical_url') or row.get('final_url')
             if isinstance(content, str) and content.strip() and isinstance(url, str):
@@ -211,8 +218,16 @@ def search(query: str, provider: str, max_results: int = 8) -> list[Passage]:
     if provider == 'tavily':
         return tavily_search(query, max_results)
     if provider == 'both':
+        # One provider's failure must not discard the other provider's pages.
+        # Only when every provider fails is the search itself a failure.
         results = []
+        errors: list[Exception] = []
         for func in (telem_search, tavily_search):
-            results.extend(func(query, max_results))
+            try:
+                results.extend(func(query, max_results))
+            except Exception as exc:  # noqa: BLE001 - re-raised below if all fail
+                errors.append(exc)
+        if errors and len(errors) == 2:
+            raise errors[0]
         return results
     raise ValueError('provider must be telem, tavily or both')

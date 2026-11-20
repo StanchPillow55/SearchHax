@@ -1,0 +1,10 @@
+{
+  "description": "Explore research findings, evidence, and unanswered questions in an interactive workspace that helps curious minds branch investigations and build personal knowledge.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

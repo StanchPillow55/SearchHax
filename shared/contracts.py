@@ -1,6 +1,6 @@
 """Pydantic v2 contract shared by exploration and other SearchHax apps.
 
-``CONTRACT_VERSION`` is 1.0.0. Add fields in a backward-compatible way (new
+``CONTRACT_VERSION`` is 1.1.0 (1.1.0 adds root_question and lifecycle; additive). Add fields in a backward-compatible way (new
 optional fields, ``extra="ignore"``) instead of renaming or removing models.
 
 ``ConvergenceDecision.decision_source`` is recorded by exploration after a
@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"
 
 VerificationStatus = Literal["supported", "contradicted", "insufficient", "hypothesis"]
 StopReason = Literal[
@@ -33,6 +33,9 @@ DecisionSource = Literal["convergence", "fallback"]
 EvidenceStance = Literal["supports", "contradicts", "mentions", "insufficient"]
 OriginKind = Literal["original", "derivative", "unknown"]
 InvestigationStatus = Literal["created", "running", "stopped", "blocked"]
+# Research lifecycle (1.1.0). Derived from status, stop_reason and usage; stored in
+# Investigation.metadata["lifecycle"]. "saved" = a branch that has not run any research.
+Lifecycle = Literal["saved", "queued", "researching", "stopped", "completed", "failed"]
 
 
 class _Model(BaseModel):
@@ -356,6 +359,10 @@ class ConvergenceEvaluateRequest(_Model):
 class CreateInvestigationRequest(_Model):
     question: str = Field(min_length=1)
     budget: InvestigationBudget | None = None
+    profile: ResearchProfile | None = Field(
+        default=None,
+        description="Optional read-only research profile. When present, live candidates are also scored with knowledge value.",
+    )
 
 
 class BaselineRequest(_Model):
@@ -391,6 +398,36 @@ class BaselineReport(_Model):
     notes: str = ""
 
 
+class AnswerCitation(_Model):
+    """One source the generated answer is allowed to cite."""
+
+    marker: str  # e.g. S1
+    document_id: str | None = None
+    title: str = ""
+    url: str = ""
+    quote: str = ""
+    status: str = ""  # supported or considered
+
+
+class GroundedAnswer(_Model):
+    """A cited prose answer synthesized from an investigation's evidence.
+
+    The answer explains evidence the investigation already grounded. It does
+    not add facts. Every inline marker maps to one AnswerCitation. This is a
+    synthesis for the reader, not a new verification step.
+    """
+
+    investigation_id: str
+    question: str
+    markdown: str
+    citations: list[AnswerCitation] = Field(default_factory=list)
+    cited_markers: list[str] = Field(default_factory=list)
+    model: str = ""
+    llm_tokens: int | None = None
+    blocked: bool = False
+    blocker: str | None = None
+
+
 class ExplorationExport(_Model):
     """Full investigation snapshot another app can read from JSON Schema alone."""
 
@@ -411,10 +448,210 @@ class ExplorationExport(_Model):
     origin_clusters: list[OriginCluster] = Field(default_factory=list)
     checkpoints: list[Checkpoint] = Field(default_factory=list)
     decision: ConvergenceDecision | None = None
+    answer: GroundedAnswer | None = Field(
+        default=None,
+        description="Optional synthesized cited answer. Present only after the answer endpoint runs.",
+    )
     profile: ResearchProfile | None = Field(
         default=None,
         description="Optional read-only profile snapshot. Absent on investigations that have no profile.",
     )
+
+
+TraceStage = Literal[
+    "search",
+    "retrieval",
+    "ranking",
+    "extraction",
+    "convergence",
+    "checkpoint",
+    "ingest",
+    "blocked",
+]
+EpistemicStatus = Literal["supported", "contradicted", "unknown", "unresolved"]
+ArtifactActivity = Literal["current_run", "reused_or_historical", "fixture_corpus", "unknown"]
+InterventionType = Literal["fork", "challenge_evidence", "continue"]
+KnowledgeState = Literal["interested", "known", "encountered", "uncertain", "frontier"]
+
+
+class TraceEvent(_Model):
+    """One recorded investigation stage. Absent events are not reconstructed."""
+
+    id: str
+    investigation_id: str
+    sequence: int
+    stage: TraceStage
+    created_at: datetime
+    summary: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    checkpoint_id: str | None = None
+
+
+class TraceNode(_Model):
+    id: str
+    type: str
+    label: str
+    stage: str
+    event_id: str
+    epistemic_status: EpistemicStatus = "unknown"
+    verification_basis: Literal["relationship_status", "claim_status", "none"] = "none"
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class TraceEdge(_Model):
+    id: str
+    source: str
+    target: str
+    kind: Literal["sequence", "produced", "inherited"] = "sequence"
+
+
+class ArtifactNote(_Model):
+    """How a stored candidate relates to this run's recorded activity.
+
+    Attention and knowledge value are copied through as ranking signals.
+    They do not set epistemic status and they do not verify the source.
+    """
+
+    kind: str
+    id: str
+    title: str = ""
+    url: str = ""
+    activity: ArtifactActivity
+    origin_kind: str = "unknown"
+    bridge_status: str = "unknown"
+    bridge_trigger: str | None = None
+    attention_score: float | None = None
+    knowledge_value_score: float | None = None
+    epistemic_status: EpistemicStatus = "unknown"
+    verified: bool = False
+    note: str = ""
+
+
+class InvestigationTrace(_Model):
+    investigation_id: str
+    question: str
+    incomplete: bool
+    incomplete_reason: str | None = None
+    events: list[TraceEvent] = Field(default_factory=list)
+    nodes: list[TraceNode] = Field(default_factory=list)
+    edges: list[TraceEdge] = Field(default_factory=list)
+    artifact_notes: list[ArtifactNote] = Field(default_factory=list)
+    search_event_count: int = 0
+    fetch_event_count: int = 0
+    llm_event_count: int = 0
+    usage_search_calls: int = 0
+    usage_fetch_calls: int = 0
+    usage_llm_calls: int = 0
+    parent_investigation_id: str | None = None
+    branch_id: str | None = None
+    intervention_type: str | None = None
+    from_checkpoint_id: str | None = None
+    branch_objective: str | None = None
+    attached_claims: list[dict[str, Any]] = Field(default_factory=list, description="Parent claims recorded with the branch (id, text, status). Additive.")
+    attached_sources: list[dict[str, Any]] = Field(default_factory=list, description="Parent documents recorded with the branch (id, title, url). Additive.")
+    root_question: str | None = Field(default=None, description="Original research question at the top of the lineage. Additive in 1.1.0.")
+    lifecycle: Lifecycle | None = Field(default=None, description="saved | queued | researching | stopped | completed | failed. Separate from status and stop_reason. Additive in 1.1.0.")
+
+
+class InvestigationSummary(_Model):
+    """Read-only listing row. Additive in 1.0.x: summarises a stored investigation, adds no facts."""
+
+    id: str
+    question: str
+    status: InvestigationStatus
+    stop_reason: StopReason | None = None
+    created_at: datetime
+    updated_at: datetime
+    parent_investigation_id: str | None = None
+    branch_id: str | None = None
+    intervention_type: str | None = None
+    from_checkpoint_id: str | None = None
+    event_count: int = 0
+    checkpoint_count: int = 0
+    root_question: str | None = None
+    lifecycle: Lifecycle | None = None
+
+
+class InvestigationList(_Model):
+    items: list[InvestigationSummary] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
+
+
+class BranchConstraints(_Model):
+    max_searches: int | None = None
+    max_fetched_urls: int | None = None
+    max_llm_calls: int | None = None
+    intent_weight: float | None = None
+    novelty_weight: float | None = None
+    unresolved_weight: float | None = None
+    knowledge_value_weight: float | None = None
+
+
+class CreateBranchRequest(_Model):
+    from_checkpoint_id: str = Field(min_length=1)
+    objective: str = ""
+    intervention_type: InterventionType
+    constraints: BranchConstraints | None = None
+    attached_claim_ids: list[str] = Field(
+        default_factory=list,
+        description="Optional parent claim ids the branch is about. Must exist at the chosen checkpoint. Additive in 1.0.x.",
+    )
+    attached_source_ids: list[str] = Field(
+        default_factory=list,
+        description="Optional parent document ids referenced by the branch. Must exist at the chosen checkpoint. Additive in 1.0.x.",
+    )
+
+
+class BranchRecord(_Model):
+    id: str
+    parent_investigation_id: str
+    child_investigation_id: str
+    from_checkpoint_id: str
+    intervention_type: InterventionType
+    objective: str = ""
+    created_at: datetime
+    constraints: BranchConstraints = Field(default_factory=BranchConstraints)
+
+
+class KnowledgeAssertionIn(_Model):
+    profile_id: str = Field(min_length=1)
+    investigation_id: str | None = None
+    subject: str = Field(min_length=1)
+    predicate: str = "related_to"
+    object: str = ""
+    text: str = ""
+    epistemic_state: KnowledgeState
+    basis: Literal["user_confirmation", "profile_declared", "profile_prior", "retrieved", "inferred"] = "user_confirmation"
+
+
+class KnowledgeNode(_Model):
+    id: str
+    label: str
+    epistemic_state: KnowledgeState
+    basis: str
+    confirmed: bool = False
+    inferred: bool = False
+    note: str = ""
+    investigation_id: str | None = None
+
+
+class KnowledgeEdge(_Model):
+    id: str
+    source: str
+    target: str
+    label: str
+    basis: str
+
+
+class KnowledgeGraph(_Model):
+    profile_id: str | None = None
+    investigation_id: str | None = None
+    question: str | None = None
+    nodes: list[KnowledgeNode] = Field(default_factory=list)
+    edges: list[KnowledgeEdge] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 def evidence_json_schema() -> dict[str, Any]:
@@ -602,9 +839,9 @@ def write_contract_files(directory: str) -> None:
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     schema = evidence_json_schema()
-    schema["$id"] = "https://searchhax.local/schemas/exploration-evidence-1.0.0.json"
+    schema["$id"] = f"https://searchhax.local/schemas/exploration-evidence-{CONTRACT_VERSION}.json"
     schema["$comment"] = (
-        "FrontierGraph exploration contract 1.0.0. "
+        f"FrontierGraph exploration contract {CONTRACT_VERSION}. "
         "Attention scores are not factual confidence. "
         "decision_source is recorded by exploration as convergence or fallback."
     )

@@ -36,11 +36,14 @@ def run_research(model: FocusAttentionModel,
     # A supplied plan makes Deep Investigation deterministic and auditable.
     # Without one, only novel candidates generate targeted follow-ups.
     pending = [model.intent, *query_plan]
+    # Targeted follow-ups for investigate decisions run before the remaining
+    # broad plan angles, so they are not starved by the search budget.
+    followups: list[str] = []
     processed_investigations: set[str] = set()
-    while pending and not model.should_stop(
+    while (followups or pending) and not model.should_stop(
             max_search_calls=max_search_calls,
             max_stagnant_batches=max_stagnant_batches):
-        query = pending.pop(0)
+        query = followups.pop(0) if followups else pending.pop(0)
         passages = retrieve(query)
         model.record_search_call()
         decisions = model.rank(passages)
@@ -49,7 +52,10 @@ def run_research(model: FocusAttentionModel,
         for decision in decisions:
             if decision.action == 'investigate' and decision.passage.source_key not in processed_investigations:
                 processed_investigations.add(decision.passage.source_key)
-                pending.append(followup_query(decision, model.intent))
+                follow_up = followup_query(decision, model.intent)
+                # An identical query would spend budget on the same results.
+                if follow_up not in pending and follow_up not in followups and follow_up not in queries:
+                    followups.append(follow_up)
         # No automatic broad re-search on an empty queue. A targeted investigation
         # is run only when there is something specifically worth examining.
     return ResearchRun(decisions=all_decisions, queries=queries,

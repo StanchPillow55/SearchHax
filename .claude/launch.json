@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "searchhax-prototype",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "design/figma-prototype", "run", "dev"],
+      "port": 8443
+    }
+  ]
+}

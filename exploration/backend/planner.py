@@ -139,3 +139,73 @@ def _query_for(question: UnresolvedQuestion) -> str:
 
 def _material_gap(questions: list[UnresolvedQuestion]) -> bool:
     return any(question.missing_evidence >= 0.5 for question in questions)
+
+
+# --------------------------------------------------------------------------- branch planning
+#
+# A branch keeps the root research question. Its objective is a separate, optional
+# instruction. A vague objective ("Is this true?") is never sent to retrieval on its own:
+# it is resolved against the claims the user attached, or refused.
+
+_DEICTIC_WORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "it", "this", "that", "these", "those",
+    "true", "false", "correct", "right", "accurate", "real", "really", "actually", "valid",
+    "verify", "check", "confirm", "test", "prove", "challenge", "investigate", "look", "into",
+    "please", "can", "could", "you", "we", "does", "do", "did", "what", "why", "how", "about",
+    "so", "just", "still", "claim", "claims", "fact", "facts", "source", "sources", "evidence",
+    "more", "again", "further", "and", "or", "of", "for", "on", "in", "to", "if", "whether",
+}
+
+MAX_BRANCH_QUERY_CHARS = 240
+
+
+def _content_words(text: str) -> list[str]:
+    words = re.findall(r"[A-Za-z0-9$%][A-Za-z0-9$%.,'’-]*", text.lower())
+    return [w.strip(".,'’-") for w in words if w.strip(".,'’-") not in _DEICTIC_WORDS and len(w.strip(".,'’-")) > 1]
+
+
+def is_grounded_objective(objective: str) -> bool:
+    """True when the objective names something to search for on its own.
+
+    "Is this true?", "verify this", "" and whitespace are not grounded: they only make
+    sense relative to a selected claim, so retrieval must not receive them alone.
+    """
+    return len(_content_words(objective or "")) >= 2
+
+
+def branch_query(
+    *,
+    root_question: str,
+    objective: str,
+    attached_claims: list[dict],
+    intervention_type: str,
+) -> tuple[str | None, dict]:
+    """Retrieval query for the first search of a branch, plus what it was planned from.
+
+    Returns (None, planned_from) when there is nothing grounded to search for. The root
+    question is never replaced; it is only used as a last resort for ``continue``.
+    """
+    objective = (objective or "").strip()
+    claims = [c for c in attached_claims if isinstance(c, dict) and (c.get("text") or "").strip()]
+    planned_from = {
+        "claim_ids": [c.get("id") for c in claims],
+        "objective": objective,
+        "objective_grounded": is_grounded_objective(objective),
+        "intervention_type": intervention_type,
+    }
+    if claims:
+        claim_text = " ".join(c["text"].strip() for c in claims[:2])
+        if intervention_type == "challenge_evidence":
+            query = f"independent evidence for or against: {claim_text}"
+        else:
+            query = claim_text
+        if planned_from["objective_grounded"]:
+            extra = [w for w in _content_words(objective) if w not in claim_text.lower()]
+            if extra:
+                query = f"{query} {' '.join(extra)}"
+        return query[:MAX_BRANCH_QUERY_CHARS].strip(), planned_from
+    if planned_from["objective_grounded"]:
+        return objective[:MAX_BRANCH_QUERY_CHARS].strip(), planned_from
+    if intervention_type == "continue":
+        return initial_search_query(root_question), planned_from
+    return None, planned_from

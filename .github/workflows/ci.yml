@@ -1,0 +1,62 @@
+# Offline CI. No provider keys are configured, and none must be: every job runs without
+# network calls to Telem, Tavily or any LLM. Billable research stays disabled in the build.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            exploration/requirements.txt
+            focus/requirements.txt
+      - name: Install
+        run: pip install -r exploration/requirements.txt -r focus/requirements.txt pytest-asyncio
+      - name: Contract files are up to date
+        run: |
+          python -m shared.contracts
+          git diff --exit-code shared/evidence.schema.json shared/example_payload.json
+      - name: Offline tests
+        # No provider keys exist here. Tests that need a live provider are marked
+        # `integration` and excluded; everything else must pass offline.
+        run: python -m pytest -q -m "not integration" -p no:cacheprovider
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_ALLOW_BILLABLE_RESEARCH: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc --noEmit -p .
+      - run: pnpm exec vitest run
+      - run: pnpm run build
+
+# Browser (Playwright) tests are not run in CI yet: they read specific investigations from a
+# persisted database that is not in the repository. Run them locally against a DB copy:
+#   E2E_API_URL=http://127.0.0.1:8010 pnpm --dir frontend exec playwright test
