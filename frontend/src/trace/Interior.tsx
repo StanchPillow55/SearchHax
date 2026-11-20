@@ -642,6 +642,19 @@ export function Interior(props: InteriorProps) {
           <span data-testid="investigation-status">
             <Tag tone={STATUS_META[lantern.status].tone}>{STATUS_META[lantern.status].label}</Tag>
           </span>
+          {persisted && lantern.status === "running" && !notStarted && (
+            // Continue a researching investigation: one more step through the same billable gate,
+            // confirmation, idempotency key and stored budget as the first step.
+            <button
+              className="outline-button gold"
+              data-testid="continue-research"
+              onClick={props.onStartResearch}
+              disabled={!props.branching?.allowInvestigate || props.branching.pending}
+              title={!props.branching?.allowInvestigate ? props.branching?.investigateDisabledReason : "Runs one billable research step within the stored budget"}
+            >
+              <Icon name="play" size={13} /> {props.branching?.pending ? "Running research…" : "Continue research (billable)"}
+            </button>
+          )}
           {!persisted && (
             <button className="outline-button" onClick={props.onDemo} title="Simulated 12-step walkthrough">
               <Icon name="play" size={13} /> Guided demo
