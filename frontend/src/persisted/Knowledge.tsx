@@ -30,7 +30,7 @@ const BASIS: Record<string, string> = {
  * basis of every node. Corrections are stored as explicit user assertions; nothing is promoted
  * to "known" because a source was retrieved.
  */
-export function Knowledge({ investigationId, question, onBack, onInvestigate }: { investigationId: string; question: string; onBack: () => void; onInvestigate: (question: string) => void }) {
+export function Knowledge({ investigationId, question, onBack, onInvestigate }: { investigationId: string; question: string; onBack: () => void; onInvestigate: (question: string, profileId: string | null) => void }) {
   const [graph, setGraph] = useState<{ phase: "loading" } | { phase: "ready"; g: KnowledgeGraphT } | { phase: "error"; message: string }>({ phase: "loading" });
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export function Knowledge({ investigationId, question, onBack, onInvestigate }: 
                             {graph.g.profile_id && (
                               <span className="kn-actions">
                                 {grp.state === "frontier" && (
-                                  <button className="link-button" onClick={() => onInvestigate(n.label)} data-testid="investigate-frontier">
+                                  <button className="link-button" onClick={() => onInvestigate(n.label, graph.phase === "ready" ? graph.g.profile_id ?? null : null)} data-testid="investigate-frontier">
                                     Investigate…
                                   </button>
                                 )}

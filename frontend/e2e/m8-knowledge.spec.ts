@@ -46,4 +46,22 @@ test("a knowledge correction persists across reload and encountered is never kno
   await frontier.getByTestId("investigate-frontier").click();
   await expect(page.getByTestId("new-question")).toHaveValue(topic);
   expect(posts).toEqual([]);
+
+  // The source investigation's stored profile is offered (on by default) and copied server-side.
+  await expect(page.getByTestId("new-profile")).toContainText(before.profile_id);
+  await expect(page.getByTestId("new-profile")).toContainText(id!);
+  await expect(page.getByTestId("new-profile-toggle")).toBeChecked();
+  await page.getByTestId("new-question").fill(`${topic}: what limits supply next year?`);
+  const created = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/api/exploration/investigations"));
+  await page.getByTestId("create-investigation").click();
+  const res = await created;
+  expect(res.ok()).toBe(true);
+  expect(res.request().postDataJSON()).toMatchObject({ profile_from_investigation_id: id });
+  const inv = await res.json();
+  expect(inv.status).toBe("created"); // saved only: nothing was searched
+  expect(inv.metadata.profile_source_investigation_id).toBe(id);
+  expect(inv.metadata.profile_snapshot.id).toBe(before.profile_id);
+  const g = await (await request.get(`${API}/api/exploration/profile/knowledge-graph?investigation_id=${inv.id}`)).json();
+  expect(g.profile_id).toBe(before.profile_id);
+  await page.screenshot({ path: `${SHOTS}/m8-profile-carry.png` });
 });

@@ -18,6 +18,7 @@ import { useInvestigation } from "./useInvestigation";
 import { Findings } from "./Findings";
 import { LineageCompare } from "./LineageCompare";
 import { Knowledge } from "./Knowledge";
+import { decodePrefill, encodePrefill, type NewQuestionPrefill } from "./prefill";
 
 const PREFILL_KEY = "searchhax:new-question-prefill";
 import { readCanvas, readRecent, readUrlState, rememberRecent, writeCanvas, writeUrlState } from "./urlState";
@@ -315,10 +316,11 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
         investigationId={ready.id}
         question={trace.question ?? ready.data.source.investigation.question}
         onBack={() => setScreen("interior")}
-        onInvestigate={(q) => {
-          // Pre-fill only; the user edits and saves the question themselves.
+        onInvestigate={(q, profileId) => {
+          // Pre-fill only; the user edits and saves the question themselves. The profile is
+          // referenced by its source investigation; the backend copies the stored record.
           try {
-            window.sessionStorage.setItem(PREFILL_KEY, q);
+            window.sessionStorage.setItem(PREFILL_KEY, encodePrefill({ question: q, profileFrom: profileId ? { investigationId: ready.id, profileId } : null }));
           } catch {
             /* storage unavailable: the form simply starts empty */
           }
@@ -450,15 +452,18 @@ function Shell({ children }: { children: React.ReactNode }) {
  * double click or a timed-out retry cannot create two investigations.
  */
 function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
-  const [question, setQuestion] = useState(() => {
+  const [prefill] = useState<NewQuestionPrefill>(() => {
     try {
-      const q = window.sessionStorage.getItem(PREFILL_KEY) ?? "";
+      const p = decodePrefill(window.sessionStorage.getItem(PREFILL_KEY));
       window.sessionStorage.removeItem(PREFILL_KEY);
-      return q;
+      return p;
     } catch {
-      return "";
+      return { question: "", profileFrom: null };
     }
   });
+  const [question, setQuestion] = useState(prefill.question);
+  const [useProfile, setUseProfile] = useState(!!prefill.profileFrom);
+  const profileSource = useProfile ? prefill.profileFrom?.investigationId : undefined;
   const [maxSearches, setMaxSearches] = useState(2);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -469,13 +474,13 @@ function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
   const submit = async () => {
     if (!valid || pendingRef.current) return;
     const budget = { max_searches: maxSearches, max_fetched_urls: maxSearches * 4, max_llm_calls: maxSearches * 3 };
-    const fingerprint = JSON.stringify({ trimmed, budget });
+    const fingerprint = JSON.stringify({ trimmed, budget, profileSource: profileSource ?? null });
     if (keyRef.current?.fingerprint !== fingerprint) keyRef.current = { fingerprint, key: newIdempotencyKey() };
     pendingRef.current = true;
     setPending(true);
     setError(null);
     try {
-      const inv = await explorationClient.createInvestigation(trimmed, budget, keyRef.current.key);
+      const inv = await explorationClient.createInvestigation(trimmed, budget, keyRef.current.key, profileSource);
       keyRef.current = null;
       onCreated(inv.id);
     } catch (err) {
@@ -504,6 +509,15 @@ function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
         placeholder="What do you want to find out? e.g. How do NVIDIA's investments and AI capacity expansion reinforce one another?"
         onChange={(e) => setQuestion(e.target.value)}
       />
+      {prefill.profileFrom && (
+        <label className="pw-inline pw-new-profile" data-testid="new-profile">
+          <input type="checkbox" checked={useProfile} onChange={(e) => setUseProfile(e.target.checked)} data-testid="new-profile-toggle" />
+          <span>
+            Rank sources with research profile <code>{prefill.profileFrom.profileId}</code>, copied from investigation{" "}
+            <code>{prefill.profileFrom.investigationId}</code>. It adds a separate knowledge-value score; it does not change what counts as evidence.
+          </span>
+        </label>
+      )}
       <div className="pw-new-row">
         <label className="pw-inline">
           Search budget

@@ -292,6 +292,18 @@
   font: 500 12px "Manrope" !important;
   color: #c9c3b7;
 }
+.pw-new-profile {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+.pw-new-profile input {
+  margin-top: 3px;
+  accent-color: #a78bfa;
+}
+.pw-new-profile code {
+  font-size: 11px;
+  color: #ece6da;
+}
 .pw-new select {
   background: #0b1016;
   border: 1px solid #2c3441;

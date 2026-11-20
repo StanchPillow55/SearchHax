@@ -65,6 +65,7 @@ class Orchestrator:
         *,
         mode: str = "web",
         profile: ResearchProfile | None = None,
+        profile_source_investigation_id: str | None = None,
     ) -> Investigation:
         if not question.strip():
             raise ValueError("question must not be blank")
@@ -74,6 +75,9 @@ class Orchestrator:
             # Read-only profile snapshot. It conditions knowledge-value scoring
             # of live candidates; it is never stored as sourced web evidence.
             metadata["profile_snapshot"] = profile.model_dump(mode="json")
+            if profile_source_investigation_id:
+                # Where the snapshot was copied from (the source is not modified).
+                metadata["profile_source_investigation_id"] = profile_source_investigation_id
         investigation = Investigation(
             id=new_id("inv"),
             question=question.strip(),
@@ -86,6 +90,10 @@ class Orchestrator:
         )
         self.database.insert_investigation(investigation)
         return investigation
+
+    def stored_profile(self, investigation_id: str) -> ResearchProfile | None:
+        """The profile recorded on an existing investigation (read only). KeyError if it does not exist."""
+        return self._profile(self.get(investigation_id))
 
     def _profile(self, export: ExplorationExport) -> ResearchProfile | None:
         """Return the investigation's read-only profile, if one was attached."""

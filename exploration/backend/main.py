@@ -114,12 +114,26 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         if not body.question.strip():
             # min_length=1 accepts whitespace; a blank question is not stored.
             raise HTTPException(status_code=422, detail="question must not be blank")
+        profile = body.profile
+        source_id = body.profile_from_investigation_id
+        if source_id is not None:
+            if body.profile is not None:
+                raise HTTPException(status_code=422, detail="give either profile or profile_from_investigation_id, not both")
+            try:
+                profile = app.state.orchestrator.stored_profile(source_id)
+            except KeyError:
+                raise HTTPException(status_code=404, detail=f"investigation {source_id} not found") from None
+            if profile is None:
+                # Nothing is invented: without a stored profile the request is refused.
+                raise HTTPException(status_code=422, detail=f"investigation {source_id} has no stored research profile")
         return idempotent(
             idempotency_key,
             "create_investigation",
             body.model_dump(mode="json"),
             Investigation,
-            lambda: app.state.orchestrator.create(body.question, body.budget, profile=body.profile),
+            lambda: app.state.orchestrator.create(
+                body.question, body.budget, profile=profile, profile_source_investigation_id=source_id
+            ),
         )
 
     @app.get("/api/exploration/investigations", response_model=InvestigationList)

@@ -1526,7 +1526,7 @@
   "description": "Full investigation snapshot another app can read from JSON Schema alone.",
   "properties": {
     "contract_version": {
-      "default": "1.1.0",
+      "default": "1.2.0",
       "title": "Contract Version",
       "type": "string"
     },
@@ -1672,6 +1672,6 @@
   ],
   "title": "ExplorationExport",
   "type": "object",
-  "$id": "https://searchhax.local/schemas/exploration-evidence-1.1.0.json",
-  "$comment": "FrontierGraph exploration contract 1.1.0. Attention scores are not factual confidence. decision_source is recorded by exploration as convergence or fallback."
+  "$id": "https://searchhax.local/schemas/exploration-evidence-1.2.0.json",
+  "$comment": "FrontierGraph exploration contract 1.2.0. Attention scores are not factual confidence. decision_source is recorded by exploration as convergence or fallback."
 }
