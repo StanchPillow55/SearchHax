@@ -279,3 +279,26 @@ Everything below is offline and local: no provider keys, no billable call. Brows
 - **M9:** 244 CSS rules outside the zoomable canvas were raised from 7–9.5 px to 10–10.5 px. All 12 browser tests still pass.
 
 Final: backend 147 passed, 3 failed (provider keys); vitest 96/96; Playwright 12/12; `tsc` and build clean.
+
+**Follow-up branch `frontend/qa-and-m7-followup` (local, not pushed)**
+- **QA ledger:** 89 pass, 3 skipped with stated reasons, 1 fails. The failure (`test_profile_value`) checks a recorded live demo file that predates the fix; it passes only after a re-recorded live run.
+- **Behaviour changes worth reviewing:**
+  - Retrieval failures now stop an investigation and record why.
+  - Controller stops without a reason code are honoured.
+  - A string `"false"` stop flag is parsed strictly.
+  - When the API key is set, extraction runs the LLM even when a disclosed-fact pattern matched. That is **one more billable LLM call per such page in live runs**, within the budget.
+  - Cited answers remove unsupplied markers and links, and remove sentences whose amount isn't in a cited quote.
+- **M7:** per-passage coordinates are recorded in `policy_space_passages` and wired to the Inspector and the 3D view.
+- **M6:** canvas layout is remembered per investigation.
+- **M9:** keyboard pan, zoom, fit and Escape on the map.
+- **Tests:** backend 148 passed, 1 skipped, 3 failed (provider keys); vitest 99/99; Playwright 15/15.
+
+## 11. Resumed session (2026-11-20): CI repair, M7 verification, QA inventory
+
+- **PR #4 CI** had failed in `backend › Contract files are up to date`. `shared/evidence.schema.json` had been generated with a local pydantic 2.9.2, but CI pins 2.14.3 (integer bounds, `additionalProperties`). The fix (`b6d8001`) regenerated the file with 2.14.3 in a clean venv and removed the three deselects:
+  - `test_profile_live_pipeline_*` (2) use an in-process fake retrieval and assert zero network fetches; they failed only the orchestrator's `telem_configured()` gate, so the test now sets a placeholder `TELEM_API_KEY`.
+  - `test_missing_api_key_uses_keyless_search_and_extract` needs no key.
+  - The rerun was green: backend 151 passed (2 `integration` deselected), frontend tsc + vitest 98/98 + build.
+- **Follow-up branch** `frontend/qa-and-m7-followup` was fast-forwarded onto `b6d8001`, and the previously uncommitted work was committed in two units: M7 (`cdbb6a5`) and QA fixes (`7dd79b3`).
+- **Results on the follow-up branch** (no keys, empty `HOME`, pinned deps): backend 152 passed; QA ledger 90 pass / 1 fail / 2 skip; tsc clean; vitest 99/99; build clean; Playwright 15/15 against an isolated keyless API on :8010 serving a copy of `exploration/data/exploration.sqlite`.
+- **Reconciling earlier reports.** "89 / 1 / 3" counted `test_fetch_lineage` as skipped (no telem-sdk in that interpreter); "3 key-dependent backend failures" were the three CI deselects above, and none of them was a QA-ledger test.
