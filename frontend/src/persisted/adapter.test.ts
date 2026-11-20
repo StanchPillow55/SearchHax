@@ -265,3 +265,31 @@ describe("adapter: replay is deterministic (M4)", () => {
     for (const c of trace.checkpoints.filter((x) => x.forkable)) expect(persisted.has(c.id)).toBe(true);
   });
 });
+
+describe("adapter: passage-level Focus coordinates (M7)", () => {
+  it("reads policy_space_passages per checkpoint and keeps them apart from document points", async () => {
+    const { policyForSpan } = await import("./policy");
+    const exp = ExplorationExport.parse(raw(MAIN, "export"));
+    const tr = InvestigationTrace.parse(raw(MAIN, "trace"));
+    const br = BranchList.parse(raw(MAIN, "branches"));
+    const span = exp.evidence_spans[0];
+    const cp = exp.checkpoints[exp.checkpoints.length - 1];
+    const row = { evidence_id: span.id, span_id: span.id, document_id: span.document_id, url: "", title: "t", passage: span.text, intent_alignment: 0.6, novelty: 0.4, unresolved_alignment: 0.2, action: "investigate", granularity: "passage" };
+    const withPassages = { ...exp, checkpoints: exp.checkpoints.map((c) => (c.id === cp.id ? { ...c, state_json: { ...c.state_json, policy_space_passages: [row, { ...row, span_id: undefined }] } } : c)) };
+    const t = adaptInvestigation(ExplorationExport.parse(withPassages), tr, br).trace;
+    expect(t.passagePolicyByCheckpoint?.[cp.id]?.map((p) => p.spanId)).toEqual([span.id]); // row without span_id is dropped
+    expect((t.policyByCheckpoint?.[cp.id] ?? []).some((p) => p.spanId)).toBe(false);
+    const latest = t.events.length - 1;
+    const hit = policyForSpan(t, latest, span.id);
+    expect(hit.point?.intent).toBe(0.6);
+    expect(policyForSpan(t, latest, "span_missing").point).toBeNull();
+    expect((t.notes ?? []).some((n) => n.includes("1 passage coordinate(s)") && n.includes("failed validation"))).toBe(true);
+    // A row recorded for another investigation is not plotted, and the drop is reported.
+    const foreign = { ...exp, checkpoints: exp.checkpoints.map((c) => (c.id === cp.id ? { ...c, state_json: { ...c.state_json, policy_space_passages: [row, { ...row, investigation_id: "inv_other" }] } } : c)) };
+    const tf = adaptInvestigation(ExplorationExport.parse(foreign), tr, br).trace;
+    expect(tf.passagePolicyByCheckpoint?.[cp.id]?.length).toBe(1);
+    expect((tf.notes ?? []).some((n) => n.includes("belong to another investigation"))).toBe(true);
+    // Older records without passage coordinates: no passage points, nothing estimated.
+    expect(adaptInvestigation(exp, tr, br).trace.passagePolicyByCheckpoint).toEqual({});
+  });
+});

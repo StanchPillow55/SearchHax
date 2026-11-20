@@ -155,7 +155,11 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
 
 
   const latest = trace.events.length - 1;
-  const spaceCheckpoints = trace.checkpoints.map((c) => ({ id: c.id, label: `${c.short} · ${c.label}`, points: (trace.policyByCheckpoint?.[c.id] ?? []).map(toEvidencePoint) }));
+  // Opening 3D from a passage shows passage-level points (when recorded); otherwise document-level.
+  const passagePoints = Object.values(trace.passagePolicyByCheckpoint ?? {}).flat();
+  const passageSpace = !!space?.evidenceId && passagePoints.some((p) => p.evidenceId === space.evidenceId);
+  const spaceMap = passageSpace ? trace.passagePolicyByCheckpoint ?? {} : trace.policyByCheckpoint ?? {};
+  const spaceCheckpoints = trace.checkpoints.map((c) => ({ id: c.id, label: `${c.short} · ${c.label}${passageSpace ? " · passages" : ""}`, points: (spaceMap[c.id] ?? []).map(toEvidencePoint) }));
 
   if (screen === "space" && space)
     return (
@@ -167,8 +171,10 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
           initialEvidenceId: space.evidenceId,
           onBack: () => setScreen("interior"),
           onShowInTrace: (evidenceId) => {
-            const point = Object.values(trace.policyByCheckpoint ?? {}).flat().find((p) => p.evidenceId === evidenceId);
-            const docId = point?.documentId && trace.nodes.some((n) => n.id === point.documentId) ? point.documentId : null;
+            const spanPoint = passagePoints.find((p) => p.evidenceId === evidenceId);
+            const passageNode = spanPoint?.spanId ? trace.nodes.find((n) => n.ref?.table === "evidence_spans" && n.ref.id === spanPoint.spanId) : undefined;
+            const point = spanPoint ?? Object.values(trace.policyByCheckpoint ?? {}).flat().find((p) => p.evidenceId === evidenceId);
+            const docId = passageNode ? passageNode.id : point?.documentId && trace.nodes.some((n) => n.id === point.documentId) ? point.documentId : null;
             setScreen("interior");
             if (!docId) {
               setRestoreNotice(`Recorded point ${evidenceId} has no matching document in this trace.`);
@@ -403,7 +409,8 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
         }}
         onOpen3D={(evId) => {
           const cur = view.cursor < 0 ? latest : view.cursor;
-          const cp = [...trace.checkpoints].reverse().find((c) => c.seq <= cur && (trace.policyByCheckpoint?.[c.id]?.length ?? 0) > 0) ?? trace.checkpoints.find((c) => (trace.policyByCheckpoint?.[c.id]?.length ?? 0) > 0);
+          const map = evId && Object.values(trace.passagePolicyByCheckpoint ?? {}).flat().some((p) => p.evidenceId === evId) ? trace.passagePolicyByCheckpoint ?? {} : trace.policyByCheckpoint ?? {};
+          const cp = [...trace.checkpoints].reverse().find((c) => c.seq <= cur && (map[c.id]?.length ?? 0) > 0) ?? trace.checkpoints.find((c) => (map[c.id]?.length ?? 0) > 0);
           setSpace({ evidenceId: evId, checkpoint: cp?.id });
           setScreen("space");
         }}
