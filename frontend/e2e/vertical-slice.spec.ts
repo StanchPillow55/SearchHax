@@ -84,3 +84,33 @@ test("switching to the recorded child loads only the child's records", async ({ 
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`investigation=${ID}`));
 });
+
+test("the canvas zoom and position are restored after a reload (this browser only)", async ({ page }) => {
+  await page.goto(`/?mode=live&investigation=${ID}`);
+  await expect(page.getByTestId("research-question")).toBeVisible();
+  const pct = page.locator(".ix-zoom-pct");
+  await page.getByTitle("Zoom in").click();
+  await page.getByTitle("Zoom in").click();
+  const before = (await pct.innerText()).trim();
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(page.getByTestId("research-question")).toBeVisible();
+  await expect(pct).toHaveText(before);
+});
+
+test("the investigation map is usable from the keyboard", async ({ page }) => {
+  await page.goto(`/?mode=live&investigation=${ID}`);
+  const stage = page.getByRole("region", { name: /Investigation map/ });
+  await stage.focus();
+  await expect(stage).toBeFocused();
+  const pct = page.locator(".ix-zoom-pct");
+  const before = (await pct.innerText()).trim();
+  await page.keyboard.press("+");
+  await expect(pct).not.toHaveText(before);
+  await page.keyboard.press("0");
+  await page.keyboard.press("Tab");
+  const focused = await page.evaluate(() => document.activeElement?.tagName);
+  expect(focused).toBe("BUTTON");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".ix-inspector")).toBeVisible();
+});

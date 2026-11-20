@@ -48,7 +48,7 @@
   cursor: not-allowed;
 }
 .recent-empty {
-  font-size: 9px;
+  font-size: 10.5px;
   color: #5d6672;
   padding: 0 10px;
 }
@@ -61,7 +61,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 9px;
+  font-size: 10.5px;
   letter-spacing: 0.3px;
   color: #c7b4f2;
   background: #1a1428ee;
@@ -85,7 +85,7 @@
   border-bottom: 1px solid #232933;
 }
 .pw-head small {
-  font-size: 8.5px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #63cdbb;
@@ -176,12 +176,12 @@
   font-weight: 600;
 }
 .pw-recent-card small {
-  font-size: 9px;
+  font-size: 10.5px;
   color: #6f7986;
 }
 .pw-recent-card code,
 .pw-card code {
-  font: 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 10.5px ui-monospace, SFMono-Regular, Menlo, monospace;
   color: #9fb3c8;
 }
 .pw-recent-icon {
@@ -217,7 +217,7 @@
 }
 .pw-error ul {
   margin: 8px 0 0 16px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   color: #c9a7a1;
 }
 .pw-actions {
@@ -263,4 +263,258 @@
   border-color: #574578;
   color: var(--violet);
   background: #19142a;
+}
+
+.pw-new textarea {
+  background: #0b1016;
+  border: 1px solid #2c3441;
+  border-radius: 8px;
+  color: #ece6da;
+  padding: 10px 12px;
+  font: 13px/1.5 "Manrope", system-ui, sans-serif;
+  resize: vertical;
+  outline: 0;
+}
+.pw-new textarea:focus,
+.pw-new select:focus {
+  border-color: #3f7e72;
+}
+.pw-new-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pw-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 12px "Manrope" !important;
+  color: #c9c3b7;
+}
+.pw-new select {
+  background: #0b1016;
+  border: 1px solid #2c3441;
+  border-radius: 8px;
+  color: #ece6da;
+  padding: 6px 8px;
+  font: 12px "Manrope";
+}
+
+/* ── Findings (M5). Body text ≥ 12px for readability (M9). ── */
+.tag.coral {
+  color: #f08a7a;
+  border-color: #7a3a33;
+  background: #1c1312;
+}
+.tag.coral i {
+  background: #f08a7a;
+}
+.fx-screen {
+  overflow-y: auto;
+}
+.fx-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 22px 28px 16px;
+  border-bottom: 1px solid #1d232c;
+}
+.fx-head small {
+  font: 600 11px "Manrope";
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6fb7a6;
+}
+.fx-head h1 {
+  font: 600 19px/1.35 "Manrope";
+  color: #ece6da;
+  margin-top: 4px;
+  max-width: 900px;
+}
+.fx-body {
+  padding: 20px 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: 980px;
+}
+.fx-body h2 {
+  font: 600 14px "Manrope";
+  color: #e2dccf;
+  margin-bottom: 10px;
+}
+.fx-outcome,
+.fx-answer,
+.fx-claim {
+  border: 1px solid #262e39;
+  background: #10151c;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.fx-outcome.partial {
+  border-color: #5c4a24;
+}
+.fx-headline {
+  font: 600 14px/1.5 "Manrope";
+  color: #ece6da;
+  margin-top: 8px;
+}
+.fx-rationale,
+.fx-answer p,
+.fx-claim-text,
+.fx-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #c9c3b7;
+  margin-top: 6px;
+}
+.fx-claim-text {
+  color: #ece6da;
+}
+.fx-counts,
+.fx-support {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #9aa3b0;
+}
+.fx-counts b,
+.fx-support b {
+  color: #ece6da;
+}
+.fx-support .warn {
+  color: #e9c37a;
+}
+.fx-note,
+.fx-meta,
+.fx-empty {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8e97a5;
+}
+.fx-meta {
+  margin-top: 4px;
+}
+.fx-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.fx-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fx-filter button {
+  font: 500 12px "Manrope";
+  color: #9aa3b0;
+  border: 1px solid #262e39;
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.fx-filter button.active {
+  color: #ece6da;
+  border-color: #3f7e72;
+  background: #12201d;
+}
+.fx-claims,
+.fx-list,
+.fx-evidence,
+.fx-citations {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+}
+.fx-claim-head,
+.fx-ev-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.fx-ev-meta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.link-button {
+  font: 500 12px "Manrope";
+  color: #7fc8b6;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-button:focus-visible,
+.fx-filter button:focus-visible {
+  outline: 2px solid #7fc8b6;
+  outline-offset: 2px;
+}
+.fx-claim details {
+  margin-top: 10px;
+}
+.fx-claim summary {
+  font: 500 12px "Manrope";
+  color: #9aa3b0;
+  cursor: pointer;
+}
+.fx-evidence {
+  margin-top: 8px;
+}
+.fx-evidence li {
+  border-left: 2px solid #262e39;
+  padding-left: 10px;
+}
+.fx-evidence q,
+.fx-citations q {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ddd6c8;
+  margin-top: 6px;
+}
+.fx-screen a {
+  color: #7fc8b6;
+}
+@media (max-width: 760px) {
+  .fx-head,
+  .fx-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+.lc-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .lc-sides {
+    grid-template-columns: 1fr;
+  }
+}
+.kn-node {
+  border: 1px solid #262e39;
+  background: #10151c;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.kn-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.link-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, explorationClient } from "../api/client";
+import { ApiError, explorationClient, newIdempotencyKey } from "../api/client";
 import { API_CONFIG, apiOriginLabel } from "../api/config";
 import type { CreateBranchBody, InvestigationSummaryT } from "../api/schemas";
 import { ConstellationView } from "../trace/Constellation";
@@ -15,7 +15,12 @@ import type { Trace, ViewState } from "../trace/types";
 import { toEvidencePoint } from "./policy";
 import { lanternStatus } from "./adapter";
 import { useInvestigation } from "./useInvestigation";
-import { readRecent, readUrlState, rememberRecent, writeUrlState } from "./urlState";
+import { Findings } from "./Findings";
+import { LineageCompare } from "./LineageCompare";
+import { Knowledge } from "./Knowledge";
+
+const PREFILL_KEY = "searchhax:new-question-prefill";
+import { readCanvas, readRecent, readUrlState, rememberRecent, writeCanvas, writeUrlState } from "./urlState";
 
 export interface Space3DArgs {
   question: string;
@@ -26,16 +31,25 @@ export interface Space3DArgs {
   onShowInTrace: (evidenceId: string) => void;
 }
 
-/** Persisted / live mode: a real investigation from the exploration API, read-only. */
+/** Persisted / live mode: real investigations from the exploration API. Writes are local (save question, save branch); research steps are billable and gated. */
 export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a: Space3DArgs) => React.ReactNode; onRecentChange?: () => void }) {
   const [investigationId, setInvestigationId] = useState<string | null>(() => readUrlState().investigation);
   const { state, retry, refresh } = useInvestigation(investigationId);
   const [branchPending, setBranchPending] = useState(false);
   const pendingRef = useRef(false); // synchronous double-submit guard
+  const writeKeyRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const [researching, setResearching] = useState(false);
+  // While a (synchronous) research step runs, the backend records events as it goes. Re-read
+  // them every 2 s so the activity shown is what has actually been recorded so far.
+  useEffect(() => {
+    if (!researching) return;
+    const timer = window.setInterval(() => refresh(), 2000);
+    return () => window.clearInterval(timer);
+  }, [researching, refresh]);
   const [branchError, setBranchError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ childId: string; checkpoint: string; mode: "saved" | "investigate" } | null>(null);
   const [views, setViews] = useState<Record<string, ViewState>>({});
-  const [screen, setScreen] = useState<"interior" | "compare" | "space" | "constellation">("interior");
+  const [screen, setScreen] = useState<"interior" | "compare" | "space" | "constellation" | "findings" | "lineage" | "knowledge">("interior");
   const [cmp, setCmp] = useState<{ a: string; b: string } | null>(null);
   const [space, setSpace] = useState<{ evidenceId: string | null; checkpoint?: string } | null>(null);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
@@ -68,6 +82,12 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
     const u = readUrlState();
     const t = ready.data.trace;
     let v = defaultView();
+    // Restore this browser's saved canvas layout for this investigation (ids not in this record are dropped).
+    const saved = readCanvas(ready.id);
+    if (saved) {
+      const ids = new Set(t.nodes.map((n) => n.id));
+      v = { ...v, zoom: saved.zoom, pan: saved.pan, fitted: true, granularity: saved.granularity, expanded: saved.expanded.filter((x) => ids.has(x)), collapsedRounds: saved.collapsedRounds };
+    }
     const missing: string[] = [];
     if (u.checkpoint) {
       const cp = t.checkpoints.find((c) => c.id === u.checkpoint);
@@ -96,6 +116,16 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
     writeUrlState({ mode: "live", investigation: ready.id, node: view.selected, checkpoint: view.snapshot });
   }, [ready, view?.selected, view?.snapshot]);
 
+  // Remember the canvas layout (debounced) so reopening the investigation returns to the same place.
+  useEffect(() => {
+    if (!ready || !view || !view.fitted) return;
+    const timer = window.setTimeout(
+      () => writeCanvas(ready.id, { zoom: view.zoom, pan: view.pan, expanded: view.expanded, collapsedRounds: view.collapsedRounds, granularity: view.granularity }),
+      400,
+    );
+    return () => window.clearTimeout(timer);
+  }, [ready?.id, view?.zoom, view?.pan.x, view?.pan.y, view?.expanded, view?.collapsedRounds, view?.granularity, view?.fitted]);
+
   const setView = (patch: ViewPatch) => {
     if (!ready) return;
     setViews((cur) => {
@@ -123,7 +153,6 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
   if (state.phase === "error") return <ErrorPanel id={state.id} error={state.error} onRetry={retry} onClose={() => open(null)} />;
   if (!ready || !trace || !view) return null;
 
-  if (trace.events.length === 0) return <EmptyInvestigation trace={trace} status={ready.data.lantern.status} id={ready.id} onClose={() => open(null)} />;
 
   const latest = trace.events.length - 1;
   const spaceCheckpoints = trace.checkpoints.map((c) => ({ id: c.id, label: `${c.short} · ${c.label}`, points: (trace.policyByCheckpoint?.[c.id] ?? []).map(toEvidencePoint) }));
@@ -185,6 +214,17 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
     investigateDisabledReason: allowInvestigate ? undefined : "Billable research is turned off in this build (VITE_ALLOW_BILLABLE_RESEARCH is not true).",
   };
 
+  /** One idempotency key per distinct write: a retry of the same request reuses it, so the backend cannot act twice. */
+  const keyFor = (scope: string, payload: unknown) => {
+    const fingerprint = `${scope}:${JSON.stringify(payload)}`;
+    if (writeKeyRef.current?.fingerprint !== fingerprint) writeKeyRef.current = { fingerprint, key: newIdempotencyKey() };
+    return writeKeyRef.current.key;
+  };
+  const settleKey = (err?: unknown) => {
+    // Keep the key only when the outcome is unknown (network/timeout): the server may have acted.
+    if (!(err instanceof ApiError && (err.kind === "network" || err.kind === "timeout"))) writeKeyRef.current = null;
+  };
+
   const createBranch = async (draft: ComposerDraft, mode: "saved" | "investigate") => {
     if (pendingRef.current) return; // double-submit guard (state updates are async)
     const cp = trace.checkpoints.find((c) => c.id === draft.checkpointId);
@@ -207,14 +247,17 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
     setBranchPending(true);
     setBranchError(null);
     try {
-      const branch = await explorationClient.createBranch(ready.id, body);
+      const branch = await explorationClient.createBranch(ready.id, body, keyFor(`branch:${ready.id}`, body));
+      settleKey();
       if (mode === "investigate") {
-        await explorationClient.resumeBranch(branch.id, { confirmedBillable: true });
+        await explorationClient.resumeBranch(branch.id, { confirmedBillable: true }, keyFor(`resume:${branch.id}`, {}));
+        settleKey();
       }
       setCreated({ childId: branch.child_investigation_id, checkpoint: cp.short, mode });
       setView((v) => ({ composer: null, selected: `fork:${branch.child_investigation_id}`, focusIds: [cp.nodeId, `fork:${branch.child_investigation_id}`], focusNonce: v.focusNonce + 1 }));
       refresh();
     } catch (err) {
+      settleKey(err);
       setBranchError(err instanceof ApiError ? `${err.message}${err.status ? ` (HTTP ${err.status})` : ""}` : (err as Error).message);
     } finally {
       pendingRef.current = false;
@@ -223,20 +266,76 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
   };
 
   const startResearch = async () => {
-    if (pendingRef.current || !trace.branchId) return;
+    if (pendingRef.current || !allowInvestigate) return;
+    const target = trace.branchId ? `branch ${trace.branchId}` : `investigation ${ready.id}`;
+    const ok = window.confirm(
+      `Run one BILLABLE research step on ${target}?\n\nIt performs real web searches, page fetches and LLM calls, capped by the investigation's stored budget. It cannot be undone.`,
+    );
+    if (!ok) return;
     pendingRef.current = true;
     setBranchPending(true);
     setBranchError(null);
+    setResearching(true);
     try {
-      await explorationClient.resumeBranch(trace.branchId, { confirmedBillable: true });
+      if (trace.branchId) await explorationClient.resumeBranch(trace.branchId, { confirmedBillable: true }, keyFor(`resume:${trace.branchId}`, {}));
+      else await explorationClient.stepInvestigation(ready.id, { confirmedBillable: true }, keyFor(`step:${ready.id}`, {}));
+      settleKey();
       refresh();
     } catch (err) {
-      setBranchError((err as Error).message);
+      settleKey(err);
+      setBranchError(err instanceof ApiError ? `${err.message}${err.status ? ` (HTTP ${err.status})` : ""}` : (err as Error).message);
     } finally {
+      setResearching(false);
       pendingRef.current = false;
       setBranchPending(false);
     }
   };
+
+  if (trace.events.length === 0)
+    return (
+      <EmptyInvestigation
+        trace={trace}
+        status={ready.data.lantern.status}
+        id={ready.id}
+        onClose={() => open(null)}
+        branching={branching}
+        onStartResearch={() => void startResearch()}
+      />
+    );
+
+  if (screen === "knowledge")
+    return (
+      <Knowledge
+        investigationId={ready.id}
+        question={trace.question ?? ready.data.source.investigation.question}
+        onBack={() => setScreen("interior")}
+        onInvestigate={(q) => {
+          // Pre-fill only; the user edits and saves the question themselves.
+          try {
+            window.sessionStorage.setItem(PREFILL_KEY, q);
+          } catch {
+            /* storage unavailable: the form simply starts empty */
+          }
+          open(null);
+        }}
+      />
+    );
+
+  if (screen === "lineage" && ready.data.lantern.parentId)
+    return <LineageCompare child={ready.data.source} question={trace.question ?? ready.data.source.investigation.question} parentId={ready.data.lantern.parentId} onBack={() => setScreen("interior")} onOpen={(id) => open(id)} />;
+
+  if (screen === "findings")
+    return (
+      <Findings
+        exp={ready.data.source}
+        onBack={() => setScreen("interior")}
+        onShowInTrace={(nodeId) => {
+          const { expand, round } = revealPath(trace, nodeId);
+          setView((v) => ({ cursor: -1, snapshot: null, selected: nodeId, expanded: Array.from(new Set([...v.expanded, ...expand])), collapsedRounds: v.collapsedRounds.filter((r) => r !== round), focusIds: [nodeId], focusNonce: v.focusNonce + 1 }));
+          setScreen("interior");
+        }}
+      />
+    );
 
   if (screen === "compare" && cmp)
     return (
@@ -310,6 +409,9 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
         }}
         branching={branching}
         onConstellation={() => setScreen("constellation")}
+        onFindings={() => setScreen("findings")}
+        onKnowledge={() => setScreen("knowledge")}
+        onCompareParent={ready.data.lantern.parentId ? () => setScreen("lineage") : undefined}
         onCreateFork={(d, m) => void createBranch(d, m)}
         onStartResearch={() => void startResearch()}
         onDemo={() => {}}
@@ -323,7 +425,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="app-main pw-screen">
       <header className="pw-head">
         <div>
-          <small>Live data · read-only</small>
+          <small>Live data</small>
           <h1>Stored investigations</h1>
         </div>
         <span className="ix-sim-badge persisted">
@@ -332,6 +434,94 @@ function Shell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="pw-body">{children}</div>
     </main>
+  );
+}
+
+/**
+ * Stores a new research question (local write, no provider call). Research runs later, only
+ * through the billable gate. The idempotency key survives retries of the same question, so a
+ * double click or a timed-out retry cannot create two investigations.
+ */
+function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
+  const [question, setQuestion] = useState(() => {
+    try {
+      const q = window.sessionStorage.getItem(PREFILL_KEY) ?? "";
+      window.sessionStorage.removeItem(PREFILL_KEY);
+      return q;
+    } catch {
+      return "";
+    }
+  });
+  const [maxSearches, setMaxSearches] = useState(2);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pendingRef = useRef(false);
+  const keyRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const trimmed = question.trim();
+  const valid = trimmed.length >= 8 && trimmed.length <= 2000;
+  const submit = async () => {
+    if (!valid || pendingRef.current) return;
+    const budget = { max_searches: maxSearches, max_fetched_urls: maxSearches * 4, max_llm_calls: maxSearches * 3 };
+    const fingerprint = JSON.stringify({ trimmed, budget });
+    if (keyRef.current?.fingerprint !== fingerprint) keyRef.current = { fingerprint, key: newIdempotencyKey() };
+    pendingRef.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      const inv = await explorationClient.createInvestigation(trimmed, budget, keyRef.current.key);
+      keyRef.current = null;
+      onCreated(inv.id);
+    } catch (err) {
+      if (!(err instanceof ApiError && (err.kind === "network" || err.kind === "timeout"))) keyRef.current = null;
+      setError(err instanceof ApiError ? `${err.message}${err.status ? ` (HTTP ${err.status})` : ""}` : (err as Error).message);
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  };
+  return (
+    <form
+      className="pw-card pw-open pw-new"
+      data-testid="new-investigation"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <label htmlFor="pw-new-question">New investigation</label>
+      <textarea
+        id="pw-new-question"
+        data-testid="new-question"
+        value={question}
+        rows={3}
+        placeholder="What do you want to find out? e.g. How do NVIDIA's investments and AI capacity expansion reinforce one another?"
+        onChange={(e) => setQuestion(e.target.value)}
+      />
+      <div className="pw-new-row">
+        <label className="pw-inline">
+          Search budget
+          <select data-testid="new-budget" value={maxSearches} onChange={(e) => setMaxSearches(Number(e.target.value))}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n} search{n > 1 ? "es" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="primary-button" data-testid="create-investigation" disabled={!valid || pending}>
+          {pending ? "Saving…" : "Save question"} <Icon name="arrow" size={14} />
+        </button>
+      </div>
+      <p>
+        Saving stores the question and its budget only. No search, page fetch or model call runs until you start a research step,
+        which is billable{API_CONFIG.allowBillableResearch ? " and asks for confirmation" : " and turned off in this build"}.
+      </p>
+      {error && (
+        <p className="ix-compose-error" role="alert" data-testid="create-error">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }
 
@@ -354,6 +544,7 @@ function Picker({ onOpen }: { onOpen: (id: string) => void }) {
   const valid = /^[A-Za-z0-9_:.-]{1,200}$/.test(value.trim());
   return (
     <Shell>
+      <NewInvestigation onCreated={onOpen} />
       <form
         className="pw-card pw-open"
         onSubmit={(e) => {
@@ -379,7 +570,7 @@ function Picker({ onOpen }: { onOpen: (id: string) => void }) {
         {list.phase === "ready" && list.items.length === 0 && <p className="pw-empty-line">The backend has no stored investigations.</p>}
         {list.phase === "ready" &&
           list.items.map((r) => {
-            const status = lanternStatus(r.status, r.stop_reason);
+            const status = lanternStatus(r.status, r.stop_reason, r.lifecycle);
             const meta = STATUS_META[status] ?? { tone: "gray", label: r.status };
             return (
               <button key={r.id} className="pw-recent-card" onClick={() => onOpen(r.id)} data-testid="investigation-row">
@@ -387,7 +578,7 @@ function Picker({ onOpen }: { onOpen: (id: string) => void }) {
                   <Icon name={r.parent_investigation_id ? "branch" : "lantern"} size={16} />
                 </span>
                 <span>
-                  <b>{r.question}</b>
+                  <b>{r.root_question || r.question}</b>
                   <small>
                     <code>{r.id}</code> · {r.event_count} events · {r.checkpoint_count} checkpoints · {new Date(r.created_at).toLocaleString()}
                     {r.parent_investigation_id ? ` · child of ${r.parent_investigation_id} (${r.intervention_type ?? "branch"})` : ""}
@@ -477,7 +668,22 @@ function ErrorPanel({ id, error, onRetry, onClose }: { id: string; error: ApiErr
   );
 }
 
-function EmptyInvestigation({ trace, status, id, onClose }: { trace: Trace; status: string; id: string; onClose: () => void }) {
+function EmptyInvestigation({
+  trace,
+  status,
+  id,
+  onClose,
+  branching,
+  onStartResearch,
+}: {
+  trace: Trace;
+  status: string;
+  id: string;
+  onClose: () => void;
+  branching: BranchingState;
+  onStartResearch: () => void;
+}) {
+  const saved = status === "not-started";
   const meta = STATUS_META[status] ?? { tone: "gray", label: status };
   return (
     <Shell>
@@ -491,11 +697,36 @@ function EmptyInvestigation({ trace, status, id, onClose }: { trace: Trace; stat
           <span data-testid="investigation-status">
             <Tag tone={meta.tone}>{meta.label}</Tag>
           </span>
-          <p>No investigation events were recorded for this investigation, so there is no journey to play back. Nothing is reconstructed from its final state.</p>
+          {saved ? (
+            <p>
+              The question and its budget are saved. No search, fetch or model call has run yet, so there is nothing to play back.
+              {!branching.allowInvestigate && branching.investigateDisabledReason ? ` ${branching.investigateDisabledReason}` : ""}
+            </p>
+          ) : (
+            <p>No investigation events were recorded for this investigation, so there is no journey to play back. Nothing is reconstructed from its final state.</p>
+          )}
           {(trace.unplacedCheckpoints?.length ?? 0) > 0 && <p>{trace.unplacedCheckpoints!.length} persisted checkpoint(s) exist without a recorded event.</p>}
-          <button className="outline-button" onClick={onClose}>
-            Choose another investigation
-          </button>
+          {branching.error && (
+            <p className="ix-compose-error" role="alert" data-testid="branch-error">
+              {branching.error}
+            </p>
+          )}
+          <div className="pw-actions">
+            {saved && (
+              <button
+                className="primary-button"
+                data-testid="start-research"
+                onClick={onStartResearch}
+                disabled={!branching.allowInvestigate || branching.pending}
+                title={branching.allowInvestigate ? undefined : branching.investigateDisabledReason}
+              >
+                {branching.pending ? "Running research…" : "Run research step (billable)"}
+              </button>
+            )}
+            <button className="outline-button" onClick={onClose}>
+              Choose another investigation
+            </button>
+          </div>
         </div>
       </div>
     </Shell>

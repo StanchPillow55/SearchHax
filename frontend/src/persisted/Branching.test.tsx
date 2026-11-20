@@ -123,6 +123,41 @@ describe("Save Lantern creates a grounded branch", () => {
   });
 });
 
+describe("challenge grounding (contract 1.1.0)", () => {
+  async function challengeWithoutClaim(objective: string) {
+    go(`?mode=live&investigation=${MAIN}&node=${C2}`);
+    workspace();
+    fireEvent.click(await screen.findByRole("button", { name: /Fork Lantern from/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Challenge claim" }));
+    fireEvent.change(screen.getByTestId("branch-objective"), { target: { value: objective } });
+    return screen.getByTestId("save-lantern") as HTMLButtonElement;
+  }
+
+  it("refuses a vague challenge with no selected claim before sending anything", async () => {
+    const save = await challengeWithoutClaim("Is this true?");
+    expect(save.disabled).toBe(true);
+    expect(screen.getByTestId("challenge-grounding").textContent).toMatch(/not\s+specific enough/);
+    fireEvent.click(save);
+    expect(posts).toHaveLength(0);
+  });
+
+  it("allows a challenge whose objective names what to test", async () => {
+    postResponse = () => new Response("ok", { status: 200 });
+    const save = await challengeWithoutClaim("NVIDIA CoreWeave $2 billion stake size");
+    expect(save.disabled).toBe(false);
+    expect(screen.queryByTestId("challenge-grounding")).toBeNull();
+    fireEvent.click(save);
+    await screen.findByTestId("branch-created");
+    expect(posts[0].body).toMatchObject({ intervention_type: "challenge_evidence", attached_claim_ids: [] });
+  });
+
+  it("allows a vague objective when a claim is selected (the claim grounds it)", async () => {
+    const save = (await openComposerForClaim()) as HTMLButtonElement;
+    fireEvent.change(screen.getByTestId("branch-objective"), { target: { value: "Is this true?" } });
+    expect(save.disabled).toBe(false);
+  });
+});
+
 describe("billable research is gated", () => {
   it("Fork & Investigate is disabled with a reason when the billable flag is off", async () => {
     await openComposerForClaim();

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon, InfoBlock, Tag, childEvidence, parentEvidence, projectEvidence } from "../shared";
 import { QUESTION, STATUS_META, summarize } from "./data";
 import { policyForDocument, toEvidencePoint } from "../persisted/policy";
+import { isGroundedObjective } from "../api/grounding";
 import type { EvidencePoint } from "../shared";
 import {
   CLAIM_LABEL,
@@ -903,7 +904,9 @@ function Composer(p: Props & { draft: ComposerDraft }) {
   const b = p.branching;
   const [confirming, setConfirming] = useState(false);
   const [authorised, setAuthorised] = useState(false);
-  const ready = !!chosen && !reason(chosen) && (isContinue || draft.objective.trim().length > 0) && !b?.pending;
+  // A challenge must be about something: a selected claim, or an objective that names what to test.
+  const ungroundedChallenge = persisted && draft.intent === "challenge" && !claim && !isGroundedObjective(draft.objective);
+  const ready = !!chosen && !reason(chosen) && (isContinue || draft.objective.trim().length > 0) && !ungroundedChallenge && !b?.pending;
   const intents: [ComposerDraft["intent"], string][] = [
     ["challenge", "Challenge claim"],
     ["confirm", "Find confirmation"],
@@ -1017,6 +1020,12 @@ function Composer(p: Props & { draft: ComposerDraft }) {
         {b?.error && (
           <p className="ix-compose-error" role="alert" data-testid="branch-error">
             {b.error}
+          </p>
+        )}
+        {ungroundedChallenge && draft.objective.trim().length > 0 && (
+          <p className="ix-compose-hint" data-testid="challenge-grounding">
+            Select the claim to challenge, or describe what to test (for example the amount, party or date). “{draft.objective.trim()}” is not
+            specific enough to search for on its own.
           </p>
         )}
         {persisted && confirming && b?.allowInvestigate && (

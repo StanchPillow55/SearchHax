@@ -4,11 +4,16 @@ import {
   BranchList,
   BranchRecord,
   ExplorationExport,
+  Investigation,
   InvestigationList,
   InvestigationTrace,
+  KnowledgeGraph,
+  type KnowledgeAssertionBody,
+  type KnowledgeGraphT,
   type BranchRecordT,
   type CreateBranchBody,
   type ExplorationExportT,
+  type InvestigationT,
   type InvestigationTraceT,
 } from "./schemas";
 
@@ -40,7 +45,15 @@ export class ExplorationClient {
     return this.request("GET", path, schema, undefined, signal);
   }
 
-  private async request<S extends z.ZodTypeAny>(method: "GET" | "POST", path: string, schema: S, body?: unknown, signal?: AbortSignal, timeoutMs = API_CONFIG.timeoutMs): Promise<z.infer<S>> {
+  private async request<S extends z.ZodTypeAny>(
+    method: "GET" | "POST",
+    path: string,
+    schema: S,
+    body?: unknown,
+    signal?: AbortSignal,
+    timeoutMs = API_CONFIG.timeoutMs,
+    idempotencyKey?: string,
+  ): Promise<z.infer<S>> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort("timeout"), timeoutMs);
     const onAbort = () => controller.abort("aborted");
@@ -49,7 +62,11 @@ export class ExplorationClient {
     try {
       res = await this.fetchImpl(apiUrl(path), {
         method,
-        headers: body === undefined ? { Accept: "application/json" } : { Accept: "application/json", "Content-Type": "application/json" },
+        headers: {
+          Accept: "application/json",
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
@@ -100,9 +117,36 @@ export class ExplorationClient {
     return this.get(`/investigations?limit=${limit}&offset=${offset}`, InvestigationList, signal);
   }
 
-  /** Creates a child investigation from a persisted checkpoint. Local only: no search, fetch or LLM call. */
-  createBranch(parentId: string, body: CreateBranchBody): Promise<BranchRecordT> {
-    return this.request("POST", `/investigations/${encodeURIComponent(parentId)}/branches`, BranchRecord, body);
+  /**
+   * Creates a child investigation from a persisted checkpoint. Local only: no search, fetch or LLM call.
+   * Pass the same idempotencyKey when retrying the same user action; the backend then returns the
+   * first result instead of creating a second child.
+   */
+  createBranch(parentId: string, body: CreateBranchBody, idempotencyKey?: string): Promise<BranchRecordT> {
+    return this.request("POST", `/investigations/${encodeURIComponent(parentId)}/branches`, BranchRecord, body, undefined, undefined, idempotencyKey);
+  }
+
+  /** The profile/knowledge view for an investigation (profile interests, priors, encountered sources, user assertions). */
+  getKnowledgeGraph(investigationId: string, signal?: AbortSignal): Promise<KnowledgeGraphT> {
+    return this.get(`/profile/knowledge-graph?investigation_id=${encodeURIComponent(investigationId)}`, KnowledgeGraph, signal);
+  }
+
+  /** Records an explicit user assertion about their own knowledge. Local only. Returns the updated graph. */
+  addKnowledgeAssertion(body: KnowledgeAssertionBody, idempotencyKey?: string): Promise<KnowledgeGraphT> {
+    return this.request("POST", "/profile/knowledge-assertions", KnowledgeGraph, body, undefined, undefined, idempotencyKey);
+  }
+
+  /** Stores a new research question. Local only: nothing is searched until a (billable) step runs. */
+  createInvestigation(question: string, budget: { max_searches: number; max_fetched_urls: number; max_llm_calls: number } | undefined, idempotencyKey?: string): Promise<InvestigationT> {
+    return this.request("POST", "/investigations", Investigation, { question, ...(budget ? { budget } : {}) }, undefined, undefined, idempotencyKey);
+  }
+
+  /** Runs one research step on a root investigation. BILLABLE; same gate as resumeBranch. */
+  stepInvestigation(id: string, confirmation: { confirmedBillable: true }, idempotencyKey?: string): Promise<ExplorationExportT> {
+    if (!API_CONFIG.allowBillableResearch || confirmation?.confirmedBillable !== true) {
+      return Promise.reject(new ApiError("http", "Billable research is disabled in this build (VITE_ALLOW_BILLABLE_RESEARCH is not true)."));
+    }
+    return this.request("POST", `/investigations/${encodeURIComponent(id)}/step`, ExplorationExport, {}, undefined, 300_000, idempotencyKey);
   }
 
   /**
@@ -110,12 +154,19 @@ export class ExplorationClient {
    * searches, fetches and LLM calls. Refuses unless VITE_ALLOW_BILLABLE_RESEARCH=true and
    * the caller passes an explicit confirmation.
    */
-  resumeBranch(branchId: string, confirmation: { confirmedBillable: true }): Promise<ExplorationExportT> {
+  resumeBranch(branchId: string, confirmation: { confirmedBillable: true }, idempotencyKey?: string): Promise<ExplorationExportT> {
     if (!API_CONFIG.allowBillableResearch || confirmation?.confirmedBillable !== true) {
       return Promise.reject(new ApiError("http", "Billable research is disabled in this build (VITE_ALLOW_BILLABLE_RESEARCH is not true)."));
     }
-    return this.request("POST", `/branches/${encodeURIComponent(branchId)}/resume`, ExplorationExport, {}, undefined, 300_000);
+    return this.request("POST", `/branches/${encodeURIComponent(branchId)}/resume`, ExplorationExport, {}, undefined, 300_000, idempotencyKey);
   }
 }
 
 export const explorationClient = new ExplorationClient();
+
+/** Random key for the Idempotency-Key header. */
+export function newIdempotencyKey(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}

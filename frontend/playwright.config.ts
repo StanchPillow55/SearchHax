@@ -5,6 +5,9 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
+  // Specs share one backend database (some create records), so run them one at a time.
+  workers: 1,
+  fullyParallel: false,
   reporter: [["list"]],
   outputDir: "test-results",
   use: {

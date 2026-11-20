@@ -196,6 +196,10 @@ export const ExplorationExport = obj({
   decision: ConvergenceDecision.nullable().optional(),
 });
 
+/** 1.1.0 research lifecycle; separate from status and stop_reason. Unknown values are kept as strings. */
+export const Lifecycle = z.union([z.enum(["saved", "queued", "researching", "stopped", "completed", "failed"]), z.string()]);
+export type LifecycleT = "saved" | "queued" | "researching" | "stopped" | "completed" | "failed";
+
 export const TraceStage = z.enum(["search", "retrieval", "ranking", "extraction", "convergence", "checkpoint", "ingest", "blocked"]);
 
 export const TraceEvent = obj({
@@ -243,6 +247,9 @@ export const InvestigationTrace = obj({
   branch_objective: nullableStr,
   attached_claims: z.array(obj({ id: z.string(), text: z.string().default(""), status: z.string().nullable().optional() })).default([]),
   attached_sources: z.array(obj({ id: z.string(), title: z.string().default(""), url: z.string().default("") })).default([]),
+  // Additive (1.1.0): the lineage's original question, and the research lifecycle.
+  root_question: nullableStr,
+  lifecycle: Lifecycle.nullable().optional(),
 });
 
 export const BranchRecord = obj({
@@ -269,6 +276,8 @@ export const InvestigationSummary = obj({
   from_checkpoint_id: nullableStr,
   event_count: z.number().default(0),
   checkpoint_count: z.number().default(0),
+  root_question: nullableStr,
+  lifecycle: Lifecycle.nullable().optional(),
 });
 export const InvestigationList = obj({ items: z.array(InvestigationSummary), total: z.number(), limit: z.number(), offset: z.number() });
 export type InvestigationSummaryT = z.infer<typeof InvestigationSummary>;
@@ -299,8 +308,58 @@ export const PolicyPoint = obj({
 });
 
 export type ExplorationExportT = z.infer<typeof ExplorationExport>;
+export type InvestigationT = z.infer<typeof Investigation>;
 export type InvestigationTraceT = z.infer<typeof InvestigationTrace>;
 export type TraceEventT = z.infer<typeof TraceEvent>;
 export type CheckpointT = z.infer<typeof Checkpoint>;
 export type BranchRecordT = z.infer<typeof BranchRecord>;
 export type PolicyPointT = z.infer<typeof PolicyPoint>;
+
+/** Optional cited answer (POST /answer). It explains recorded evidence; it is not a verification step. */
+export const GroundedAnswer = obj({
+  investigation_id: z.string(),
+  question: z.string(),
+  markdown: z.string(),
+  citations: z
+    .array(obj({ marker: z.string(), document_id: nullableStr, title: z.string().default(""), url: z.string().default(""), quote: z.string().default(""), status: z.string().default("") }))
+    .default([]),
+  cited_markers: z.array(z.string()).default([]),
+  model: z.string().default(""),
+  blocked: z.boolean().default(false),
+  blocker: nullableStr,
+});
+export type GroundedAnswerT = z.infer<typeof GroundedAnswer>;
+
+export const KnowledgeState = z.union([z.enum(["interested", "known", "encountered", "uncertain", "frontier"]), z.string()]);
+export const KnowledgeGraph = obj({
+  profile_id: nullableStr,
+  investigation_id: nullableStr,
+  question: nullableStr,
+  nodes: z
+    .array(
+      obj({
+        id: z.string(),
+        label: z.string(),
+        epistemic_state: KnowledgeState,
+        basis: z.string(),
+        confirmed: z.boolean().default(false),
+        inferred: z.boolean().default(false),
+        note: z.string().default(""),
+        investigation_id: nullableStr,
+      }),
+    )
+    .default([]),
+  edges: z.array(obj({ id: z.string(), source: z.string(), target: z.string(), label: z.string(), basis: z.string() })).default([]),
+  notes: z.array(z.string()).default([]),
+});
+export type KnowledgeGraphT = z.infer<typeof KnowledgeGraph>;
+export interface KnowledgeAssertionBody {
+  profile_id: string;
+  investigation_id?: string | null;
+  subject: string;
+  predicate?: string;
+  object?: string;
+  text?: string;
+  epistemic_state: "interested" | "known" | "encountered" | "uncertain" | "frontier";
+  basis: "user_confirmation";
+}

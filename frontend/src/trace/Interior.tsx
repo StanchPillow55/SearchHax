@@ -43,6 +43,12 @@ export interface InteriorProps {
   onBack: () => void;
   onOpenLantern: (id: string) => void;
   onCompare: (a: string, b: string) => void;
+  /** Live mode: open the Findings view built from recorded claims and evidence. */
+  onFindings?: () => void;
+  /** Live mode, child investigations only: compare recorded findings with the parent. */
+  onCompareParent?: () => void;
+  /** Live mode: open the personal knowledge view for this investigation's profile. */
+  onKnowledge?: () => void;
   onOpen3D: (evId: string | null) => void;
   onCreateFork: (draft: ComposerDraft, mode: "saved" | "investigate") => void;
   onStartResearch: () => void;
@@ -610,7 +616,7 @@ export function Interior(props: InteriorProps) {
           <b>{lantern.title}</b>
           {persisted ? (
             <span className="ix-sim-badge persisted" data-testid="data-origin">
-              <Icon name="source" size={11} /> Persisted · loaded from the exploration API · read-only
+              <Icon name="source" size={11} /> Persisted · loaded from the exploration API
             </span>
           ) : (
             <span className="ix-sim-badge" data-testid="data-origin">
@@ -623,7 +629,7 @@ export function Interior(props: InteriorProps) {
             <Icon name="lantern" />
           </span>
           <div>
-            <small>{persisted && lantern.parentId ? "Research question of this branch" : "Original research question"}</small>
+            <small>Original research question</small>
             <h1 data-testid="research-question">{question}</h1>
             {lantern.parentId && (
               <p>
@@ -639,6 +645,21 @@ export function Interior(props: InteriorProps) {
           {!persisted && (
             <button className="outline-button" onClick={props.onDemo} title="Simulated 12-step walkthrough">
               <Icon name="play" size={13} /> Guided demo
+            </button>
+          )}
+          {props.onCompareParent && (
+            <button className="outline-button" onClick={props.onCompareParent} data-testid="compare-parent">
+              <Icon name="compare" size={14} /> Compare with parent
+            </button>
+          )}
+          {props.onKnowledge && (
+            <button className="outline-button" onClick={props.onKnowledge} data-testid="open-knowledge">
+              <Icon name="knowledge" size={14} /> Knowledge
+            </button>
+          )}
+          {props.onFindings && (
+            <button className="outline-button" onClick={props.onFindings} data-testid="open-findings">
+              <Icon name="check" size={14} /> Findings
             </button>
           )}
           <button className="outline-button" onClick={() => props.onOpen3D(null)}>
@@ -797,7 +818,8 @@ export function Interior(props: InteriorProps) {
               <div>
                 <b>This Lantern has not started researching</b>
                 <p>
-                  It was saved with its branch objective and inherited context. No searches have been recorded{persisted ? " for it yet" : ", so there is nothing to play back yet"}.
+                  {lantern.parentId ? "It was saved with its branch objective and inherited context." : "Its question and budget are saved."} No searches have been recorded
+                  {persisted ? " for it yet" : ", so there is nothing to play back yet"}.
                   {persisted && !props.branching?.allowInvestigate && props.branching?.investigateDisabledReason ? ` ${props.branching.investigateDisabledReason}` : ""}
                 </p>
               </div>
@@ -816,6 +838,29 @@ export function Interior(props: InteriorProps) {
           <div
             ref={stageRef}
             className={`ix-stage level-${level} ${drag.current ? "dragging" : ""}`}
+            tabIndex={0}
+            role="region"
+            aria-label="Investigation map. Arrow keys pan, plus and minus zoom, 0 fits everything, Tab moves between items, Escape clears the selection."
+            onKeyDown={(e) => {
+              // Keyboard navigation of the map itself (items inside are buttons and handle their own keys).
+              if (e.target !== e.currentTarget) {
+                if (e.key === "Escape") setView({ selected: null });
+                return;
+              }
+              const step = e.shiftKey ? 240 : 80;
+              const pan = { ...view.pan };
+              if (e.key === "ArrowLeft") pan.x += step;
+              else if (e.key === "ArrowRight") pan.x -= step;
+              else if (e.key === "ArrowUp") pan.y += step;
+              else if (e.key === "ArrowDown") pan.y -= step;
+              else if (e.key === "+" || e.key === "=") return (e.preventDefault(), zoomTo(Math.min(1.8, view.zoom * 1.2)));
+              else if (e.key === "-" || e.key === "_") return (e.preventDefault(), zoomTo(Math.max(0.16, view.zoom / 1.2)));
+              else if (e.key === "0") return (e.preventDefault(), fitBoxes(visibleIds().map((i) => layout.pos[i])));
+              else if (e.key === "Escape") return setView({ selected: null });
+              else return;
+              e.preventDefault();
+              setView({ pan });
+            }}
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).closest("button")) return;
               (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

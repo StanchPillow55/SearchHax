@@ -60,3 +60,43 @@ export function rememberRecent(entry: { id: string; question: string; status: st
     /* storage unavailable: recent list is a convenience only */
   }
 }
+
+/**
+ * Per-investigation canvas layout (zoom, pan, expanded groups), kept in this browser only.
+ * It is a viewing preference, never research state, so localStorage is appropriate; reads and
+ * writes are wrapped because storage can be unavailable (private mode, blocked site data).
+ */
+export interface CanvasState {
+  zoom: number;
+  pan: { x: number; y: number };
+  expanded: string[];
+  collapsedRounds: number[];
+  granularity: "event" | "round";
+}
+const CANVAS_KEY = (id: string) => `searchhax:canvas:${id}`;
+
+export function readCanvas(id: string): CanvasState | null {
+  try {
+    const raw = window.localStorage.getItem(CANVAS_KEY(id));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<CanvasState>;
+    if (typeof v.zoom !== "number" || !isFinite(v.zoom) || !v.pan || typeof v.pan.x !== "number" || typeof v.pan.y !== "number") return null;
+    return {
+      zoom: Math.min(4, Math.max(0.05, v.zoom)),
+      pan: { x: v.pan.x, y: v.pan.y },
+      expanded: Array.isArray(v.expanded) ? v.expanded.filter((x): x is string => typeof x === "string") : [],
+      collapsedRounds: Array.isArray(v.collapsedRounds) ? v.collapsedRounds.filter((x): x is number => typeof x === "number") : [],
+      granularity: v.granularity === "round" ? "round" : "event",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeCanvas(id: string, v: CanvasState) {
+  try {
+    window.localStorage.setItem(CANVAS_KEY(id), JSON.stringify(v));
+  } catch {
+    /* storage unavailable: the layout simply is not remembered */
+  }
+}

@@ -34,6 +34,8 @@ export interface AdaptedInvestigation {
   trace: Trace;
   lantern: Lantern;
   related: Lantern[];
+  /** The validated export the trace was built from (read by the Findings view). */
+  source: ExplorationExportT;
 }
 
 const STATUS_MAP: Record<string, ClaimStatus> = {
@@ -59,7 +61,10 @@ const STOP_LABEL: Record<string, string> = {
   no_useful_actions: "no useful actions",
 };
 
-export function lanternStatus(status: string, stopReason?: string | null): LanternStatus {
+export function lanternStatus(status: string, stopReason?: string | null, lifecycle?: string | null): LanternStatus {
+  // 1.1.0 backends report the lifecycle explicitly; it wins over status inference.
+  if (lifecycle === "saved") return "not-started";
+  if (lifecycle === "failed") return "blocked";
   if (status === "stopped") {
     const map: Record<string, LanternStatus> = {
       evidence_sufficient: "stopped-sufficient",
@@ -131,17 +136,24 @@ export function adaptInvestigation(
     edges.push({ id, from, to, kind, label });
   };
 
-  // Research question: recorded on the investigation row itself.
+  // Research question: the lineage's original question (1.1.0 root_question), else the row's own.
+  const rootQuestion = tr.root_question || inv.question;
+  const legacyOverwrite = !!tr.root_question && tr.root_question !== inv.question;
+  if (legacyOverwrite) {
+    notes.push(
+      `Legacy branch: this record's stored question ("${short(inv.question, 80)}") was overwritten by its branch objective when it was created. The original research question shown here was resolved from the parent lineage.`,
+    );
+  }
   const intentId = `intent:${inv.id}`;
   add({
     id: intentId,
     kind: "intent",
-    label: inv.question,
+    label: rootQuestion,
     sub: "Original research question",
     round: 0,
     revealAt: 0,
     ref: { table: "investigations", id: inv.id },
-    body: inv.question,
+    body: rootQuestion,
   });
 
   if (tr.parent_investigation_id) {
@@ -270,9 +282,19 @@ export function adaptInvestigation(
         const providers = asArray(p.providers).filter((x): x is string => typeof x === "string");
         add({ id: ev.id, kind: "query", label: query, sub: `Search · ${p.from_cache ? "cached" : p.network ? "network" : "recorded"}`, provider: providers.join(", ") || undefined, round, revealAt: seq, ref: { table: "investigation_events", id: ev.id, eventId: ev.id } });
         edge(roundHeader!, ev.id, "order");
-        if (lastApprovedQuery && lastApprovedQuery.trim() === query.trim()) {
+        // 1.1.0 backends record what prompted the search (planned_from.target_question_id).
+        // Prefer that recorded link; fall back to matching the approved query text.
+        const plannedFrom = asRecord(p.planned_from);
+        const targetQ = str(plannedFrom.target_question_id);
+        const recordedQ = targetQ ? nodes.find((n) => n.kind === "question" && n.ref?.id === targetQ) : undefined;
+        if (recordedQ) edge(recordedQ.id, ev.id, "prompted", "recorded: approved follow-up for this question");
+        else if (lastApprovedQuery && lastApprovedQuery.trim() === query.trim()) {
           const q = nodes.find((n) => n.kind === "question" && n.label.trim() === query.trim());
           if (q) edge(q.id, ev.id, "prompted", "approved follow-up");
+        }
+        if (typeof p.round === "number" && roundHeader) {
+          const header = nodeById.get(roundHeader);
+          if (header) header.sub = `Round ${p.round} · round number recorded on the search event`;
         }
         lastQuery = ev.id;
         focus = ev.id;
@@ -505,7 +527,7 @@ export function adaptInvestigation(
   const trace: Trace = {
     lanternId: inv.id,
     origin: "persisted",
-    question: inv.question,
+    question: rootQuestion,
     incompleteReason: tr.incomplete ? tr.incomplete_reason ?? "Backend marked this trace incomplete." : null,
     nodes,
     edges,
@@ -522,9 +544,9 @@ export function adaptInvestigation(
 
   const lantern: Lantern = {
     id: inv.id,
-    title: short(tr.branch_objective || inv.question, 80),
-    objective: tr.branch_objective || inv.question,
-    status: lanternStatus(inv.status, inv.stop_reason),
+    title: short(tr.branch_objective || rootQuestion, 80),
+    objective: tr.branch_objective || rootQuestion,
+    status: lanternStatus(inv.status, inv.stop_reason, tr.lifecycle),
     parentId: tr.parent_investigation_id ?? undefined,
     fromCheckpoint: tr.from_checkpoint_id ?? undefined,
   };
@@ -543,7 +565,7 @@ export function adaptInvestigation(
       fromCheckpoint: b.from_checkpoint_id,
     });
   }
-  return { trace, lantern, related };
+  return { trace, lantern, related, source: exp };
 }
 
 function checkpointDetail(rec: ExplorationExportT["checkpoints"][number], hasEvent: boolean): CheckpointDetail {

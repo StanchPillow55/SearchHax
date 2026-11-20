@@ -86,9 +86,13 @@ function Sidebar({
       </div>
       <button
         className="new-button"
-        onClick={() => setScreen("home")}
-        disabled={live}
-        title={live ? "Starting investigations is not part of the read-only integration" : undefined}
+        onClick={() => {
+          if (!live) return setScreen("home");
+          writeUrlState({ mode: "live", investigation: null, node: null, checkpoint: null }, { push: true });
+          window.dispatchEvent(new PopStateEvent("popstate"));
+          window.setTimeout(() => document.getElementById("pw-new-question")?.focus(), 60);
+        }}
+        title={live ? "Save a new research question (research runs only after a billable confirmation)" : undefined}
       >
         <Icon name="plus" />
         {!collapsed && <span>New investigation</span>}

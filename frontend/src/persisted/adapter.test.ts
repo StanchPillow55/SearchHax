@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BranchList, ExplorationExport, InvestigationTrace } from "../api/schemas";
 import { CHILD, EMPTY, MAIN, OTHER, raw } from "../test/fixtures";
-import { adaptInvestigation } from "./adapter";
+import { adaptInvestigation, lanternStatus } from "./adapter";
 import { TRACES } from "../trace/data";
 
 const load = (id: string) => {
@@ -194,5 +194,74 @@ describe("demo data never appears as backend evidence", () => {
       expect(t.origin).not.toBe("persisted");
       expect(t.nodes.some((n) => n.ref)).toBe(false);
     }
+  });
+});
+
+describe("adapter: contract 1.1.0 root question and lifecycle", () => {
+  const base = () => ({
+    exp: ExplorationExport.parse(raw(CHILD, "export")),
+    tr: InvestigationTrace.parse(raw(CHILD, "trace")),
+    br: BranchList.parse(raw(CHILD, "branches")),
+  });
+
+  it("shows the lineage root question and flags a legacy overwritten question", () => {
+    const { exp, tr, br } = base();
+    exp.investigation.question = "Is this true?";
+    const root = "How do NVIDIA's investments, GPU infrastructure customers, and AI capacity expansion reinforce one another?";
+    const adapted = adaptInvestigation(exp, { ...tr, root_question: root }, br);
+    expect(adapted.trace.question).toBe(root);
+    expect(adapted.trace.nodes.find((n) => n.kind === "intent")?.label).toBe(root);
+    expect((adapted.trace.notes ?? []).some((n) => n.startsWith("Legacy branch:") && n.includes("Is this true?"))).toBe(true);
+  });
+
+  it("does not add a legacy note when the stored question is already the root", () => {
+    const { exp, tr, br } = base();
+    const adapted = adaptInvestigation(exp, { ...tr, root_question: exp.investigation.question }, br);
+    expect((adapted.trace.notes ?? []).some((n) => n.startsWith("Legacy branch:"))).toBe(false);
+  });
+
+  it("maps lifecycle saved to not-started and failed to blocked; older backends fall back to status", () => {
+    const { exp, tr, br } = base();
+    expect(adaptInvestigation(exp, { ...tr, lifecycle: "saved" }, br).lantern.status).toBe("not-started");
+    expect(adaptInvestigation(exp, { ...tr, lifecycle: "failed" }, br).lantern.status).toBe("blocked");
+    expect(adaptInvestigation(exp, { ...tr, lifecycle: undefined }, br).lantern.status).toBe(lanternStatus(exp.investigation.status, exp.investigation.stop_reason));
+  });
+});
+
+describe("adapter: recorded search lineage (1.1.0)", () => {
+  it("links a search to the question named in planned_from, and labels a recorded round number", () => {
+    const exp = ExplorationExport.parse(raw(MAIN, "export"));
+    const tr = InvestigationTrace.parse(raw(MAIN, "trace"));
+    const br = BranchList.parse(raw(MAIN, "branches"));
+    const plain = adaptInvestigation(exp, tr, br).trace;
+    const q = plain.nodes.find((n) => n.kind === "question" && n.ref?.id);
+    const searches = tr.events.filter((e) => e.stage === "search").sort((a, b) => a.sequence - b.sequence);
+    expect(q && searches.length > 1).toBe(true);
+    const later = searches[searches.length - 1];
+    const events = tr.events.map((e) => (e.id === later.id ? { ...e, payload: { ...e.payload, round: 7, planned_from: { target_question_id: q!.ref!.id } } } : e));
+    const t = adaptInvestigation(exp, { ...tr, events }, br).trace;
+    expect(t.edges.some((e) => e.from === q!.id && e.to === later.id && e.kind === "prompted")).toBe(true);
+    expect(t.nodes.some((n) => n.kind === "round" && n.sub?.startsWith("Round 7 · round number recorded"))).toBe(true);
+  });
+});
+
+describe("adapter: replay is deterministic (M4)", () => {
+  it("adapting the same stored records twice yields an identical trace, counts and relationships", () => {
+    for (const id of [MAIN, CHILD, OTHER]) {
+      const a = load(id).adapted;
+      const b = load(id).adapted;
+      expect(JSON.stringify(b.trace)).toBe(JSON.stringify(a.trace));
+      expect(b.trace.events.map((e) => e.id)).toEqual(a.trace.events.map((e) => e.id));
+      expect(b.trace.edges.length).toBe(a.trace.edges.length);
+    }
+  });
+
+  it("an event that is not a persisted checkpoint is never offered as a fork point", () => {
+    const { trace } = load(MAIN).adapted;
+    const cpEventIds = new Set(trace.checkpoints.map((c) => c.seq));
+    for (const c of trace.checkpoints) if (c.forkable) expect(cpEventIds.has(c.seq)).toBe(true);
+    const exp = ExplorationExport.parse(raw(MAIN, "export"));
+    const persisted = new Set(exp.checkpoints.map((c) => c.id));
+    for (const c of trace.checkpoints.filter((x) => x.forkable)) expect(persisted.has(c.id)).toBe(true);
   });
 });
