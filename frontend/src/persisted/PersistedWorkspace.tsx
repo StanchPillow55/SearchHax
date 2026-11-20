@@ -18,6 +18,7 @@ import { useInvestigation } from "./useInvestigation";
 import { Findings } from "./Findings";
 import { LineageCompare } from "./LineageCompare";
 import { Knowledge } from "./Knowledge";
+import { decodePrefill, encodePrefill, type NewQuestionPrefill } from "./prefill";
 
 const PREFILL_KEY = "searchhax:new-question-prefill";
 import { readCanvas, readRecent, readUrlState, rememberRecent, writeCanvas, writeUrlState } from "./urlState";
@@ -155,7 +156,11 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
 
 
   const latest = trace.events.length - 1;
-  const spaceCheckpoints = trace.checkpoints.map((c) => ({ id: c.id, label: `${c.short} · ${c.label}`, points: (trace.policyByCheckpoint?.[c.id] ?? []).map(toEvidencePoint) }));
+  // Opening 3D from a passage shows passage-level points (when recorded); otherwise document-level.
+  const passagePoints = Object.values(trace.passagePolicyByCheckpoint ?? {}).flat();
+  const passageSpace = !!space?.evidenceId && passagePoints.some((p) => p.evidenceId === space.evidenceId);
+  const spaceMap = passageSpace ? trace.passagePolicyByCheckpoint ?? {} : trace.policyByCheckpoint ?? {};
+  const spaceCheckpoints = trace.checkpoints.map((c) => ({ id: c.id, label: `${c.short} · ${c.label}${passageSpace ? " · passages" : ""}`, points: (spaceMap[c.id] ?? []).map(toEvidencePoint) }));
 
   if (screen === "space" && space)
     return (
@@ -167,8 +172,10 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
           initialEvidenceId: space.evidenceId,
           onBack: () => setScreen("interior"),
           onShowInTrace: (evidenceId) => {
-            const point = Object.values(trace.policyByCheckpoint ?? {}).flat().find((p) => p.evidenceId === evidenceId);
-            const docId = point?.documentId && trace.nodes.some((n) => n.id === point.documentId) ? point.documentId : null;
+            const spanPoint = passagePoints.find((p) => p.evidenceId === evidenceId);
+            const passageNode = spanPoint?.spanId ? trace.nodes.find((n) => n.ref?.table === "evidence_spans" && n.ref.id === spanPoint.spanId) : undefined;
+            const point = spanPoint ?? Object.values(trace.policyByCheckpoint ?? {}).flat().find((p) => p.evidenceId === evidenceId);
+            const docId = passageNode ? passageNode.id : point?.documentId && trace.nodes.some((n) => n.id === point.documentId) ? point.documentId : null;
             setScreen("interior");
             if (!docId) {
               setRestoreNotice(`Recorded point ${evidenceId} has no matching document in this trace.`);
@@ -309,10 +316,11 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
         investigationId={ready.id}
         question={trace.question ?? ready.data.source.investigation.question}
         onBack={() => setScreen("interior")}
-        onInvestigate={(q) => {
-          // Pre-fill only; the user edits and saves the question themselves.
+        onInvestigate={(q, profileId) => {
+          // Pre-fill only; the user edits and saves the question themselves. The profile is
+          // referenced by its source investigation; the backend copies the stored record.
           try {
-            window.sessionStorage.setItem(PREFILL_KEY, q);
+            window.sessionStorage.setItem(PREFILL_KEY, encodePrefill({ question: q, profileFrom: profileId ? { investigationId: ready.id, profileId } : null }));
           } catch {
             /* storage unavailable: the form simply starts empty */
           }
@@ -403,7 +411,8 @@ export function PersistedWorkspace({ render3D, onRecentChange }: { render3D: (a:
         }}
         onOpen3D={(evId) => {
           const cur = view.cursor < 0 ? latest : view.cursor;
-          const cp = [...trace.checkpoints].reverse().find((c) => c.seq <= cur && (trace.policyByCheckpoint?.[c.id]?.length ?? 0) > 0) ?? trace.checkpoints.find((c) => (trace.policyByCheckpoint?.[c.id]?.length ?? 0) > 0);
+          const map = evId && Object.values(trace.passagePolicyByCheckpoint ?? {}).flat().some((p) => p.evidenceId === evId) ? trace.passagePolicyByCheckpoint ?? {} : trace.policyByCheckpoint ?? {};
+          const cp = [...trace.checkpoints].reverse().find((c) => c.seq <= cur && (map[c.id]?.length ?? 0) > 0) ?? trace.checkpoints.find((c) => (map[c.id]?.length ?? 0) > 0);
           setSpace({ evidenceId: evId, checkpoint: cp?.id });
           setScreen("space");
         }}
@@ -443,15 +452,18 @@ function Shell({ children }: { children: React.ReactNode }) {
  * double click or a timed-out retry cannot create two investigations.
  */
 function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
-  const [question, setQuestion] = useState(() => {
+  const [prefill] = useState<NewQuestionPrefill>(() => {
     try {
-      const q = window.sessionStorage.getItem(PREFILL_KEY) ?? "";
+      const p = decodePrefill(window.sessionStorage.getItem(PREFILL_KEY));
       window.sessionStorage.removeItem(PREFILL_KEY);
-      return q;
+      return p;
     } catch {
-      return "";
+      return { question: "", profileFrom: null };
     }
   });
+  const [question, setQuestion] = useState(prefill.question);
+  const [useProfile, setUseProfile] = useState(!!prefill.profileFrom);
+  const profileSource = useProfile ? prefill.profileFrom?.investigationId : undefined;
   const [maxSearches, setMaxSearches] = useState(2);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -462,13 +474,13 @@ function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
   const submit = async () => {
     if (!valid || pendingRef.current) return;
     const budget = { max_searches: maxSearches, max_fetched_urls: maxSearches * 4, max_llm_calls: maxSearches * 3 };
-    const fingerprint = JSON.stringify({ trimmed, budget });
+    const fingerprint = JSON.stringify({ trimmed, budget, profileSource: profileSource ?? null });
     if (keyRef.current?.fingerprint !== fingerprint) keyRef.current = { fingerprint, key: newIdempotencyKey() };
     pendingRef.current = true;
     setPending(true);
     setError(null);
     try {
-      const inv = await explorationClient.createInvestigation(trimmed, budget, keyRef.current.key);
+      const inv = await explorationClient.createInvestigation(trimmed, budget, keyRef.current.key, profileSource);
       keyRef.current = null;
       onCreated(inv.id);
     } catch (err) {
@@ -497,6 +509,15 @@ function NewInvestigation({ onCreated }: { onCreated: (id: string) => void }) {
         placeholder="What do you want to find out? e.g. How do NVIDIA's investments and AI capacity expansion reinforce one another?"
         onChange={(e) => setQuestion(e.target.value)}
       />
+      {prefill.profileFrom && (
+        <label className="pw-inline pw-new-profile" data-testid="new-profile">
+          <input type="checkbox" checked={useProfile} onChange={(e) => setUseProfile(e.target.checked)} data-testid="new-profile-toggle" />
+          <span>
+            Rank sources with research profile <code>{prefill.profileFrom.profileId}</code>, copied from investigation{" "}
+            <code>{prefill.profileFrom.investigationId}</code>. It adds a separate knowledge-value score; it does not change what counts as evidence.
+          </span>
+        </label>
+      )}
       <div className="pw-new-row">
         <label className="pw-inline">
           Search budget

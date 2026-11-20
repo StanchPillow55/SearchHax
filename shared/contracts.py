@@ -1,6 +1,6 @@
 """Pydantic v2 contract shared by exploration and other SearchHax apps.
 
-``CONTRACT_VERSION`` is 1.1.0 (1.1.0 adds root_question and lifecycle; additive). Add fields in a backward-compatible way (new
+``CONTRACT_VERSION`` is 1.2.0 (1.1.0 adds root_question and lifecycle; 1.2.0 adds CreateInvestigationRequest.profile_from_investigation_id; both additive). Add fields in a backward-compatible way (new
 optional fields, ``extra="ignore"``) instead of renaming or removing models.
 
 ``ConvergenceDecision.decision_source`` is recorded by exploration after a
@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.2.0"
 
 VerificationStatus = Literal["supported", "contradicted", "insufficient", "hypothesis"]
 StopReason = Literal[
@@ -362,6 +362,14 @@ class CreateInvestigationRequest(_Model):
     profile: ResearchProfile | None = Field(
         default=None,
         description="Optional read-only research profile. When present, live candidates are also scored with knowledge value.",
+    )
+    profile_from_investigation_id: str | None = Field(
+        default=None,
+        description=(
+            "Optional (1.2.0, additive): copy the research profile stored on this existing investigation. "
+            "The server reads the stored profile; it is never supplied or edited by the client. "
+            "Cannot be combined with profile."
+        ),
     )
 
 

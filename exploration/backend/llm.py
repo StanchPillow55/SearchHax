@@ -20,6 +20,13 @@ class LLMNotConfigured(RuntimeError):
     pass
 
 
+class LLMResponseNotJSON(ValueError):
+    """The model answered, but no complete JSON object could be parsed.
+
+    The message records why (finish reason, length) without the response text.
+    """
+
+
 class LocalExtractionUnavailable(LLMNotConfigured):
     """Local generation does not finish inside the extraction deadline."""
 
@@ -51,6 +58,16 @@ def extract_json_object(text: str) -> str:
     original text is returned so the caller's json.loads raises as before.
     """
     cleaned = strip_json_fence(text)
+    objects = _balanced_objects(cleaned)
+    if len(objects) > 1:
+        # Prose such as "Example only: {...}. {...}" puts an illustrative
+        # object before the answer; the final complete object is the payload.
+        for candidate in reversed(objects):
+            try:
+                json.loads(candidate)
+            except ValueError:
+                continue
+            return candidate
     start = cleaned.find("{")
     if start == -1:
         return cleaned
@@ -76,6 +93,35 @@ def extract_json_object(text: str) -> str:
             if depth == 0:
                 return cleaned[start : index + 1]
     return cleaned[start:]
+
+
+def _balanced_objects(text: str) -> list[str]:
+    """Every balanced top-level {...} span in text, in order."""
+    found: list[str] = []
+    depth = 0
+    in_string = False
+    escape = False
+    start = -1
+    for index, char in enumerate(text):
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"' and depth > 0:
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}" and depth > 0:
+            depth -= 1
+            if depth == 0:
+                found.append(text[start : index + 1])
+    return found
 
 
 class OpenAICompatibleClient:
@@ -140,8 +186,16 @@ class OpenAICompatibleClient:
             )
             response.raise_for_status()
             body = response.json()
-        content = body["choices"][0]["message"]["content"]
-        parsed = json.loads(extract_json_object(content))
+        choice = body["choices"][0]
+        content = choice["message"]["content"] or ""
+        try:
+            parsed = json.loads(extract_json_object(content))
+        except ValueError as exc:
+            finish = choice.get("finish_reason") or "unknown"
+            hint = f"; output hit max_tokens={max_tokens}" if finish == "length" else ""
+            raise LLMResponseNotJSON(
+                f"response was not a complete JSON object (finish_reason={finish}, {len(content)} chars{hint})"
+            ) from exc
         usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
         usage.setdefault("model", self.model)
         usage.setdefault("backend", "openai-compatible")

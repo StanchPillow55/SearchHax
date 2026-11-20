@@ -43,3 +43,24 @@ describe("parent ↔ child diff uses only stored records", () => {
     expect(d.questions.added).toEqual(["A new open question"]);
   });
 });
+
+describe("lineage diff counts distinct texts (live run 2026-11-20)", () => {
+  it("counts a claim or question stored once per document as one, and keeps the record counts", () => {
+    const base = ExplorationExport.parse(raw(MAIN, "export"));
+    const q0 = { ...base.unresolved_questions[0], text: "What demand is tied to the expansion?" };
+    const c0 = base.claims[0];
+    const parent = { ...base, unresolved_questions: [q0], claims: [c0] };
+    const child = {
+      ...base,
+      claims: [c0, { ...c0, id: "clm_dup" }],
+      unresolved_questions: [q0, { ...q0, id: "q_dup_1" }, { ...q0, id: "q_dup_2", text: "What  demand is tied to the expansion? " }, { ...q0, id: "q_new_1", text: "Is it true?" }, { ...q0, id: "q_new_2", text: "is it TRUE?" }],
+    };
+    const d = diffLineage(parent, child);
+    expect(d.child.openQuestions).toBe(2);
+    expect(d.child.questionRecords).toBe(5);
+    expect(d.child.claims).toBe(1);
+    expect(d.child.claimRecords).toBe(2);
+    expect(d.questions.added).toEqual(["Is it true?"]);
+    expect(d.questions.stillOpen).toBe(1);
+  });
+});

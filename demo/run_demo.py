@@ -21,6 +21,10 @@ from exploration.backend.focus_bridge import focus_post
 from exploration.backend.orchestrator import STORY_A_QUESTION, Orchestrator
 
 
+def _offline_convergence(*_args, **_kwargs):
+    raise ConnectionError("offline baseline: no convergence controller is contacted")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="FrontierGraph exploration demo")
     parser.add_argument("--live", action="store_true", help="Run one Story A investigation against Telem.")
@@ -40,14 +44,26 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Output path for the evaluation JSON. Defaults to demo/evaluation.json.",
     )
+    parser.add_argument(
+        "--max-llm-calls",
+        type=int,
+        default=None,
+        help="Cap Story A's LLM calls (the backend still enforces its own hard maximum).",
+    )
     parser.add_argument("--db", type=Path, default=REPO_ROOT / "exploration" / "data" / "demo.sqlite")
     args = parser.parse_args(argv)
     args.db.parent.mkdir(parents=True, exist_ok=True)
 
     reports = []
     story_c_dir = args.db.parent / "story-c.sqlite"
-    _export_b0, report_b0 = run_baseline(story="C", configuration="B0", db_path=story_c_dir.with_name("story-c-b0.sqlite"))
-    _export_b3, report_b3 = run_baseline(story="C", configuration="B3", db_path=story_c_dir.with_name("story-c-b3.sqlite"))
+    # Story C is the offline fixture baseline. It must not depend on whatever happens to
+    # listen on the default convergence URL, so it always uses the labelled fallback.
+    _export_b0, report_b0 = run_baseline(
+        story="C", configuration="B0", db_path=story_c_dir.with_name("story-c-b0.sqlite"), post=_offline_convergence
+    )
+    _export_b3, report_b3 = run_baseline(
+        story="C", configuration="B3", db_path=story_c_dir.with_name("story-c-b3.sqlite"), post=_offline_convergence
+    )
     reports.append(report_b0.model_dump(mode="json"))
     reports.append(report_b3.model_dump(mode="json"))
     print("Story C B3 stop:", _export_b3.investigation.stop_reason if _export_b3 else None)
@@ -76,7 +92,12 @@ def main(argv: list[str] | None = None) -> int:
                 from exploration.backend.profile_run import load_profile_fixture
 
                 profile, _profile_question, _docs = load_profile_fixture()
-            investigation = orchestrator.create(STORY_A_QUESTION, mode="web", profile=profile)
+            budget = None
+            if args.max_llm_calls is not None:
+                from shared.contracts import InvestigationBudget
+
+                budget = InvestigationBudget(max_llm_calls=args.max_llm_calls)
+            investigation = orchestrator.create(STORY_A_QUESTION, budget, mode="web", profile=profile)
             first = orchestrator.step(investigation.id)
             second = orchestrator.step(investigation.id)
             resume_stats = orchestrator.resume(investigation.id)

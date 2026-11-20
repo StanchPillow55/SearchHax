@@ -503,6 +503,31 @@ export function adaptInvestigation(
 
   // Recorded Focus coordinates per checkpoint. Invalid points are dropped, never repaired.
   const policyByCheckpoint: Record<string, PolicyPointView[]> = {};
+  const passagePolicyByCheckpoint: Record<string, PolicyPointView[]> = {};
+  for (const c of exp.checkpoints) {
+    const pts: PolicyPointView[] = [];
+    let invalid = 0;
+    let foreign = 0;
+    for (const r of asArray(asRecord(c.state_json).policy_space_passages)) {
+      const parsed = PolicyPoint.safeParse(r);
+      const spanId = str(asRecord(r).span_id);
+      const owner = str(asRecord(r).investigation_id);
+      if (!parsed.success || !spanId) {
+        invalid += 1;
+        continue;
+      }
+      // A point recorded for another investigation is never plotted here.
+      if (owner && owner !== inv.id) {
+        foreign += 1;
+        continue;
+      }
+      const d = parsed.data;
+      pts.push({ evidenceId: d.evidence_id, spanId, documentId: d.document_id ?? null, title: d.title, url: d.url, passage: d.passage, intent: d.intent_alignment, novelty: d.novelty, unresolved: d.unresolved_alignment, action: d.action, reason: d.reason });
+    }
+    if (invalid) notes.push(`${invalid} passage coordinate(s) at ${c.id} failed validation and are not plotted.`);
+    if (foreign) notes.push(`${foreign} passage coordinate(s) at ${c.id} belong to another investigation and are not plotted.`);
+    if (pts.length) passagePolicyByCheckpoint[c.id] = pts;
+  }
   for (const c of exp.checkpoints) {
     const raw = asArray(asRecord(c.state_json).policy_space);
     const pts: PolicyPointView[] = [];
@@ -537,6 +562,7 @@ export function adaptInvestigation(
     notes: Array.from(new Set(notes)),
     unplacedCheckpoints: unplaced,
     policyByCheckpoint,
+    passagePolicyByCheckpoint,
     branchId: tr.branch_id ?? null,
     branchObjective: tr.branch_objective ?? null,
     attachments: { claims: tr.attached_claims, sources: tr.attached_sources },

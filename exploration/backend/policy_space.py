@@ -76,6 +76,65 @@ def record_policy_space(export: ExplorationExport) -> list[dict]:
                 "bridge_trigger": knowledge.bridge_trigger if knowledge is not None else None,
                 "scored_text_source": source,
                 "coordinate_source": "focus_policy_checkpoint",
+                "granularity": "document",
+            }
+        )
+    return rows
+
+
+def record_passage_space(export: ExplorationExport) -> list[dict]:
+    """Per-passage coordinates (additive, 1.1.0): one point per stored evidence span.
+
+    Stored separately (checkpoint ``state_json.policy_space_passages``) so readers of the
+    document-level ``policy_space`` are unchanged. The text scored is exactly the stored span
+    text, so a passage selected in the trace maps to its own point.
+    """
+    investigation_id = export.investigation.id
+    branch_id = export.investigation.metadata.get("branch_id") or f"root:{investigation_id}"
+    if not export.investigation.question.strip():
+        return []
+    documents = {document.id: document for document in export.documents}
+    passages: list[Passage] = []
+    spans = {}
+    for span in export.evidence_spans:
+        text = (span.text or "").strip()
+        document = documents.get(span.document_id)
+        if not text or document is None:
+            continue
+        # url="" makes the ranker key on the span id: passages from one page are separate points
+        # here (the ranker otherwise merges same-URL passages into one source). The row still
+        # records the document URL.
+        passages.append(Passage(id=span.id, text=text, url="", title=document.title))
+        spans[span.id] = (span, document)
+    if not passages:
+        return []
+    model = FocusAttentionModel(
+        export.investigation.question,
+        unresolved_questions=tuple(question.text for question in export.unresolved_questions),
+        now=REFERENCE_DATE,
+    )
+    rows = []
+    for rank, decision in enumerate(model.rank(passages)):
+        span, document = spans[decision.passage.id]
+        rows.append(
+            {
+                "evidence_id": span.id,
+                "span_id": span.id,
+                "investigation_id": investigation_id,
+                "branch_id": branch_id,
+                "document_id": span.document_id,
+                "url": document.canonical_url,
+                "title": document.title,
+                "passage": span.text[:400],
+                "intent_alignment": decision.score.relevance,
+                "novelty": decision.score.novelty,
+                "unresolved_alignment": decision.score.graph_gap,
+                "action": decision.action,
+                "reason": decision.reason,
+                "policy_rank": rank,
+                "scored_text_source": "evidence_span",
+                "coordinate_source": "focus_policy_checkpoint_passage",
+                "granularity": "passage",
             }
         )
     return rows

@@ -8,7 +8,7 @@ from shared.contracts import Checkpoint, ExplorationExport, StopReason
 
 from exploration.backend.database import Database
 from exploration.backend.ids import new_id
-from exploration.backend.policy_space import record_policy_space
+from exploration.backend.policy_space import record_passage_space, record_policy_space
 
 
 def save_checkpoint(
@@ -63,6 +63,7 @@ def save_checkpoint(
             "origin_clusters": [item.model_dump(mode="json") for item in export.origin_clusters],
         },
         "policy_space": record_policy_space(export),
+        "policy_space_passages": record_passage_space(export),
     }
     checkpoint = Checkpoint(
         id=new_id("cp"),

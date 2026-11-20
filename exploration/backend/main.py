@@ -6,6 +6,7 @@ from pathlib import Path
 
 import hashlib
 import json
+import os
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -49,11 +50,17 @@ LOCAL_ORIGINS = [
 ]
 
 
+def allowed_origins() -> list[str]:
+    """Local origins plus any listed in SEARCHHAX_ALLOWED_ORIGINS (comma-separated). Never "*"."""
+    extra = [item.strip() for item in os.environ.get("SEARCHHAX_ALLOWED_ORIGINS", "").split(",")]
+    return LOCAL_ORIGINS + [item for item in extra if item and item != "*"]
+
+
 def create_app(db_path: str | Path | None = None) -> FastAPI:
     app = FastAPI(title="FrontierGraph Exploration", version="1.0.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=LOCAL_ORIGINS,
+        allow_origins=allowed_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
@@ -111,13 +118,49 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     ) -> Investigation:
         """Store a new question. Local only: no search, fetch or LLM call until /step."""
+        if not body.question.strip():
+            # min_length=1 accepts whitespace; a blank question is not stored.
+            raise HTTPException(status_code=422, detail="question must not be blank")
+        profile = body.profile
+        source_id = body.profile_from_investigation_id
+        if source_id is not None:
+            if body.profile is not None:
+                raise HTTPException(status_code=422, detail="give either profile or profile_from_investigation_id, not both")
+            try:
+                profile = app.state.orchestrator.stored_profile(source_id)
+            except KeyError:
+                raise HTTPException(status_code=404, detail=f"investigation {source_id} not found") from None
+            if profile is None:
+                # Nothing is invented: without a stored profile the request is refused.
+                raise HTTPException(status_code=422, detail=f"investigation {source_id} has no stored research profile")
         return idempotent(
             idempotency_key,
             "create_investigation",
             body.model_dump(mode="json"),
             Investigation,
-            lambda: app.state.orchestrator.create(body.question, body.budget, profile=body.profile),
+            lambda: app.state.orchestrator.create(
+                body.question, body.budget, profile=profile, profile_source_investigation_id=source_id
+            ),
         )
+
+    @app.get("/api/health")
+    def health() -> dict:
+        """Liveness plus a read of the database. Reports configuration presence, never values."""
+        from exploration.backend.config import llm_api_key, telem_configured
+        from shared.contracts import CONTRACT_VERSION
+
+        try:
+            app.state.orchestrator.database.list_investigations(limit=1, offset=0)
+            database = "ok"
+        except Exception as exc:  # reported, not raised: the probe must answer
+            database = f"error: {type(exc).__name__}"
+        return {
+            "status": "ok" if database == "ok" else "degraded",
+            "database": database,
+            "contract_version": CONTRACT_VERSION,
+            "search_configured": telem_configured(),
+            "llm_configured": llm_api_key() is not None,
+        }
 
     @app.get("/api/exploration/investigations", response_model=InvestigationList)
     def list_investigations(
@@ -181,10 +224,25 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         """
         from exploration.backend.answer import compose_answer
 
+        from exploration.backend.budget import BudgetGuard
+
         export = _load(app, investigation_id)
-        answer = compose_answer(export)
-        export.answer = answer
-        export.investigation.metadata["answer"] = answer.model_dump(mode="json")
+        guard = BudgetGuard(export.investigation.budget)
+        calls_before = guard.budget.llm_calls_used
+        answer = compose_answer(export, guard=guard)
+        if guard.budget.llm_calls_used > calls_before:
+            # The answer-model call counts against the investigation's LLM budget.
+            export.investigation.budget = guard.budget
+            export.investigation.usage.llm_calls += guard.budget.llm_calls_used - calls_before
+        stored = export.investigation.metadata.get("answer")
+        if answer.blocked and isinstance(stored, dict) and not stored.get("blocked") and stored.get("markdown"):
+            # A failed regeneration does not erase the answer already stored;
+            # the failure is recorded separately.
+            export.investigation.metadata["answer_regeneration_error"] = answer.blocker
+        else:
+            export.answer = answer
+            export.investigation.metadata["answer"] = answer.model_dump(mode="json")
+            export.investigation.metadata.pop("answer_regeneration_error", None)
         app.state.orchestrator.database.update_investigation(export.investigation, export.decision)
         return _load(app, investigation_id)
 

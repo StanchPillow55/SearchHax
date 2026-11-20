@@ -7,7 +7,10 @@ import uuid
 
 
 def stable_id(prefix: str, *parts: str) -> str:
-    raw = "\n".join(parts)
+    # Parts are joined with a newline, so a newline (or backslash) inside a part
+    # is escaped first; otherwise ("a\nb", "c") and ("a", "b\nc") would collide.
+    # Parts without either character hash exactly as before.
+    raw = "\n".join(part.replace("\\", "\\\\").replace("\n", "\\n") for part in parts)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return f"{prefix}_{digest}"
 

@@ -19,10 +19,20 @@ export interface Side {
   decisionSource: string | null;
   rationale: string;
   searches: number;
+  /** Distinct claim texts; `claimRecords` counts stored rows (one per supporting document). */
   claims: number;
+  claimRecords: number;
   sources: number;
+  /** Distinct open-question texts; `questionRecords` counts stored rows. */
   openQuestions: number;
+  questionRecords: number;
 }
+
+const distinct = (texts: string[]) => {
+  const seen = new Map<string, string>();
+  for (const t of texts) if (!seen.has(norm(t))) seen.set(norm(t), t);
+  return [...seen.values()];
+};
 export interface LineageDiff {
   parent: Side;
   child: Side;
@@ -41,9 +51,11 @@ function side(e: ExplorationExportT): Side {
     decisionSource: inv.decision_source ?? null,
     rationale: inv.decision_rationale ?? "",
     searches: inv.usage.search_calls,
-    claims: e.claims.length,
+    claims: distinct(e.claims.map((c) => c.text)).length,
+    claimRecords: e.claims.length,
     sources: e.documents.length,
-    openQuestions: e.unresolved_questions.length,
+    openQuestions: distinct(e.unresolved_questions.map((q) => q.text)).length,
+    questionRecords: e.unresolved_questions.length,
   };
 }
 
@@ -72,8 +84,9 @@ export function diffLineage(parent: ExplorationExportT, child: ExplorationExport
 
   const pQ = new Set(parent.unresolved_questions.map((q) => norm(q.text)));
   const cQ = new Set(child.unresolved_questions.map((q) => norm(q.text)));
-  const notOpenInChild = parent.unresolved_questions.filter((q) => !cQ.has(norm(q.text))).map((q) => q.text);
-  const addedQ = child.unresolved_questions.filter((q) => !pQ.has(norm(q.text))).map((q) => q.text);
+  // One entry per distinct text: a question stored once per document is still one question.
+  const notOpenInChild = distinct(parent.unresolved_questions.filter((q) => !cQ.has(norm(q.text))).map((q) => q.text));
+  const addedQ = distinct(child.unresolved_questions.filter((q) => !pQ.has(norm(q.text))).map((q) => q.text));
 
   const pX = new Set(parent.contradictions.map((x) => norm(`${x.subject_name}|${x.predicate}|${x.conflicting_object}`)));
   const addedX = child.contradictions.filter((x) => !pX.has(norm(`${x.subject_name}|${x.predicate}|${x.conflicting_object}`))).length;

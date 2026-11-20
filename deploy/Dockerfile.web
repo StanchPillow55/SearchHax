@@ -1,0 +1,19 @@
+# SearchHax React app, built once and served by nginx, which proxies /api to the API service.
+FROM node:22-slim AS build
+ARG VITE_ALLOW_BILLABLE_RESEARCH=false
+ENV VITE_ALLOW_BILLABLE_RESEARCH=${VITE_ALLOW_BILLABLE_RESEARCH}
+RUN corepack enable && corepack prepare pnpm@10 --activate
+WORKDIR /web
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend ./
+RUN pnpm run build
+
+FROM nginx:1.27-alpine
+# SEARCHHAX_BASIC_AUTH: "off" (default) or a realm name to require the users in
+# /etc/nginx/auth/htpasswd (mount it read-only).
+ENV SEARCHHAX_BASIC_AUTH=off API_UPSTREAM=http://api:8000
+COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+RUN mkdir -p /etc/nginx/auth && touch /etc/nginx/auth/htpasswd
+COPY --from=build /web/dist /usr/share/nginx/html
+EXPOSE 80

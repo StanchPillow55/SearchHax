@@ -219,6 +219,8 @@ export interface Trace {
   attachments?: { claims: { id: string; text: string; status?: string | null }[]; sources: { id: string; title: string; url: string }[] };
   /** Recorded Focus policy coordinates per checkpoint id (never estimated). */
   policyByCheckpoint?: Record<string, PolicyPointView[]>;
+  /** Passage-level coordinates (one per stored evidence span), when the backend recorded them. */
+  passagePolicyByCheckpoint?: Record<string, PolicyPointView[]>;
   nodes: TraceNode[];
   edges: TraceEdge[];
   events: TraceEvent[];
@@ -237,6 +239,8 @@ export interface PolicyPointView {
   unresolved: number;
   action: PolicyAction;
   reason: string;
+  /** Set on passage-level points (checkpoint policy_space_passages, 1.1.0). */
+  spanId?: string | null;
 }
 
 export type LanternStatus =

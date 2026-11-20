@@ -21,6 +21,12 @@ from exploration.backend.attention import clamp01
 from exploration.backend.ids import stable_id
 
 
+_STORY_A_NORMALIZED = (
+    "how do nvidia's investments, gpu infrastructure customers, and ai capacity expansion "
+    "reinforce one another?"
+)
+
+
 def initial_search_query(question: str) -> str:
     """Retrieval formulation. The stored investigation question is not changed.
 
@@ -29,13 +35,19 @@ def initial_search_query(question: str) -> str:
     relationship the investigation is trying to ground.
     """
     text = question.strip()
-    lowered = text.lower()
-    if "nvidia" in lowered and "investment" in lowered and "capacity" in lowered:
+    # Only the Story A question itself is rewritten. Another question that merely
+    # mentions NVIDIA, investment and capacity is searched as asked.
+    if " ".join(text.lower().split()) == _STORY_A_NORMALIZED:
         return "NVIDIA CoreWeave investment AI factories capacity 2026"
     if len(text) <= 180:
         return text
-    sentence = re.split(r"[.?\n]", text, maxsplit=1)[0].strip()
-    return sentence[:180]
+    # A long prompt often opens with a preamble; the sentence that asks the
+    # question (ends with "?") is the one to search. Otherwise use the first
+    # sentence that has text.
+    sentences = [part.strip() for part in re.findall(r"[^.?!\n]+[.?!]?", text) if part.strip(" .?!")]
+    asked = [part for part in sentences if part.endswith("?")]
+    chosen = asked[-1] if asked else (sentences[0] if sentences else "")
+    return chosen.rstrip(" .")[:180].strip()
 
 
 def generate_actions(

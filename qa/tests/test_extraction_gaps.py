@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 
 from exploration.backend.extraction import relationships_from_llm_payload
 from exploration.backend.planner import generate_actions
@@ -16,17 +14,18 @@ PAGE = "This document is a research report submitted to the U.S. Department of J
 
 
 def test_truncated_excerpt_note_is_not_a_follow_up_query():
-    recorded = json.loads(
-        (Path(__file__).resolve().parents[2] / "demo" / "integrated_profile_evaluation.json").read_text()
-    )
-    assert NOTE in recorded["story_a"]["open_questions"]
+    # NOTE was first observed in the live demo recorded on 2026-11-14 (an open question in
+    # story_a). The 2026-11-20 re-recording, made with this fix, no longer stores it, so the
+    # defect is reproduced from the recorded text itself rather than from the demo file.
+    from exploration.backend.orchestrator import STORY_A_QUESTION
+
     batch = relationships_from_llm_payload(
         {"relationships": [], "gaps": [{"text": NOTE, "importance": 0.5}]},
         PAGE,
         document_id="doc-ojp",
         version_id="ver-ojp",
         version_hash="hash-ojp",
-        question=recorded["story_a"]["question"],
+        question=STORY_A_QUESTION,
     )
     assert batch.relationships == []
     stored = [(question.kind, question.missing_evidence, question.text) for question in batch.questions]

@@ -25,6 +25,7 @@ from exploration.backend.ids import stable_id
 _URL_RE = re.compile(r"https://[^\s)>\]]+")
 _WIRE_RE = re.compile(r"LF-PR-\d{4}-\d+")
 _PRESS_URL = "https://lumenarc.example/press/2026-03-04-helios-array"
+_AMOUNT_PREDICATES = {"raised_amount", "invested_amount"}
 
 
 @dataclass
@@ -124,7 +125,7 @@ def reconcile_amount_conflicts(
 
     groups: dict[tuple[str, str], list[Relationship]] = {}
     for rel in relationships:
-        if rel.predicate != "raised_amount" or rel.status != "supported":
+        if rel.predicate not in _AMOUNT_PREDICATES or rel.status != "supported":
             continue
         groups.setdefault((rel.subject_id, rel.predicate), []).append(rel)
 
@@ -175,5 +176,5 @@ def reconcile_amount_conflicts(
 
 
 def _amount_key(name: str) -> str:
-    match = re.search(r"\$\d[\d,]*(?:\.\d+)? million", name)
+    match = re.search(r"\$\d[\d,]*(?:\.\d+)? (?:million|billion)", name)
     return match.group(0) if match else name.strip().lower()

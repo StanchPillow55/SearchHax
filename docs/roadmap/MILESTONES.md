@@ -1,6 +1,10 @@
 # SearchHax V1 — milestone tracker
 
-Status is set from **observed evidence only**: a test run, a screenshot or a persisted record. Last update: 2026-11-20 (`docs/audit/M0-M1-audit.md`, section 10).
+Status is set from **observed evidence only**: a test run, a screenshot or a persisted record. Last update: 2026-11-20, after the first authorized live session (`docs/audit/M0-M1-audit.md`, section 12).
+
+Branches: PR #4 = `frontend/react-integration` (CI green at `b6d8001`). PR #5 = `frontend/qa-and-m7-followup`, stacked on #4, with everything since. Nothing is merged into `main`; merging is your decision.
+
+**Overall: V1 is INCOMPLETE.** Live research, branching, findings, 3D and knowledge were demonstrated once in React (local, capped budget). Open: merging, a public or shared deployment (not authorized), evaluation beyond the recorded Story C/A baselines, and the defects below.
 
 Status legend:
 - ✅ exit criteria verified
@@ -10,31 +14,49 @@ Status legend:
 
 | # | Milestone | Status | Evidence / what is left |
 |---|---|---|---|
-| M0 | Integration baseline | 🟡 | Linear +8 over `origin/main`, no secrets, clean trial merge with QA. CI added (`.github/workflows/ci.yml`). **Left:** commit, push and PR (⛔ needs your go-ahead). |
+| M0 | Integration baseline | 🟡 | PR #4 green (backend, frontend). PR #5 is stacked on it with the browser job added to CI. No secrets in git; worktrees intact. **Left:** your review and merge of #4 then #5 (⛔ your decision). |
 | M1 | Real-data React reader | ✅ | 10/10 checks on the live API; screenshots |
-| M2 | Grounded branching and lifecycle | ✅ (offline) | Root question kept, objective separate, ungrounded challenge → 422, claim-grounded challenge query, `lifecycle`, legacy rows resolved. Backend + vitest + e2e. **Not observed:** a real (billable) child research run ⛔ |
-| M3 | Live research execution | 🟡 | New Investigation (local), idempotency keys on every write, one step at a time per investigation (409), billable confirm dialog, polling of recorded events during a step. **Left:** an authorized live run ⛔ |
+| M2 | Grounded branching and lifecycle | ✅ (live, once) | Live 2026-11-20: a challenge child `inv_7647b6b549474dd2` was created from claim `clm_2d994c177a997b8f` with the vague objective "Is this true?". Its search was "independent evidence for or against: NVIDIA has invested $2 billion in CoreWeave". The root question was kept, the objective stored separately, the claim and source attached, the parent unchanged, and the lifecycle went saved → stopped. Offline: backend + vitest + e2e (seeded CI DB includes a legacy row). |
+| M3 | Live research execution | ✅ (live, once; local) | Live root `inv_51b381d9c7d24e59` through React: save → billable confirm → step (1 search, 4 URLs, 4 LLM calls) → **Continue research** (`36370d6`, added after the live run showed no way to continue) → convergence stop `unresolved_uncertainty`. Fork & Investigate ran a child behind its in-page authorization (1/5/5 of a 1/5/6 budget). Budgets enforced server-side. **Open defect:** one extraction recorded `LLM extraction failed: JSONDecodeError`; the cause is unconfirmed (blocker now records the finish reason, `9caa669`). |
 | M4 | Truthful trace and playback | ✅ (new runs) | Playback, snapshots and compare on real data. New searches record `round` and `planned_from` (prompting question/action), and the adapter uses them. Replay determinism and "only persisted checkpoints are forkable" are tested. **Left:** older runs keep derived rounds (their events predate the fields). |
-| M5 | Evidence-grounded findings | 🟡 | Live Findings: claims grouped without erasing records, and exact-quote vs semantic-only vs independent origins kept apart. Unknown origin is never counted as independent. Partial outcomes are labelled. A stored cited answer is shown separately. **Left:** a gated "generate cited summary" button (billable ⛔); QA-ledger correctness defects. |
-| M6 | Lineage and comparison | 🟡 | Constellation from real `/branches`; live parent↔child compare (claims, sources, questions, disagreements, stop decisions); grandchild keeps the root question. **Left:** persist canvas position. |
-| M7 | Real 3D Focus space | 🟡 | Recorded `policy_space`, synced with the trace, honest empty state. **Left:** per-passage coordinates (backend), branch overlay. |
-| M8 | Personal knowledge | ✅ (local) | Live Knowledge view with the basis of every node. Correction → persists across restart → latest wins. Encountered never becomes known. Frontier pre-fills a new question. **Left:** passing the profile to the new investigation for profile-aware ranking. |
-| M9 | UX and accessibility | 🟡 | New screens use ≥ 12 px body text and focus outlines. The header wraps instead of collapsing; responsive at < 900 px. Sub-10px text outside the zoomable canvas was raised: 244 rules now have a 10–10.5 px minimum. **Left:** a keyboard audit of the canvas. |
-| M10 | QA, security, evaluation | 🟡 | URL credentials are stripped from source keys and citations; 2 QA ledger tests are ported and passing (`focus/test_url_userinfo.py`). 57 other recorded QA defects are still open. No auth. B0/B1/B2 evaluation requires live runs ⛔ |
-| M11 | Deploy and release | ⛔ | Hosting, secrets and authentication are outward-facing decisions for you |
+| M5 | Evidence-grounded findings | ✅ (live, once) | Live Findings: "PARTIAL / NOT VERIFIED", 6 records grouped as 1 claim ("repetition is not extra support"), 6 exact-quote, 0 independent origins, 3 of unknown origin, the recorded stop rationale. Repeated open questions are now grouped (`9d06b18`). **Left:** the "generate cited summary" button (billable, not built). Source independence is mostly "unknown origin" on live pages, so independence is rarely established. |
+| M6 | Lineage and comparison | ✅ (live, once) | Live parent↔child compare: 1 claim unchanged, 4 shared + 5 new sources, a new claim-grounded open question, and the stop reasons of both. Constellation, grandchild root question, and canvas restore covered offline (e2e). |
+| M7 | Real 3D Focus space | ✅ (live, once) | Live child: passage → its own point ("C2 · passages · 4 recorded points", investigate = orange) → "Show in investigation trace" → `evidence_spans · span_fbbf324e71fa7966`. Passage rows carry their own investigation id (parent and child points differ for the same span ids). Offline requirements 1–10 as before (`cdbb6a5`). **Not done (P3):** a parent+child overlay. |
+| M8 | Personal knowledge | ✅ (live, once) | Live profile run `inv_31231a071b084408`: 2 known priors, 5 interests, 1 frontier, 4 encountered sources. Marking an encountered source "I know this" persisted across a reload and a backend restart as "confirmed by you", and the source stayed encountered. A frontier carries the stored profile into a new question (`6500252`). **Gap (P2):** corrections are not yet ranking inputs. |
+| M9 | UX and accessibility | ✅ (local) | Text below 10px outside the canvas raised (244 rules); header wraps; map supports keyboard pan, zoom, fit and Escape, and nodes are focusable buttons with visible focus (e2e). |
+| M10 | QA, security, evaluation | 🟡 | QA ledger: 91 pass / 0 fail / 2 skipped pending product decisions (Q13, Q17). Q25 closed by the live re-recording (`c43df7c`). CI: backend, frontend, and a **browser job on an offline-seeded DB** (`4aebd73`; 15/15 locally). Security: URL userinfo stripped, idempotency, single-flight, billable gate, basic auth for deployment, CORS wildcard refused. **Left:** accounts and authorization (none), B1/B2 evaluation (only the B0/B3 Story C and Story A baselines are recorded), the live JSONDecodeError. |
+| M11 | Deploy and release | 🟡 | Container deployment (`a51cadd`, `docs/deploy/DEPLOY.md`): both images build, health checks pass, state survives compose down/up on the volume, basic auth verified (401/200), bound to 127.0.0.1. **Not done:** any public or shared deployment, TLS, real migrations (none needed yet), and a research-to-branch run *inside* the containers (the live run used the dev servers). ⛔ needs a host and authorization. |
 
-## V1 release acceptance (4 / 13 observed; locally, offline)
+## V1 release acceptance (11 / 13 observed; local, live once on 2026-11-20)
 
-- [x] Submit a new research question through React and create a real backend investigation (saved, not run)
-- [ ] Watch real search, extraction, evaluation and convergence activity ⛔ billable
-- [ ] Receive grounded findings with citations and explicit uncertainty — findings view done; needs a new live run ⛔
-- [x] Replay and inspect the sources behind each recorded decision (persisted runs)
-- [x] Return to an eligible intermediate checkpoint
-- [x] Challenge a claim and fork without losing the original question (saved child; e2e)
-- [ ] Run child research using the attached claim and checkpoint ⛔ billable (planning verified offline)
-- [ ] Compare parent and child findings, evidence and unresolved questions — done for a recorded child; needs a fresh researched child ⛔
-- [ ] Select a passage in the Lantern Map and find the same point in 3D — works at document level; per-passage needs backend (M7)
-- [ ] Inspect and correct a knowledge assertion; see it persisted — verified (e2e + restart test); left open until a deployed run
-- [ ] Restart without losing investigations, branches or checkpoints — verified locally on SQLite; needs the deployed check
-- [ ] Pass the offline, integration, browser, security and budget tests — offline and browser pass; security and integration open
-- [ ] Use the deployed app without local developer tools ⛔
+- [x] Submit a new research question through React and create a real backend investigation
+- [x] Watch real search, extraction, evaluation and convergence activity (live root, 2 steps)
+- [x] Receive grounded findings with citations and explicit uncertainty (live Findings: partial / not verified)
+- [x] Replay and inspect the sources behind each recorded decision
+- [x] Return to an eligible intermediate checkpoint (live C1: persisted, resumable)
+- [x] Challenge a claim and fork without losing the original question (live, "Is this true?")
+- [x] Run child research using the attached claim and checkpoint (live Fork & Investigate)
+- [x] Compare parent and child findings, evidence and unresolved questions (live)
+- [x] Select a passage in the Lantern Map and find the same point in 3D (live child)
+- [x] Inspect and correct a knowledge assertion; see it persisted (live, across reload and restart)
+- [x] Restart without losing investigations, branches or checkpoints (live DB: identical snapshot after a backend restart; container volume after compose down/up)
+- [ ] Pass the offline, integration, browser, security and budget tests: offline, browser and budget pass; there is no account/authorization model to test
+- [ ] Use the deployed app without local developer tools: container verified locally only ⛔ host not chosen
+
+## Defect status (2026-11-20, after the workspace audit)
+
+- **QA failure report** (`qa/failure_report.md` on the QA branch: 61 BLOCKER + 1 HIGH, 64 named tests): every test exists in `qa/tests` on PR #5. **62 pass**; 2 are skipped pending product decisions (Q13, Q17). The full offline run is 254 cases with 0 failures.
+- **Open:**
+  - P1: live `LLM extraction failed: JSONDecodeError`, seen in two live runs (2026-11-14 in the stash's Story A record and 2026-11-20). The cause is unconfirmed; the blocker now records the finish reason.
+  - P2: knowledge corrections are not ranking inputs.
+  - P3: no parent+child 3D overlay.
+- **Fixed in this pass:** parent/child compare counted claims and open questions per stored record ("3 open questions" for one question) while Findings grouped them. Compare now counts distinct texts and shows record counts alongside.
+- **Workspace:** one repository, a main checkout plus three worktrees. Only the QA branch has unpushed work (61 commits; a bundle backup exists). The consolidation plan is kept outside the repository because it contains local paths.
+
+## Handoff: next actionable tasks
+
+1. Review and merge PR #4 (merge commit), retarget PR #5 to `main`, then merge PR #5 (yours; commands in the session report).
+2. Diagnose the live `JSONDecodeError`: run one more capped live step, which now records the finish reason. If it is `length`, raise or adapt `max_tokens` for Anthropic in `exploration/backend/llm.py`.
+3. Make knowledge corrections ranking inputs (M8 P2): feed confirmed `known` assertions into `knowledge_value` as known claims.
+4. Decide Q13 and Q17 (`qa/tests/README.md`).
+5. Choose a host for M11 and authorize it; then repeat the research-to-branch flow inside the containers with keys and `VITE_ALLOW_BILLABLE_RESEARCH=true`.

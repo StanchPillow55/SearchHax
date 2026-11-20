@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { API_CONFIG } from "./config";
 import { ExplorationClient } from "./client";
-import { MAIN } from "../test/fixtures";
+import { MAIN, raw } from "../test/fixtures";
 
 const branch = {
   id: "branch_new",
@@ -43,6 +43,19 @@ describe("ExplorationClient writes", () => {
     });
     await expect(c.resumeBranch("branch_new", { confirmedBillable: true })).rejects.toThrow(/Billable research is disabled/);
     expect(called).toBe(0);
+  });
+
+  it("createInvestigation sends profile_from_investigation_id only when a profile source is given", async () => {
+    const bodies: unknown[] = [];
+    const inv = (raw(MAIN, "export") as { investigation: unknown }).investigation;
+    const c = new ExplorationClient(async (_u, init) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify(inv), { status: 200 });
+    });
+    await c.createInvestigation("advanced packaging supply", undefined, "k1", MAIN);
+    await c.createInvestigation("advanced packaging supply", undefined, "k2");
+    expect(bodies[0]).toEqual({ question: "advanced packaging supply", profile_from_investigation_id: MAIN });
+    expect(bodies[1]).toEqual({ question: "advanced packaging supply" });
   });
 
   it("listInvestigations validates the listing", async () => {

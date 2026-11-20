@@ -133,6 +133,11 @@ export function Findings({ exp, onBack, onShowInTrace }: { exp: ExplorationExpor
               {model.openQuestions.map((q) => (
                 <li key={q.id}>
                   {q.text} <span className="fx-meta">{q.kind}</span>
+                  {q.recordIds.length > 1 && (
+                    <p className="fx-note" data-testid="open-question-repeats">
+                      Recorded as {q.recordIds.length} separate question records ({q.recordIds.join(", ")}). Repetition is not extra importance.
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

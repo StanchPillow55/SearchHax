@@ -133,6 +133,37 @@ def test_branch_from_evidence_uses_an_eligible_checkpoint_and_keeps_the_parent(t
     assert child.investigation.id != parent_id
 
 
+def test_branch_passage_points_carry_the_child_identity_and_leave_the_parent_alone(tmp_path):
+    orchestrator = _orchestrator(tmp_path, "branch-passages.sqlite")
+    orchestrator.retrieval = FakeRetrieval()
+    parent = orchestrator.run_story_c()
+    parent_id = parent.investigation.id
+    before = {cp.id: [dict(row) for row in cp.state_json.get("policy_space_passages", [])] for cp in parent.checkpoints}
+    assert before[parent.checkpoints[-1].id], "Story C records passage points"
+    assert all(row["investigation_id"] == parent_id for rows in before.values() for row in rows)
+
+    branch = create_branch(
+        orchestrator,
+        parent_id,
+        CreateBranchRequest(
+            from_checkpoint_id=parent.checkpoints[-1].id,
+            objective="Fork from the recorded passages",
+            intervention_type="fork",
+            constraints={"max_searches": 1},
+        ),
+    )
+    reloaded = orchestrator.get(parent_id)
+    after = {cp.id: cp.state_json.get("policy_space_passages", []) for cp in reloaded.checkpoints}
+    assert after == before  # recorded parent scores are never recomputed or rewritten
+    child = orchestrator.get(branch.child_investigation_id)
+    child_rows = [row for cp in child.checkpoints for row in cp.state_json.get("policy_space_passages", [])]
+    assert child_rows
+    assert all(row["investigation_id"] == child.investigation.id for row in child_rows)
+    assert all(row["branch_id"] == branch.id for row in child_rows)
+    child_spans = {span.id for span in child.evidence_spans}
+    assert all(row["span_id"] in child_spans for row in child_rows)
+
+
 def test_checkpoint_switch_reads_that_snapshot_only(tmp_path):
     orchestrator = _orchestrator(tmp_path, "switch.sqlite")
     export = orchestrator.run_story_c()
@@ -288,3 +319,25 @@ def _point(evidence_id, intent, novelty, unresolved, url="", investigation_id="i
 
 def _replace_document(point, document_id):
     return type(point)(**{**point.__dict__, "document_id": document_id})
+
+
+def test_checkpoints_record_one_policy_point_per_stored_passage(tmp_path):
+    from exploration.backend.orchestrator import Orchestrator
+
+    orchestrator = Orchestrator(tmp_path / "passages.sqlite")
+    orchestrator.post = lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("convergence down"))
+    export = orchestrator.run_story_c()
+    state = export.checkpoints[-1].state_json
+    spans = {span.id: span for span in export.evidence_spans if span.text.strip()}
+    rows = state["policy_space_passages"]
+    assert spans, "Story C records evidence spans"
+    assert sorted(row["span_id"] for row in rows) == sorted(spans)
+    for row in rows:
+        assert row["granularity"] == "passage"
+        assert row["document_id"] == spans[row["span_id"]].document_id
+        assert row["passage"] == spans[row["span_id"]].text[:400]
+        for axis in ("intent_alignment", "novelty", "unresolved_alignment"):
+            assert 0.0 <= row[axis] <= 1.0
+        assert row["action"] in {"consider", "investigate", "archive"}
+    # Document-level rows are unchanged in shape and never mixed with passage rows.
+    assert all(row.get("granularity") == "document" for row in state["policy_space"])

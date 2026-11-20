@@ -58,12 +58,32 @@ export interface Outcome {
   headline: string;
 }
 
+export interface OpenQuestionGroup {
+  id: string;
+  text: string;
+  kind: string;
+  recordIds: string[];
+}
+
+/** One entry per distinct question text (case and spacing ignored). Repeats are counted, not erased. */
+export function groupOpenQuestions(qs: ExplorationExportT["unresolved_questions"]): OpenQuestionGroup[] {
+  const groups = new Map<string, OpenQuestionGroup>();
+  for (const q of qs) {
+    const key = q.text.trim().replace(/\s+/g, " ").toLowerCase();
+    const g = groups.get(key);
+    if (g) g.recordIds.push(q.id);
+    else groups.set(key, { id: q.id, text: q.text, kind: String(q.kind ?? ""), recordIds: [q.id] });
+  }
+  return [...groups.values()];
+}
+
 export interface FindingsModel {
   question: string;
   outcome: Outcome;
   findings: Finding[];
   contradictions: ExplorationExportT["contradictions"];
-  openQuestions: ExplorationExportT["unresolved_questions"];
+  /** Open questions grouped by identical text; every stored record id is kept. */
+  openQuestions: OpenQuestionGroup[];
   answer: GroundedAnswerT | null;
   answerInvalid: boolean;
   counts: Record<ClaimStatusT, number>;
@@ -183,7 +203,7 @@ export function buildFindings(exp: ExplorationExportT): FindingsModel {
     outcome: outcomeOf(exp),
     findings,
     contradictions: exp.contradictions,
-    openQuestions: exp.unresolved_questions,
+    openQuestions: groupOpenQuestions(exp.unresolved_questions),
     answer: parsed?.success ? parsed.data : null,
     answerInvalid: !!parsed && !parsed.success,
     counts,

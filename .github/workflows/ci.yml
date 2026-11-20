@@ -57,6 +57,55 @@ jobs:
       - run: pnpm exec vitest run
       - run: pnpm run build
 
-# Browser (Playwright) tests are not run in CI yet: they read specific investigations from a
-# persisted database that is not in the repository. Run them locally against a DB copy:
-#   E2E_API_URL=http://127.0.0.1:8010 pnpm --dir frontend exec playwright test
+  browser:
+    # Playwright against a database seeded offline from the fixture corpora
+    # (frontend/e2e/seed_offline.py). No provider keys exist; billable research is off.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_ALLOW_BILLABLE_RESEARCH: "false"
+      SEARCHHAX_API_PROXY_TARGET: http://127.0.0.1:8010
+      E2E_API_URL: http://127.0.0.1:8010
+      E2E_BASE_URL: http://127.0.0.1:5173
+      E2E_SCREENSHOT_DIR: e2e/artifacts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: exploration/requirements.txt
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install
+        run: |
+          pip install -r exploration/requirements.txt
+          pnpm --dir frontend install --frozen-lockfile
+      - name: Seed an offline database
+        run: python frontend/e2e/seed_offline.py "$RUNNER_TEMP/e2e.sqlite" "$RUNNER_TEMP/e2e.env"
+      - name: Start the API and the frontend
+        run: |
+          SEARCHHAX_DB_PATH="$RUNNER_TEMP/e2e.sqlite" PYTHONPATH=.:focus \
+            nohup python -m uvicorn exploration.backend.main:app --host 127.0.0.1 --port 8010 > "$RUNNER_TEMP/api.log" 2>&1 &
+          nohup pnpm --dir frontend exec vite --host 127.0.0.1 --port 5173 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8010/api/health && curl -sf http://127.0.0.1:5173/ > /dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/api.log" "$RUNNER_TEMP/vite.log"; exit 1
+      - name: Browser tests
+        run: |
+          set -a; . "$RUNNER_TEMP/e2e.env"; set +a
+          mkdir -p frontend/e2e/artifacts
+          pnpm --dir frontend exec playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: frontend/test-results

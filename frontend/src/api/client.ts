@@ -137,8 +137,10 @@ export class ExplorationClient {
   }
 
   /** Stores a new research question. Local only: nothing is searched until a (billable) step runs. */
-  createInvestigation(question: string, budget: { max_searches: number; max_fetched_urls: number; max_llm_calls: number } | undefined, idempotencyKey?: string): Promise<InvestigationT> {
-    return this.request("POST", "/investigations", Investigation, { question, ...(budget ? { budget } : {}) }, undefined, undefined, idempotencyKey);
+  /** `profileFromInvestigationId` copies the research profile stored on that investigation (server-side; 404/422 if absent). */
+  createInvestigation(question: string, budget: { max_searches: number; max_fetched_urls: number; max_llm_calls: number } | undefined, idempotencyKey?: string, profileFromInvestigationId?: string): Promise<InvestigationT> {
+    const body = { question, ...(budget ? { budget } : {}), ...(profileFromInvestigationId ? { profile_from_investigation_id: profileFromInvestigationId } : {}) };
+    return this.request("POST", "/investigations", Investigation, body, undefined, undefined, idempotencyKey);
   }
 
   /** Runs one research step on a root investigation. BILLABLE; same gate as resumeBranch. */

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon, InfoBlock, Tag, childEvidence, parentEvidence, projectEvidence } from "../shared";
 import { QUESTION, STATUS_META, summarize } from "./data";
-import { policyForDocument, toEvidencePoint } from "../persisted/policy";
+import { policyForDocument, policyForSpan, toEvidencePoint } from "../persisted/policy";
 import { isGroundedObjective } from "../api/grounding";
 import type { EvidencePoint } from "../shared";
 import {
@@ -1208,7 +1208,11 @@ function PersistedSource({
   const pv = doc.provenance ?? {};
   const group = groupOfNode(trace, doc.id);
   const q = group ? queryOfGroup(trace, group.id) : undefined;
-  const { checkpoint, points, point } = policyForDocument(trace, cursor, doc.id);
+  const docPolicy = policyForDocument(trace, cursor, doc.id);
+  const spanId = node.kind === "passage" && node.ref?.table === "evidence_spans" ? node.ref.id : null;
+  const spanPolicy = spanId ? policyForSpan(trace, cursor, spanId) : null;
+  const passageLevel = !!spanPolicy?.point;
+  const { checkpoint, points, point } = passageLevel ? spanPolicy! : docPolicy;
   const shown = node.kind === "passage" ? [node] : passages;
   const claimEdges = trace.edges.filter((e) => shown.some((x) => x.id === e.from) && ["supports", "contradicts", "mentions"].includes(e.kind));
   return (
@@ -1313,7 +1317,7 @@ function PersistedSource({
             points={points.map(toEvidencePoint)}
             selectedId={point.evidenceId}
             onOpen={() => onOpen3D(point.evidenceId)}
-            caption={`Recorded at checkpoint ${checkpoint!.short} (${checkpoint!.id}). Scores show research relevance, not factual correctness.`}
+            caption={`${passageLevel ? "This passage's own recorded point" : node.kind === "passage" ? "Document-level point (no passage coordinate was recorded)" : "Document-level point"} at checkpoint ${checkpoint!.short} (${checkpoint!.id}). Scores show research relevance, not factual correctness.`}
           />
         ) : (
           <div className="ix-no-coords">
