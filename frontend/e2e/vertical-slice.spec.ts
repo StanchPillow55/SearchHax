@@ -23,7 +23,18 @@ test("vertical slice (reads only): stored investigation → source → checkpoin
 
   // 3. Original question and actual status.
   await expect(page.getByTestId("research-question")).toHaveText(exp.investigation.question);
-  await expect(page.getByTestId("investigation-status")).toContainText(/budget exhausted/i);
+  // The badge must state the record's own outcome (not a fixed value): any database works.
+  const STOP_LABEL: Record<string, RegExp> = {
+    budget_exhausted: /budget exhausted/i,
+    unresolved_uncertainty: /uncertainty/i,
+    evidence_sufficient: /evidence sufficient/i,
+    low_expected_value: /low expected value/i,
+    no_useful_actions: /no useful actions/i,
+  };
+  const stop = exp.investigation.stop_reason as string | null;
+  await expect(page.getByTestId("investigation-status")).toContainText(
+    exp.investigation.status === "stopped" ? STOP_LABEL[stop ?? ""] ?? /stopped/i : new RegExp(exp.investigation.status, "i"),
+  );
   await expect(page.getByTestId("data-origin")).toContainText("Persisted");
 
   // 4–5. Recorded events and checkpoints drive the Interior timeline.
