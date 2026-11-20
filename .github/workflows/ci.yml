@@ -30,13 +30,9 @@ jobs:
           python -m shared.contracts
           git diff --exit-code shared/evidence.schema.json shared/example_payload.json
       - name: Offline tests
-        # These three need a real TAVILY_API_KEY despite not being marked `integration`
-        # (tracked in docs/roadmap/MILESTONES.md, M10). Everything else must pass offline.
-        run: >
-          python -m pytest -q -m "not integration" -p no:cacheprovider
-          --deselect exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_runs_a_follow_up_through_convergence
-          --deselect exploration/tests/test_integrated_pipeline.py::test_profile_live_pipeline_stops_when_no_useful_action
-          --deselect tests/test_tavily_retrieval.py::test_missing_api_key_uses_keyless_search_and_extract
+        # No provider keys exist here. Tests that need a live provider are marked
+        # `integration` and excluded; everything else must pass offline.
+        run: python -m pytest -q -m "not integration" -p no:cacheprovider
 
   frontend:
     runs-on: ubuntu-latest

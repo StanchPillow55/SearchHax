@@ -30,6 +30,11 @@ def _offline_extraction(monkeypatch):
     """
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    # The orchestrator refuses a live step unless a Telem credential is
+    # configured. Retrieval here is the in-process fake below, which never
+    # reads this value or opens a connection (each test asserts zero network
+    # fetches), so a placeholder only satisfies the configuration gate.
+    monkeypatch.setenv("TELEM_API_KEY", "offline-test-placeholder-not-a-key")
 
 # A page that states the disclosed NVIDIA/CoreWeave fact (grounded by the
 # deterministic extractor) and profile-relevant GPU/packaging/capacity terms

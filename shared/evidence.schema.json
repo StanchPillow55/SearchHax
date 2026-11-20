@@ -51,36 +51,36 @@
       "properties": {
         "R": {
           "description": "Query-token relevance in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "R",
           "type": "number"
         },
         "G": {
           "description": "Overlap with unresolved gaps in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "G",
           "type": "number"
         },
         "D": {
           "description": "Domain-fit or bridge-term score in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "D",
           "type": "number"
         },
         "F": {
           "description": "Recency from publish_date in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "F",
           "type": "number"
         },
         "score": {
           "description": "A(q,p)=0.4*R+0.3*G+0.2*D+0.1*F, clamped to [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "Score",
           "type": "number"
         }
@@ -110,6 +110,7 @@
           "type": "integer"
         },
         "state_json": {
+          "additionalProperties": true,
           "title": "State Json",
           "type": "object"
         },
@@ -847,6 +848,7 @@
           "title": "Blocker"
         },
         "metadata": {
+          "additionalProperties": true,
           "title": "Metadata",
           "type": "object"
         }
@@ -973,43 +975,43 @@
       "properties": {
         "R": {
           "description": "Overlap with profile interests and goals in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "R",
           "type": "number"
         },
         "N": {
           "description": "Share of passage tokens absent from known claims in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "N",
           "type": "number"
         },
         "B": {
           "description": "1 only when a profile interest and a DOMAIN_BRIDGES bridge term both occur and the bridge term is outside known claims; otherwise 0. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "B",
           "type": "number"
         },
         "I": {
           "description": "Overlap with the unresolved profile interest in [0,1]. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "I",
           "type": "number"
         },
         "C": {
           "description": "1 only when the passage contradicts a known claim with the same subject and predicate and a different object; otherwise 0. Not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "C",
           "type": "number"
         },
         "score": {
           "description": "U=0.25*R+0.25*N+0.20*B+0.20*I+0.10*C, clamped to [0,1]. A heuristic, not a probability and not factual confidence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "Score",
           "type": "number"
         },
@@ -1366,15 +1368,15 @@
         },
         "importance": {
           "default": 0.5,
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "Importance",
           "type": "number"
         },
         "missing_evidence": {
           "default": 1.0,
-          "maximum": 1.0,
-          "minimum": 0.0,
+          "maximum": 1,
+          "minimum": 0,
           "title": "Missing Evidence",
           "type": "number"
         },
