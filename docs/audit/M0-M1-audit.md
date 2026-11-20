@@ -303,3 +303,19 @@ Final: backend 147 passed, 3 failed (provider keys); vitest 96/96; Playwright 12
 - **Results on the follow-up branch** (no keys, empty `HOME`, pinned deps): backend 152 passed; QA ledger 90 pass / 1 fail / 2 skip; tsc clean; vitest 99/99; build clean; Playwright 15/15 against an isolated keyless API on :8010 serving a copy of `exploration/data/exploration.sqlite`.
 - **Reconciling earlier reports.** "89 / 1 / 3" counted `test_fetch_lineage` as skipped (no telem-sdk in that interpreter); "3 key-dependent backend failures" were the three CI deselects above, and none of them was a QA-ledger test.
 - **M8 slice** (`6500252`): a new investigation can copy the stored profile of the investigation it was started from. Backend 157 passed, vitest 103/103 (on the first full run, two UI tests hit the 5 s timeout while servers ran alongside; both passed in isolation and on a full rerun), Playwright 15/15 including frontier → saved question with `profile_from_investigation_id`, build clean.
+
+## 12. First authorized live session (2026-11-20)
+
+You authorized a capped live session: at most 3 investigations, each capped at 2 searches, 8 URLs and 6 LLM calls. It ran against a fresh SQLite file in the session scratchpad, not `exploration/data`, through the React dev server with `VITE_ALLOW_BILLABLE_RESEARCH=true`. Provider keys were loaded from the main checkout's `.env` into the API process only. The browser pane auto-dismisses native `window.confirm`, so the step confirmation was accepted programmatically, once per authorized step; Fork & Investigate used its in-page authorization checkbox.
+
+| Investigation | Kind | Searches | URLs fetched | Cache hits | LLM calls | Stop |
+|---|---|---|---|---|---|---|
+| `inv_51b381d9c7d24e59` | root, 2 steps (UI) | 1 | 4 | 0 | 4 | `unresolved_uncertainty` (convergence) |
+| `inv_7647b6b549474dd2` | challenge child, Fork & Investigate (UI) | 1 | 5 | 0 | 5 | `budget_exhausted` (convergence) |
+| `inv_31231a071b084408` | profile demo re-recording (`demo/run_demo.py --live --profile --max-llm-calls 6`) | 1 | 0 | 4 | 4 | `unresolved_uncertainty` (convergence) |
+
+Totals: 3 searches, 9 URLs fetched, 13 LLM calls, all within the authorization.
+
+Observed defects and fixes: no way to continue a running investigation (`36370d6`); duplicate open questions in Findings (`9d06b18`); one `JSONDecodeError` extraction blocker, cause unconfirmed (`9caa669` now records why); Story C baselines in `run_demo.py` depended on whatever listened on :8000 (`c43df7c`).
+
+Verified in the UI: Findings, C1 playback, the challenge composer, parent/child compare, passage → 3D → trace on the child, Knowledge correction across reload, and an identical API snapshot after a backend restart. The container deployment (`a51cadd`) was verified separately; see `docs/deploy/DEPLOY.md`.
