@@ -18,6 +18,7 @@ from shared.contracts import (
     CreateInvestigationRequest,
     ExplorationExport,
     Investigation,
+    InvestigationList,
     InvestigationTrace,
     KnowledgeAssertionIn,
     KnowledgeGraph,
@@ -60,6 +61,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @app.post("/api/exploration/investigations", response_model=Investigation)
     def create_investigation(body: CreateInvestigationRequest) -> Investigation:
         return app.state.orchestrator.create(body.question, body.budget, profile=body.profile)
+
+    @app.get("/api/exploration/investigations", response_model=InvestigationList)
+    def list_investigations(
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
+    ) -> InvestigationList:
+        """Read-only listing of stored investigations, newest first."""
+        items, total = app.state.orchestrator.database.list_investigations(limit=limit, offset=offset)
+        return InvestigationList.model_validate({"items": items, "total": total, "limit": limit, "offset": offset})
 
     @app.get("/api/exploration/investigations/{investigation_id}", response_model=ExplorationExport)
     def get_investigation(investigation_id: str) -> ExplorationExport:
@@ -130,6 +140,8 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             return create_branch(app.state.orchestrator, investigation_id, body)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="checkpoint not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.post("/api/exploration/branches/{branch_id}/resume", response_model=ExplorationExport)
     def post_resume(branch_id: str) -> ExplorationExport:

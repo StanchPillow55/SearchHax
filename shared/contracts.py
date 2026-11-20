@@ -543,6 +543,33 @@ class InvestigationTrace(_Model):
     branch_id: str | None = None
     intervention_type: str | None = None
     from_checkpoint_id: str | None = None
+    branch_objective: str | None = None
+    attached_claims: list[dict[str, Any]] = Field(default_factory=list, description="Parent claims recorded with the branch (id, text, status). Additive.")
+    attached_sources: list[dict[str, Any]] = Field(default_factory=list, description="Parent documents recorded with the branch (id, title, url). Additive.")
+
+
+class InvestigationSummary(_Model):
+    """Read-only listing row. Additive in 1.0.x: summarises a stored investigation, adds no facts."""
+
+    id: str
+    question: str
+    status: InvestigationStatus
+    stop_reason: StopReason | None = None
+    created_at: datetime
+    updated_at: datetime
+    parent_investigation_id: str | None = None
+    branch_id: str | None = None
+    intervention_type: str | None = None
+    from_checkpoint_id: str | None = None
+    event_count: int = 0
+    checkpoint_count: int = 0
+
+
+class InvestigationList(_Model):
+    items: list[InvestigationSummary] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
 
 
 class BranchConstraints(_Model):
@@ -560,6 +587,14 @@ class CreateBranchRequest(_Model):
     objective: str = ""
     intervention_type: InterventionType
     constraints: BranchConstraints | None = None
+    attached_claim_ids: list[str] = Field(
+        default_factory=list,
+        description="Optional parent claim ids the branch is about. Must exist at the chosen checkpoint. Additive in 1.0.x.",
+    )
+    attached_source_ids: list[str] = Field(
+        default_factory=list,
+        description="Optional parent document ids referenced by the branch. Must exist at the chosen checkpoint. Additive in 1.0.x.",
+    )
 
 
 class BranchRecord(_Model):

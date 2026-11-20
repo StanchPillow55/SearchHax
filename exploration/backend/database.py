@@ -614,6 +614,48 @@ class Database:
             for row in rows
         ]
 
+    def list_investigations(self, limit: int = 50, offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+        """Newest first. Read-only summary rows for the investigation picker."""
+        with self._lock:
+            total = self._conn.execute("SELECT COUNT(*) FROM investigations").fetchone()[0]
+            rows = self._conn.execute(
+                """
+                SELECT i.id, i.question, i.status, i.stop_reason, i.created_at, i.updated_at, i.metadata_json,
+                       (SELECT COUNT(*) FROM investigation_events e WHERE e.investigation_id = i.id) AS event_count,
+                       (SELECT COUNT(*) FROM checkpoints c WHERE c.investigation_id = i.id) AS checkpoint_count,
+                       b.id AS branch_id, b.parent_investigation_id AS branch_parent,
+                       b.intervention_type AS branch_intervention, b.from_checkpoint_id AS branch_checkpoint
+                FROM investigations i
+                LEFT JOIN branches b ON b.child_investigation_id = i.id
+                ORDER BY i.created_at DESC, i.id
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ).fetchall()
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                metadata = json.loads(row["metadata_json"] or "{}")
+            except ValueError:
+                metadata = {}
+            items.append(
+                {
+                    "id": row["id"],
+                    "question": row["question"],
+                    "status": row["status"],
+                    "stop_reason": row["stop_reason"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "parent_investigation_id": metadata.get("parent_investigation_id") or row["branch_parent"],
+                    "branch_id": metadata.get("branch_id") or row["branch_id"],
+                    "intervention_type": metadata.get("intervention_type") or row["branch_intervention"],
+                    "from_checkpoint_id": metadata.get("branch_from_checkpoint_id") or row["branch_checkpoint"],
+                    "event_count": row["event_count"],
+                    "checkpoint_count": row["checkpoint_count"],
+                }
+            )
+        return items, total
+
     def load_export(self, investigation_id: str) -> ExplorationExport:
         with self._lock:
             row = self._conn.execute(

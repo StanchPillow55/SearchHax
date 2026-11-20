@@ -234,6 +234,9 @@ def build_trace(database: Database, investigation_id: str) -> InvestigationTrace
         branch_id=metadata.get("branch_id") or (branch.id if branch else None),
         intervention_type=metadata.get("intervention_type") or (branch.intervention_type if branch else None),
         from_checkpoint_id=metadata.get("branch_from_checkpoint_id") or (branch.from_checkpoint_id if branch else None),
+        branch_objective=metadata.get("objective") if (metadata.get("branch_id") or branch) else None,
+        attached_claims=list(metadata.get("attached_claims") or []),
+        attached_sources=list(metadata.get("attached_sources") or []),
     )
 
 
@@ -243,6 +246,24 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
     checkpoint = next((item for item in parent.checkpoints if item.id == request.from_checkpoint_id), None)
     if checkpoint is None:
         raise KeyError(request.from_checkpoint_id)
+    snapshot = checkpoint.state_json.get("snapshot") or {}
+    snap_claims = {item.get("id"): item for item in snapshot.get("claims") or [] if isinstance(item, dict)}
+    snap_docs = {item.get("id"): item for item in snapshot.get("documents") or [] if isinstance(item, dict)}
+    unknown_claims = [cid for cid in request.attached_claim_ids if cid not in snap_claims]
+    unknown_sources = [did for did in request.attached_source_ids if did not in snap_docs]
+    if unknown_claims or unknown_sources:
+        raise ValueError(
+            f"attachments not recorded at checkpoint {checkpoint.id}: "
+            f"claims={unknown_claims} sources={unknown_sources}"
+        )
+    attached_claims = [
+        {"id": cid, "text": snap_claims[cid].get("text", ""), "status": snap_claims[cid].get("status")}
+        for cid in dict.fromkeys(request.attached_claim_ids)
+    ]
+    attached_sources = [
+        {"id": did, "title": snap_docs[did].get("title", ""), "url": snap_docs[did].get("canonical_url", "")}
+        for did in dict.fromkeys(request.attached_source_ids)
+    ]
     parent_events = [event.id for event in orchestrator.database.list_events(parent_id)]
     parent_questions = orchestrator.database.search_queries(parent_id)
     objective = request.objective.strip()
@@ -279,6 +300,8 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
             "intervention_type": request.intervention_type,
             "objective": objective,
             "decision_is_inherited": False,
+            "attached_claims": attached_claims,
+            "attached_sources": attached_sources,
         }
     )
     from exploration.backend.checkpoints import save_checkpoint
