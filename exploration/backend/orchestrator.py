@@ -35,10 +35,10 @@ from exploration.backend.llm import OpenAICompatibleClient
 from exploration.backend.graph import EvidenceGraph
 from exploration.backend.ids import content_hash, new_id, stable_id
 from exploration.backend.knowledge_value import score_knowledge_value
-from exploration.backend.planner import generate_actions, initial_search_query
+from exploration.backend.planner import branch_query, generate_actions, initial_search_query
 from exploration.backend.retrieval import RetrievalClient, normalize_url
 from exploration.backend.story_c import STORY_C_QUESTION, load_story_c
-from exploration.backend.trace import extraction_payload, ingest_payload, ranking_rows, record_event
+from exploration.backend.trace import extraction_payload, ingest_payload, lifecycle_of, ranking_rows, record_event
 from exploration.backend.verification import classify_provenance, origin_clusters, reconcile_amount_conflicts
 
 STORY_A_QUESTION = (
@@ -318,6 +318,28 @@ class Orchestrator:
         return self.graph.load(investigation_id)
 
     def step(self, investigation_id: str) -> ExplorationExport:
+        """Run one research step and record the resulting lifecycle state."""
+        try:
+            result = self._step(investigation_id)
+        except Exception as error:
+            # Record the failure on the investigation; never substitute results.
+            try:
+                export = self.graph.load(investigation_id)
+                export.investigation.metadata["lifecycle"] = "failed"
+                export.investigation.metadata["last_error"] = f"{type(error).__name__}: {error}"[:500]
+                export.investigation.updated_at = _now()
+                self._persist(export)
+            except Exception:
+                pass
+            raise
+        state = lifecycle_of(result.investigation)
+        if result.investigation.metadata.get("lifecycle") != state:
+            result.investigation.metadata["lifecycle"] = state
+            result.investigation.metadata.pop("last_error", None)
+            self._persist(result)
+        return result
+
+    def _step(self, investigation_id: str) -> ExplorationExport:
         export = self.graph.load(investigation_id)
         investigation = export.investigation
         if investigation.status in {"stopped", "blocked"}:
@@ -360,14 +382,20 @@ class Orchestrator:
         except BudgetExceededError:
             return self._stop_budget(export, guard)
         investigation.budget = guard.budget
-        self._record_search(investigation, bundle, network=not bundle.dry_run)
+        self._record_search(
+            investigation,
+            bundle,
+            network=not bundle.dry_run,
+            planned_from={"source": "research_question", "target_question_id": None, "action_id": None},
+        )
         self._ingest_bundle(export, bundle, guard)
         self._add_profile_questions(export)
         investigation.status = "running"
         investigation.updated_at = _now()
         self._persist(export)
-        save_checkpoint(self.database, export, step=1, summary="Initial Telem search and shortlisted fetch.")
+        # Record the step latency before the checkpoint so both agree.
         investigation.usage.latency_ms = _elapsed_ms(started)
+        save_checkpoint(self.database, export, step=1, summary="Initial Telem search and shortlisted fetch.")
         if investigation.live_extraction_blocked and not export.relationships:
             investigation.status = "stopped"
             investigation.stop_reason = "unresolved_uncertainty"
@@ -436,7 +464,17 @@ class Orchestrator:
             except BudgetExceededError:
                 return self._stop_budget(export, guard)
             investigation.budget = guard.budget
-            self._record_search(investigation, bundle, network=not bundle.dry_run)
+            self._record_search(
+                investigation,
+                bundle,
+                network=not bundle.dry_run,
+                planned_from={
+                    "source": "approved_action",
+                    "action_id": action.id,
+                    "target_question_id": action.target_question_id,
+                    "decision_source": decision.decision_source,
+                },
+            )
             self._ingest_bundle(export, bundle, guard)
             investigation.usage.followups_executed += 1
             decision.approved_action.already_executed = True
@@ -513,7 +551,7 @@ class Orchestrator:
             f"Local corpus scan: {action.query}",
         )
 
-    def _record_search(self, investigation: Investigation, bundle, *, network: bool) -> None:
+    def _record_search(self, investigation: Investigation, bundle, *, network: bool, planned_from: dict | None = None) -> None:
         investigation.usage.search_calls += 1
         investigation.usage.provider_calls += bundle.provider_call_count
         if network:
@@ -543,6 +581,9 @@ class Orchestrator:
             "search",
             {
                 "query": bundle.query,
+                # Round = ordinal of this search within the investigation (1-based), recorded at search time.
+                "round": investigation.usage.search_calls,
+                **({"planned_from": planned_from} if planned_from is not None else {}),
                 "providers": providers,
                 "network": network,
                 "dry_run": bundle.dry_run,
@@ -593,6 +634,7 @@ class Orchestrator:
             investigation.budget = guard.budget
             investigation.usage.fetch_calls += 1
             investigation.usage.urls_fetched = investigation.budget.urls_fetched
+            investigation.usage.cache_hits += sum(1 for page in pages if page.from_cache and page.content.strip())
             if investigation.budget.urls_fetched > fetched_before:
                 investigation.usage.network_calls += 1
             self._event(
@@ -615,14 +657,18 @@ class Orchestrator:
                 },
                 f"Retrieved {len(pages)} page(s) for this search.",
             )
-        page_by_url = {page.canonical_url: page for page in pages}
+        # A page is found by the URL that was requested as well as by the
+        # canonical URL the fetch reported (which may differ after redirects).
+        page_by_url = {normalize_url(page.url): page for page in pages if page.url}
+        page_by_url.update({page.canonical_url: page for page in pages if page.canonical_url not in page_by_url})
         batches: list[ExtractionBatch] = []
         llm_calls_here = 0
         for _score, merged, attention in chosen:
             page = page_by_url.get(merged.canonical_url)
             content = page.content if page else ""
-            if not content:
+            if not content.strip():
                 continue
+            publish_date = merged.publish_date or page.publish_date
             digest = content_hash(content)
             document = Document(
                 id=stable_id("doc", investigation.id, merged.canonical_url),
@@ -636,7 +682,7 @@ class Orchestrator:
                 content_hash=digest,
                 fetched_at=_now(),
                 content=content,
-                publish_date=merged.publish_date,
+                publish_date=publish_date,
             )
             export.documents.append(document)
             export.document_versions.append(version)
@@ -664,11 +710,12 @@ class Orchestrator:
                     document_id=document.id,
                     url=document.canonical_url,
                     title=document.title,
-                    snippet=merged.snippet,
+                    # The controller ranks what was fetched, not the search snippet.
+                    snippet=" ".join(content.split())[:280],
                     providers=list(merged.providers),
                     attention=attention,
                     knowledge_value=knowledge,
-                    publish_date=merged.publish_date,
+                    publish_date=publish_date,
                 )
             )
             llm_before = investigation.usage.llm_calls
@@ -769,7 +816,40 @@ class Orchestrator:
 
     def _challenge_step(self, export: ExplorationExport) -> ExplorationExport:
         investigation = export.investigation
-        objective = (investigation.metadata.get("objective") or investigation.question).strip()
+        objective = (investigation.metadata.get("objective") or "").strip()
+        query, planned_from = branch_query(
+            root_question=investigation.metadata.get("root_question") or investigation.question,
+            objective=objective,
+            attached_claims=list(investigation.metadata.get("attached_claims") or []),
+            intervention_type="challenge_evidence",
+        )
+        if query is None:
+            # Legacy challenge rows created before grounding validation: refuse to search
+            # for an ungrounded prompt instead of sending it to retrieval verbatim.
+            investigation.status = "stopped"
+            investigation.stop_reason = "no_useful_actions"
+            investigation.decision_source = "fallback"
+            investigation.decision_rationale = (
+                f"Challenge objective {objective!r} names nothing to test and no claim was attached. "
+                "No search was run."
+            )
+            investigation.updated_at = _now()
+            self._persist(export)
+            self._event(
+                investigation.id,
+                "convergence",
+                {
+                    "stop": True,
+                    "stop_reason": "no_useful_actions",
+                    "decision_source": "fallback",
+                    "rationale": investigation.decision_rationale,
+                    "planned_from": planned_from,
+                    "search_calls": 0,
+                    "verified_success": False,
+                },
+                "Challenge refused: nothing grounded to search for. No counterevidence was invented.",
+            )
+            return self.graph.load(investigation.id)
         if not telem_configured() and not self.retrieval.dry_run:
             investigation.status = "blocked"
             investigation.blocker = "TELEM_API_KEY missing"
@@ -790,11 +870,11 @@ class Orchestrator:
             return self.graph.load(investigation.id)
         guard = BudgetGuard(investigation.budget)
         try:
-            bundle = self.retrieval.search(objective, session_id=investigation.session_id, guard=guard)
+            bundle = self.retrieval.search(query, session_id=investigation.session_id, guard=guard)
         except BudgetExceededError:
             return self._stop_budget(export, guard)
         investigation.budget = guard.budget
-        self._record_search(investigation, bundle, network=not bundle.dry_run)
+        self._record_search(investigation, bundle, network=not bundle.dry_run, planned_from=planned_from)
         self._ingest_bundle(export, bundle, guard)
         investigation.usage.followups_executed += 1
         actions = generate_actions(export.unresolved_questions, self.database.search_queries(investigation.id))

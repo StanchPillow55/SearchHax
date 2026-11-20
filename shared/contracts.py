@@ -1,6 +1,6 @@
 """Pydantic v2 contract shared by exploration and other SearchHax apps.
 
-``CONTRACT_VERSION`` is 1.0.0. Add fields in a backward-compatible way (new
+``CONTRACT_VERSION`` is 1.1.0 (1.1.0 adds root_question and lifecycle; additive). Add fields in a backward-compatible way (new
 optional fields, ``extra="ignore"``) instead of renaming or removing models.
 
 ``ConvergenceDecision.decision_source`` is recorded by exploration after a
@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"
 
 VerificationStatus = Literal["supported", "contradicted", "insufficient", "hypothesis"]
 StopReason = Literal[
@@ -33,6 +33,9 @@ DecisionSource = Literal["convergence", "fallback"]
 EvidenceStance = Literal["supports", "contradicts", "mentions", "insufficient"]
 OriginKind = Literal["original", "derivative", "unknown"]
 InvestigationStatus = Literal["created", "running", "stopped", "blocked"]
+# Research lifecycle (1.1.0). Derived from status, stop_reason and usage; stored in
+# Investigation.metadata["lifecycle"]. "saved" = a branch that has not run any research.
+Lifecycle = Literal["saved", "queued", "researching", "stopped", "completed", "failed"]
 
 
 class _Model(BaseModel):
@@ -546,6 +549,8 @@ class InvestigationTrace(_Model):
     branch_objective: str | None = None
     attached_claims: list[dict[str, Any]] = Field(default_factory=list, description="Parent claims recorded with the branch (id, text, status). Additive.")
     attached_sources: list[dict[str, Any]] = Field(default_factory=list, description="Parent documents recorded with the branch (id, title, url). Additive.")
+    root_question: str | None = Field(default=None, description="Original research question at the top of the lineage. Additive in 1.1.0.")
+    lifecycle: Lifecycle | None = Field(default=None, description="saved | queued | researching | stopped | completed | failed. Separate from status and stop_reason. Additive in 1.1.0.")
 
 
 class InvestigationSummary(_Model):
@@ -563,6 +568,8 @@ class InvestigationSummary(_Model):
     from_checkpoint_id: str | None = None
     event_count: int = 0
     checkpoint_count: int = 0
+    root_question: str | None = None
+    lifecycle: Lifecycle | None = None
 
 
 class InvestigationList(_Model):
@@ -832,9 +839,9 @@ def write_contract_files(directory: str) -> None:
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
     schema = evidence_json_schema()
-    schema["$id"] = "https://searchhax.local/schemas/exploration-evidence-1.0.0.json"
+    schema["$id"] = f"https://searchhax.local/schemas/exploration-evidence-{CONTRACT_VERSION}.json"
     schema["$comment"] = (
-        "FrontierGraph exploration contract 1.0.0. "
+        f"FrontierGraph exploration contract {CONTRACT_VERSION}. "
         "Attention scores are not factual confidence. "
         "decision_source is recorded by exploration as convergence or fallback."
     )

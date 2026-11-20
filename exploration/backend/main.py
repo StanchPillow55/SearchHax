@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+import hashlib
+import json
+import threading
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.contracts import (
@@ -58,9 +64,60 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     # make a blocking HTTP call back into the same worker.
     app.state.orchestrator = Orchestrator(db_path or default_db_path(), post=focus_post)
 
+    app.state.key_locks = {}
+    app.state.key_locks_guard = threading.Lock()
+    app.state.running = set()
+    app.state.running_guard = threading.Lock()
+
+    def idempotent(key: str | None, route: str, body: object, model, fn):
+        """Replay the stored response for a repeated Idempotency-Key instead of acting twice.
+
+        Failed requests are not stored, so a retry after an error runs again.
+        """
+        if not key:
+            return fn()
+        if len(key) > 200:
+            raise HTTPException(status_code=400, detail="Idempotency-Key is longer than 200 characters")
+        request_hash = hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()
+        with app.state.key_locks_guard:
+            lock = app.state.key_locks.setdefault((key, route), threading.Lock())
+        with lock:
+            database = app.state.orchestrator.database
+            prior = database.get_idempotent(key, route)
+            if prior is not None:
+                if prior[0] != request_hash:
+                    raise HTTPException(status_code=409, detail="Idempotency-Key was already used for a different request")
+                return model.model_validate_json(prior[1])
+            result = fn()
+            database.put_idempotent(key, route, request_hash, result.model_dump_json(), datetime.now(timezone.utc).isoformat())
+            return result
+
+    @contextmanager
+    def single_flight(investigation_id: str):
+        """At most one research step per investigation at a time; a second one is refused (409)."""
+        with app.state.running_guard:
+            if investigation_id in app.state.running:
+                raise HTTPException(status_code=409, detail="A research step is already running for this investigation")
+            app.state.running.add(investigation_id)
+        try:
+            yield
+        finally:
+            with app.state.running_guard:
+                app.state.running.discard(investigation_id)
+
     @app.post("/api/exploration/investigations", response_model=Investigation)
-    def create_investigation(body: CreateInvestigationRequest) -> Investigation:
-        return app.state.orchestrator.create(body.question, body.budget, profile=body.profile)
+    def create_investigation(
+        body: CreateInvestigationRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> Investigation:
+        """Store a new question. Local only: no search, fetch or LLM call until /step."""
+        return idempotent(
+            idempotency_key,
+            "create_investigation",
+            body.model_dump(mode="json"),
+            Investigation,
+            lambda: app.state.orchestrator.create(body.question, body.budget, profile=body.profile),
+        )
 
     @app.get("/api/exploration/investigations", response_model=InvestigationList)
     def list_investigations(
@@ -76,9 +133,17 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         return _load(app, investigation_id)
 
     @app.post("/api/exploration/investigations/{investigation_id}/step", response_model=ExplorationExport)
-    def step_investigation(investigation_id: str) -> ExplorationExport:
+    def step_investigation(
+        investigation_id: str,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ExplorationExport:
         _load(app, investigation_id)
-        return app.state.orchestrator.step(investigation_id)
+
+        def run():
+            with single_flight(investigation_id):
+                return app.state.orchestrator.step(investigation_id)
+
+        return idempotent(idempotency_key, f"step:{investigation_id}", {}, ExplorationExport, run)
 
     @app.get("/api/exploration/investigations/{investigation_id}/graph", response_model=ExplorationExport)
     def get_graph(investigation_id: str) -> ExplorationExport:
@@ -134,21 +199,37 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         return app.state.orchestrator.database.list_branches(investigation_id)
 
     @app.post("/api/exploration/investigations/{investigation_id}/branches", response_model=BranchRecord)
-    def post_branch(investigation_id: str, body: CreateBranchRequest) -> BranchRecord:
+    def post_branch(
+        investigation_id: str,
+        body: CreateBranchRequest,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> BranchRecord:
         _load(app, investigation_id)
-        try:
-            return create_branch(app.state.orchestrator, investigation_id, body)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail="checkpoint not found") from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        def run():
+            try:
+                return create_branch(app.state.orchestrator, investigation_id, body)
+            except KeyError as exc:
+                raise HTTPException(status_code=404, detail="checkpoint not found") from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        return idempotent(idempotency_key, f"branch:{investigation_id}", body.model_dump(mode="json"), BranchRecord, run)
 
     @app.post("/api/exploration/branches/{branch_id}/resume", response_model=ExplorationExport)
-    def post_resume(branch_id: str) -> ExplorationExport:
-        try:
-            return resume_branch(app.state.orchestrator, branch_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail="branch not found") from exc
+    def post_resume(
+        branch_id: str,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> ExplorationExport:
+        branch = app.state.orchestrator.database.get_branch(branch_id)
+        if branch is None:
+            raise HTTPException(status_code=404, detail="branch not found")
+
+        def run():
+            with single_flight(branch.child_investigation_id):
+                return resume_branch(app.state.orchestrator, branch_id)
+
+        return idempotent(idempotency_key, f"resume:{branch_id}", {}, ExplorationExport, run)
 
     @app.post("/api/exploration/fixtures/profile", response_model=ExplorationExport)
     def profile_fixture() -> ExplorationExport:
@@ -171,10 +252,19 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="investigation not found") from exc
 
     @app.post("/api/exploration/profile/knowledge-assertions", response_model=KnowledgeGraph)
-    def post_knowledge_assertion(body: KnowledgeAssertionIn) -> KnowledgeGraph:
+    def post_knowledge_assertion(
+        body: KnowledgeAssertionIn,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> KnowledgeGraph:
         if body.investigation_id:
             _load(app, body.investigation_id)
-        return add_assertion(app.state.orchestrator.database, body)
+        return idempotent(
+            idempotency_key,
+            "knowledge_assertion",
+            body.model_dump(mode="json"),
+            KnowledgeGraph,
+            lambda: add_assertion(app.state.orchestrator.database, body),
+        )
 
     @app.post("/api/convergence/evaluate", response_model=ConvergenceDecision)
     def convergence_evaluate(body: ConvergenceEvaluateRequest) -> ConvergenceDecision:

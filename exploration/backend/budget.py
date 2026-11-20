@@ -52,6 +52,13 @@ class BudgetGuard:
         self.budget.urls_fetched += url_count
         self._store()
 
+    def release_fetch(self, url_count: int) -> None:
+        """Return URL slots for fetches that produced no page body."""
+        if url_count <= 0:
+            return
+        self.budget.urls_fetched = max(0, self.budget.urls_fetched - url_count)
+        self._store()
+
     def authorize_llm(self) -> None:
         cap = min(self.budget.max_llm_calls, HARD_MAX_LLM_CALLS)
         if self.budget.llm_calls_used >= cap:

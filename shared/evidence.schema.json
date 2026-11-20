@@ -1,40 +1,86 @@
 {
   "$defs": {
+    "AnswerCitation": {
+      "description": "One source the generated answer is allowed to cite.",
+      "properties": {
+        "marker": {
+          "title": "Marker",
+          "type": "string"
+        },
+        "document_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Document Id"
+        },
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "default": "",
+          "title": "Url",
+          "type": "string"
+        },
+        "quote": {
+          "default": "",
+          "title": "Quote",
+          "type": "string"
+        },
+        "status": {
+          "default": "",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "marker"
+      ],
+      "title": "AnswerCitation",
+      "type": "object"
+    },
     "AttentionComponents": {
       "description": "Passage priority for retrieval. This is not factual confidence and not a truth score.",
       "properties": {
         "R": {
           "description": "Query-token relevance in [0,1]. Not factual confidence.",
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "R",
           "type": "number"
         },
         "G": {
           "description": "Overlap with unresolved gaps in [0,1]. Not factual confidence.",
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "G",
           "type": "number"
         },
         "D": {
           "description": "Domain-fit or bridge-term score in [0,1]. Not factual confidence.",
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "D",
           "type": "number"
         },
         "F": {
           "description": "Recency from publish_date in [0,1]. Not factual confidence.",
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "F",
           "type": "number"
         },
         "score": {
           "description": "A(q,p)=0.4*R+0.3*G+0.2*D+0.1*F, clamped to [0,1]. Not factual confidence.",
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "Score",
           "type": "number"
         }
@@ -64,7 +110,6 @@
           "type": "integer"
         },
         "state_json": {
-          "additionalProperties": true,
           "title": "State Json",
           "type": "object"
         },
@@ -462,6 +507,18 @@
         "attention": {
           "$ref": "#/$defs/AttentionComponents"
         },
+        "knowledge_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KnowledgeValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional knowledge-value score. Distinct from attention, which stays the query-retrieval score."
+        },
         "publish_date": {
           "anyOf": [
             {
@@ -610,6 +667,78 @@
       "title": "EvidenceSpan",
       "type": "object"
     },
+    "GroundedAnswer": {
+      "description": "A cited prose answer synthesized from an investigation's evidence.\n\nThe answer explains evidence the investigation already grounded. It does\nnot add facts. Every inline marker maps to one AnswerCitation. This is a\nsynthesis for the reader, not a new verification step.",
+      "properties": {
+        "investigation_id": {
+          "title": "Investigation Id",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "markdown": {
+          "title": "Markdown",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/AnswerCitation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "cited_markers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cited Markers",
+          "type": "array"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        },
+        "llm_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Llm Tokens"
+        },
+        "blocked": {
+          "default": false,
+          "title": "Blocked",
+          "type": "boolean"
+        },
+        "blocker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blocker"
+        }
+      },
+      "required": [
+        "investigation_id",
+        "question",
+        "markdown"
+      ],
+      "title": "GroundedAnswer",
+      "type": "object"
+    },
     "Investigation": {
       "properties": {
         "id": {
@@ -718,7 +847,6 @@
           "title": "Blocker"
         },
         "metadata": {
-          "additionalProperties": true,
           "title": "Metadata",
           "type": "object"
         }
@@ -838,6 +966,116 @@
         }
       },
       "title": "InvestigationBudget",
+      "type": "object"
+    },
+    "KnowledgeValue": {
+      "description": "Additive knowledge-value heuristic. Not query attention, not a probability, and not factual confidence.",
+      "properties": {
+        "R": {
+          "description": "Overlap with profile interests and goals in [0,1]. Not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "R",
+          "type": "number"
+        },
+        "N": {
+          "description": "Share of passage tokens absent from known claims in [0,1]. Not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "N",
+          "type": "number"
+        },
+        "B": {
+          "description": "1 only when a profile interest and a DOMAIN_BRIDGES bridge term both occur and the bridge term is outside known claims; otherwise 0. Not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "B",
+          "type": "number"
+        },
+        "I": {
+          "description": "Overlap with the unresolved profile interest in [0,1]. Not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "I",
+          "type": "number"
+        },
+        "C": {
+          "description": "1 only when the passage contradicts a known claim with the same subject and predicate and a different object; otherwise 0. Not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "C",
+          "type": "number"
+        },
+        "score": {
+          "description": "U=0.25*R+0.25*N+0.20*B+0.20*I+0.10*C, clamped to [0,1]. A heuristic, not a probability and not factual confidence.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        },
+        "bridge_trigger": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bridge Trigger"
+        },
+        "bridge_terms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Bridge Terms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "R",
+        "N",
+        "B",
+        "I",
+        "C",
+        "score"
+      ],
+      "title": "KnowledgeValue",
+      "type": "object"
+    },
+    "KnownClaim": {
+      "description": "A prior the profile already holds. This is not sourced web evidence.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "predicate": {
+          "title": "Predicate",
+          "type": "string"
+        },
+        "object": {
+          "title": "Object",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "predicate",
+        "object"
+      ],
+      "title": "KnownClaim",
       "type": "object"
     },
     "OriginCluster": {
@@ -974,6 +1212,53 @@
       "title": "Relationship",
       "type": "object"
     },
+    "ResearchProfile": {
+      "description": "Static read-only research profile. Not an account and not web evidence.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "interests": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Interests",
+          "type": "array"
+        },
+        "goals": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "known_claims": {
+          "items": {
+            "$ref": "#/$defs/KnownClaim"
+          },
+          "title": "Known Claims",
+          "type": "array"
+        },
+        "unresolved_interests": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unresolved Interests",
+          "type": "array"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "ResearchProfile",
+      "type": "object"
+    },
     "SourceProvenance": {
       "properties": {
         "id": {
@@ -1081,15 +1366,15 @@
         },
         "importance": {
           "default": 0.5,
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "Importance",
           "type": "number"
         },
         "missing_evidence": {
           "default": 1.0,
-          "maximum": 1,
-          "minimum": 0,
+          "maximum": 1.0,
+          "minimum": 0.0,
           "title": "Missing Evidence",
           "type": "number"
         },
@@ -1239,7 +1524,7 @@
   "description": "Full investigation snapshot another app can read from JSON Schema alone.",
   "properties": {
     "contract_version": {
-      "default": "1.0.0",
+      "default": "1.1.0",
       "title": "Contract Version",
       "type": "string"
     },
@@ -1354,6 +1639,30 @@
         }
       ],
       "default": null
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GroundedAnswer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional synthesized cited answer. Present only after the answer endpoint runs."
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResearchProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional read-only profile snapshot. Absent on investigations that have no profile."
     }
   },
   "required": [
@@ -1361,6 +1670,6 @@
   ],
   "title": "ExplorationExport",
   "type": "object",
-  "$id": "https://searchhax.local/schemas/exploration-evidence-1.0.0.json",
-  "$comment": "FrontierGraph exploration contract 1.0.0. Attention scores are not factual confidence. decision_source is recorded by exploration as convergence or fallback."
+  "$id": "https://searchhax.local/schemas/exploration-evidence-1.1.0.json",
+  "$comment": "FrontierGraph exploration contract 1.1.0. Attention scores are not factual confidence. decision_source is recorded by exploration as convergence or fallback."
 }

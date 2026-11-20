@@ -11,13 +11,19 @@ import os
 import re
 import time
 from typing import Callable, Iterable, Mapping, Any
+from urllib.parse import urlsplit
 
-from focus_attention import FocusDecision
+from focus_attention import FocusDecision, strip_userinfo
 
 
 _CITATION_RE = re.compile(r"\[(S\d+)\]")
 _NUMERIC_CITATION_RE = re.compile(r"\[(\d+)\]")
-_PAREN_CITATION_RE = re.compile(r"\((?:source\s*)?(S\d+|\d+)\)", re.IGNORECASE)
+# A bare "(1)" is ordinary prose (e.g. "quarter (1)"), not a citation; only
+# "(S1)" or "(source 1)" are treated as citation markers.
+_PAREN_CITATION_RE = re.compile(r"\((S\d+|source\s*S?\d+)\)", re.IGNORECASE)
+# Characters that may continue a URL; a source URL followed by one of these is
+# a different (longer) URL, not a citation of that source.
+_URL_CONTINUATION = r"(?![A-Za-z0-9_\-/?=&%#~+@]|[.:,;][A-Za-z0-9_\-/])"
 
 
 class AnswerGenerationError(RuntimeError):
@@ -52,9 +58,10 @@ def selected_sources(
         passage = decision.passage
         sources.append(AnswerSource(
             id=f"S{number}",
-            title=passage.title or passage.url,
+            title=passage.title or strip_userinfo(passage.url),
             text=passage.text[:8000],
-            url=passage.url,
+            # Never publish credentials embedded in a URL (user:password@host).
+            url=strip_userinfo(passage.url),
             action=decision.action,
         ))
     return tuple(sources)
@@ -136,15 +143,33 @@ def _normalize_citations(answer: str, sources: tuple[AnswerSource, ...]) -> str:
     answer = _NUMERIC_CITATION_RE.sub(numeric, answer)
 
     def parenthetical(match: re.Match[str]) -> str:
-        value = match.group(1)
-        number = int(value[1:]) if value.upper().startswith("S") else int(value)
+        number = int(re.search(r"\d+", match.group(1)).group(0))
         return f"[S{number}]" if 1 <= number <= len(sources) else match.group(0)
 
     answer = _PAREN_CITATION_RE.sub(parenthetical, answer)
     for number, source in enumerate(sources, start=1):
-        if source.url in answer:
-            answer = answer.replace(source.url, f"[S{number}]")
+        if source.url:
+            answer = re.sub(re.escape(source.url) + _URL_CONTINUATION, f"[S{number}]", answer)
     return answer
+
+
+def _link_destination(url: str) -> str | None:
+    """Return a markdown-safe link destination, or None for an unusable URL.
+
+    A URL with whitespace or markup characters cannot be published as a link:
+    it could close the link and publish another destination.
+    """
+    url = url.strip()
+    if not url or re.search(r"[\s<>\"`\\\x00-\x1f\x7f]", url):
+        return None
+    parts = urlsplit(url)
+    if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
+        return None
+    return url.replace("(", "%28").replace(")", "%29").replace("[", "%5B").replace("]", "%5D")
+
+
+def _link_text(text: str) -> str:
+    return re.sub(r"([\\\[\]()])", r"\\\1", " ".join(text.split()))
 
 
 def compose_answer(
@@ -288,10 +313,21 @@ def compose_answer(
         cited = tuple(dict.fromkeys(_CITATION_RE.findall(answer)))
         valid_ids = {source.id for source in sources}
         cited = tuple(source_id for source_id in cited if source_id in valid_ids)
+        # A marker for a source that was never supplied is an invented
+        # citation; it must not be shown next to the real ones.
+        answer = _CITATION_RE.sub(
+            lambda m: m.group(0) if m.group(1) in valid_ids else "[unsupported citation removed]",
+            answer,
+        )
     if not cited:
         return GroundedAnswer(answer, sources, cited)
     reference_lines = ["\n\n### Sources"]
     for source in sources:
         if source.id in cited:
-            reference_lines.append(f"- [{source.id}] [{source.title}]({source.url})")
+            destination = _link_destination(source.url)
+            title = _link_text(source.title)
+            if destination is None:
+                reference_lines.append(f"- [{source.id}] {title} (link withheld: invalid URL)")
+            else:
+                reference_lines.append(f"- [{source.id}] [{title}]({destination})")
     return GroundedAnswer(answer + "\n" + "\n".join(reference_lines), sources, cited)

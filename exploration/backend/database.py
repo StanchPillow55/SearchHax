@@ -178,6 +178,14 @@ CREATE TABLE IF NOT EXISTS branches (
     constraints_json TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    key TEXT NOT NULL,
+    route TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    response_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (key, route)
+);
 CREATE TABLE IF NOT EXISTS knowledge_assertions (
     id TEXT PRIMARY KEY,
     profile_id TEXT NOT NULL,
@@ -620,7 +628,7 @@ class Database:
             total = self._conn.execute("SELECT COUNT(*) FROM investigations").fetchone()[0]
             rows = self._conn.execute(
                 """
-                SELECT i.id, i.question, i.status, i.stop_reason, i.created_at, i.updated_at, i.metadata_json,
+                SELECT i.id, i.question, i.status, i.stop_reason, i.created_at, i.updated_at, i.metadata_json, i.usage_json,
                        (SELECT COUNT(*) FROM investigation_events e WHERE e.investigation_id = i.id) AS event_count,
                        (SELECT COUNT(*) FROM checkpoints c WHERE c.investigation_id = i.id) AS checkpoint_count,
                        b.id AS branch_id, b.parent_investigation_id AS branch_parent,
@@ -652,9 +660,52 @@ class Database:
                     "from_checkpoint_id": metadata.get("branch_from_checkpoint_id") or row["branch_checkpoint"],
                     "event_count": row["event_count"],
                     "checkpoint_count": row["checkpoint_count"],
+                    "root_question": metadata.get("root_question") or self._lineage_root_question(metadata),
+                    "lifecycle": _row_lifecycle(row, metadata),
                 }
             )
         return items, total
+
+    def get_idempotent(self, key: str, route: str) -> tuple[str, str] | None:
+        """(request_hash, response_json) previously stored for this key and route."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT request_hash, response_json FROM idempotency_keys WHERE key = ? AND route = ?", (key, route)
+            ).fetchone()
+        return (row["request_hash"], row["response_json"]) if row else None
+
+    def put_idempotent(self, key: str, route: str, request_hash: str, response_json: str, created_at: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR IGNORE INTO idempotency_keys (key, route, request_hash, response_json, created_at) VALUES (?, ?, ?, ?, ?)",
+                (key, route, request_hash, response_json, created_at),
+            )
+            self._conn.commit()
+
+    def _lineage_root_question(self, metadata: dict[str, Any]) -> str | None:
+        """Root question for a legacy branch row (pre-1.1.0 rows overwrote their question)."""
+        parent_id = metadata.get("parent_investigation_id")
+        if not parent_id:
+            return None
+        question = None
+        for _ in range(64):
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT question, metadata_json FROM investigations WHERE id = ?", (parent_id,)
+                ).fetchone()
+            if row is None:
+                return question
+            question = row["question"]
+            try:
+                parent_meta = json.loads(row["metadata_json"] or "{}")
+            except ValueError:
+                parent_meta = {}
+            if parent_meta.get("root_question"):
+                return parent_meta["root_question"]
+            parent_id = parent_meta.get("parent_investigation_id")
+            if not parent_id:
+                return question
+        return question
 
     def load_export(self, investigation_id: str) -> ExplorationExport:
         with self._lock:
@@ -777,3 +828,25 @@ def _version_from_row(row: sqlite3.Row) -> DocumentVersion:
         content=row["content"],
         publish_date=row["publish_date"],
     )
+
+
+def _row_lifecycle(row, metadata: dict[str, Any]) -> str:
+    """Same rule as trace.lifecycle_of, from a listing row (no full export load)."""
+    try:
+        usage = json.loads(row["usage_json"] or "{}")
+    except ValueError:
+        usage = {}
+    explicit = metadata.get("lifecycle")
+    status = row["status"]
+    if explicit in {"failed", "queued"} and status != "stopped":
+        return explicit
+    is_branch = bool(metadata.get("branch_id") or metadata.get("parent_investigation_id") or row["branch_id"])
+    if status == "blocked":
+        return "failed"
+    if status == "stopped":
+        return "completed" if row["stop_reason"] == "evidence_sufficient" else "stopped"
+    if status == "created":
+        return "saved"
+    if int(usage.get("search_calls") or 0) == 0 and is_branch:
+        return "saved"
+    return "researching"

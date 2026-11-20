@@ -40,6 +40,7 @@ from shared.contracts import (
 
 from exploration.backend.database import Database
 from exploration.backend.ids import new_id, stable_id
+from exploration.backend.planner import branch_query, is_grounded_objective
 
 _ACTIVITY_NOTES = {
     "current_run": "Produced by a search, fetch, or ranking event recorded on this investigation.",
@@ -237,6 +238,8 @@ def build_trace(database: Database, investigation_id: str) -> InvestigationTrace
         branch_objective=metadata.get("objective") if (metadata.get("branch_id") or branch) else None,
         attached_claims=list(metadata.get("attached_claims") or []),
         attached_sources=list(metadata.get("attached_sources") or []),
+        root_question=resolve_root_question(database, export),
+        lifecycle=lifecycle_of(export.investigation, is_branch=bool(metadata.get("branch_id") or branch)),
     )
 
 
@@ -267,10 +270,19 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
     parent_events = [event.id for event in orchestrator.database.list_events(parent_id)]
     parent_questions = orchestrator.database.search_queries(parent_id)
     objective = request.objective.strip()
-    if request.intervention_type == "continue":
-        question = parent.investigation.question
-    else:
-        question = objective or parent.investigation.question
+    if (
+        request.intervention_type == "challenge_evidence"
+        and not attached_claims
+        and not is_grounded_objective(objective)
+    ):
+        raise ValueError(
+            "A challenge needs a selected claim or an objective that names what to test. "
+            f"{objective!r} is not specific enough to search for on its own."
+        )
+    # The child keeps the ROOT research question for every intervention. The objective is
+    # stored separately (branches.objective, metadata.objective) and never replaces it.
+    root_question = resolve_root_question(orchestrator, parent)
+    question = root_question
     constraints = request.constraints or BranchConstraints()
     parent_budget = parent.investigation.budget
     budget = InvestigationBudget(
@@ -299,6 +311,10 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
             "branch_from_checkpoint_id": checkpoint.id,
             "intervention_type": request.intervention_type,
             "objective": objective,
+            "objective_grounded": is_grounded_objective(objective),
+            "root_question": root_question,
+            "parent_question": parent.investigation.question,
+            "lifecycle": "saved",
             "decision_is_inherited": False,
             "attached_claims": attached_claims,
             "attached_sources": attached_sources,
@@ -307,6 +323,11 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
     from exploration.backend.checkpoints import save_checkpoint
 
     export, inherited_decision = _materialize_child(child, parent, checkpoint)
+    # Saved, not started: no search has run on this branch yet.
+    child.status = "created"
+    branch_focus = _branch_focus_question(child.id, objective, attached_claims, request.intervention_type)
+    if branch_focus is not None:
+        export.unresolved_questions = [branch_focus, *export.unresolved_questions]
     if export.profile is not None:
         child.metadata["profile_snapshot"] = export.profile.model_dump(mode="json")
     export.investigation = child
@@ -336,6 +357,72 @@ def create_branch(orchestrator, parent_id: str, request: CreateBranchRequest) ->
     if orchestrator.database.search_queries(parent_id) != parent_questions:
         raise RuntimeError("branch creation changed the parent search history")
     return branch
+
+
+def resolve_root_question(source, export: ExplorationExport) -> str:
+    """The original research question at the top of a lineage.
+
+    New branches store ``metadata.root_question``. Legacy branches (created before 1.1.0)
+    overwrote ``question`` with their objective, so walk parent links to the root instead.
+    """
+    load = source.load_export if isinstance(source, Database) else source.get
+    current = export
+    for _ in range(64):
+        metadata = current.investigation.metadata or {}
+        if metadata.get("root_question"):
+            return str(metadata["root_question"])
+        parent_id = metadata.get("parent_investigation_id")
+        if not parent_id:
+            return current.investigation.question
+        try:
+            current = load(parent_id)
+        except Exception:  # missing parent row: the lineage is broken, use what we have
+            return current.investigation.question
+    return current.investigation.question
+
+
+def lifecycle_of(investigation, *, is_branch: bool | None = None) -> str:
+    """saved | queued | researching | stopped | completed | failed. Separate from stop_reason.
+
+    Derived from the stored record so legacy rows (which stored saved branches as
+    ``running``) are reported truthfully.
+    """
+    metadata = investigation.metadata or {}
+    explicit = metadata.get("lifecycle")
+    if explicit in {"failed", "queued"} and investigation.status not in {"stopped"}:
+        return explicit
+    if is_branch is None:
+        is_branch = bool(metadata.get("branch_id") or metadata.get("parent_investigation_id"))
+    if investigation.status == "blocked":
+        return "failed"
+    if investigation.status == "stopped":
+        return "completed" if investigation.stop_reason == "evidence_sufficient" else "stopped"
+    if investigation.status == "created":
+        return "saved"
+    if investigation.usage.search_calls == 0 and is_branch:
+        return "saved"
+    return "researching"
+
+
+def _branch_focus_question(child_id, objective, attached_claims, intervention_type):
+    """An open question that steers the branch's follow-up planning, when one is grounded."""
+    if intervention_type == "continue":
+        return None
+    query, _planned = branch_query(
+        root_question="",
+        objective=objective,
+        attached_claims=attached_claims,
+        intervention_type=intervention_type,
+    )
+    if not query:
+        return None
+    return UnresolvedQuestion(
+        id=stable_id("uq", child_id, "branch_objective"),
+        text=query,
+        importance=0.9,
+        missing_evidence=1.0,
+        kind="branch_objective",
+    )
 
 
 def resume_branch(orchestrator, branch_id: str) -> ExplorationExport:
@@ -457,6 +544,21 @@ def knowledge_graph(
                 )
             )
     confirmed_keys = set()
+    # A later user assertion about the same (subject, predicate, object) is a correction of the
+    # earlier one: keep only the latest per key. All rows stay stored (audit trail).
+    latest: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for assertion in assertions:
+        key = (
+            assertion["subject"].casefold(),
+            assertion["predicate"].casefold(),
+            assertion["object"].casefold(),
+        )
+        latest.pop(key, None)
+        latest[key] = assertion
+    superseded = len(assertions) - len(latest)
+    if superseded:
+        notes.append(f"{superseded} earlier assertion(s) were superseded by a later correction and are not shown.")
+    assertions = list(latest.values())
     for assertion in assertions:
         state = assertion["epistemic_state"]
         confirmed = assertion["basis"] == "user_confirmation"

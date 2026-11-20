@@ -222,7 +222,11 @@ def test_branch_interventions_append_a_new_trace(tmp_path):
         ),
     )
     child_before = orchestrator.get(challenge.child_investigation_id)
-    assert child_before.investigation.question == "Investigate whether energy costs undermine the current conclusion"
+    # The child keeps the parent's research question; the objective is stored separately.
+    assert child_before.investigation.question == parent.investigation.question
+    assert child_before.investigation.metadata["objective"] == "Investigate whether energy costs undermine the current conclusion"
+    assert child_before.investigation.status == "created"
+    assert child_before.investigation.metadata["lifecycle"] == "saved"
     assert parent.investigation.question == orchestrator.get(parent_id).investigation.question
     assert [claim.id for claim in orchestrator.get(parent_id).claims] == parent_claims
     inherited = build_trace(orchestrator.database, challenge.child_investigation_id)
@@ -237,7 +241,8 @@ def test_branch_interventions_append_a_new_trace(tmp_path):
     assert after_parent == before
     assert orchestrator.database.search_queries(parent_id) == [row for row in orchestrator.database.search_queries(parent_id)]
     child = build_trace(orchestrator.database, challenge.child_investigation_id)
-    assert child.question == "Investigate whether energy costs undermine the current conclusion"
+    assert child.question == parent.investigation.question
+    assert child.branch_objective == "Investigate whether energy costs undermine the current conclusion"
     assert child.parent_investigation_id == parent_id
     assert fake.queries == ["Investigate whether energy costs undermine the current conclusion"]
     searches = [node for node in child.nodes if node.type == "search"]

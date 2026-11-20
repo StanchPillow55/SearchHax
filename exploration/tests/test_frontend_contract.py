@@ -117,7 +117,7 @@ def test_saving_a_branch_through_the_api_leaves_the_parent_unchanged(tmp_path):
     checkpoint = before["checkpoints"][-1]["id"]
     response = client.post(
         f"/api/exploration/investigations/{inv_id}/branches",
-        json={"from_checkpoint_id": checkpoint, "objective": "Challenge the amount", "intervention_type": "challenge_evidence", "constraints": {"max_searches": 1}},
+        json={"from_checkpoint_id": checkpoint, "objective": "Challenge the $400 million Series D amount", "intervention_type": "challenge_evidence", "constraints": {"max_searches": 1}},
     )
     assert response.status_code == 200
     branch = response.json()
@@ -131,7 +131,16 @@ def test_saving_a_branch_through_the_api_leaves_the_parent_unchanged(tmp_path):
     assert row["parent_investigation_id"] == inv_id
     assert row["intervention_type"] == "challenge_evidence"
     assert row["from_checkpoint_id"] == checkpoint
-    assert row["status"] in {"created", "stopped", "running", "blocked"}
+    assert row["status"] == "created"
+    assert row["lifecycle"] == "saved"
+    assert row["root_question"] == before["investigation"]["question"]
+    assert row["question"] == before["investigation"]["question"]
+    vague = client.post(
+        f"/api/exploration/investigations/{inv_id}/branches",
+        json={"from_checkpoint_id": checkpoint, "objective": "Is this true?", "intervention_type": "challenge_evidence"},
+    )
+    assert vague.status_code == 422
+    assert "not specific enough" in vague.text
     unknown = client.post(
         f"/api/exploration/investigations/{inv_id}/branches",
         json={"from_checkpoint_id": "cp_missing", "intervention_type": "fork"},

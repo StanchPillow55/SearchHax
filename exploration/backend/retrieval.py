@@ -199,6 +199,7 @@ class RetrievalClient:
         fetched = self._fetch_missing(missing, active_session)
         by_url = {normalize_url(page.url): page for page in fetched}
         by_url.update({page.canonical_url: page for page in fetched})
+        empty = 0
         for index, url in zip(missing_at, missing, strict=True):
             page = by_url.get(normalize_url(url))
             if page is None:
@@ -213,7 +214,17 @@ class RetrievalClient:
             if page.content and not page.content_hash:
                 page.content_hash = content_hash(page.content)
             self._write_json(self._fetch_path(page.canonical_url), page.model_dump(mode="json"))
+            requested = normalize_url(url)
+            if requested != page.canonical_url:
+                # Also cache under the requested URL so a later fetch of the
+                # same search hit is served from cache.
+                self._write_json(self._fetch_path(requested), page.model_dump(mode="json"))
+            if not page.content.strip():
+                empty += 1
             ordered[index] = page
+        if guard is not None and empty:
+            # A fetch that returned no body does not spend a fetched-URL slot.
+            guard.release_fetch(empty)
         return [page for page in ordered if page is not None]
 
     def cached_fetch(self, url: str) -> FetchedPage | None:
@@ -428,6 +439,7 @@ def _pages_from_mapping(payload: Any) -> list[FetchedPage]:
                 status=str(row.get("status") or ""),
                 provider=str(row.get("provider") or "telem"),
                 error=str(row.get("error")) if row.get("error") else None,
+                publish_date=str(row.get("publish_date")) if row.get("publish_date") else None,
             )
         )
     return pages
@@ -517,9 +529,19 @@ def _sdk_fetch(urls: list[str], *, session_id: str | None, timeout: float) -> li
                 status=result.status or "",
                 provider=result.provider or "telem",
                 error=json.dumps(result.error) if result.error else None,
+                publish_date=_sdk_publish_date(result),
             )
         )
     return pages
+
+
+def _sdk_publish_date(result: Any) -> str | None:
+    value = getattr(result, "publish_date", None)
+    if not value:
+        metadata = getattr(result, "provider_metadata", None)
+        if isinstance(metadata, dict):
+            value = metadata.get("publish_date") or metadata.get("published_date")
+    return str(value) if value else None
 
 
 def _telem_client(timeout: float):
